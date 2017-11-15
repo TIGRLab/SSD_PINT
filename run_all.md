@@ -57,6 +57,82 @@ parallel "echo ciftify_subject_fmri \
   REST_01" ::: ${subject_list} |
   qbatch --walltime 1:00:00 -c 1 -j 1 --ppj 6 -N  cfyfmri_ZHH -
 ```
+
+## 2017-11-15 Need to rerun ciftify_subject_fmri for COBRE and CAMH samples
+
+```sh
+module load /KIMEL/quarantine/modules/quarantine
+module load Freesurfer/6.0.0
+module load FSL/5.0.9-ewd
+module load connectome-workbench/1.2.3
+module load python/3.6_ciftify_01
+module load GNU_PARALLEL/20170122
+
+HCP_DATA=/KIMEL/tigrlab/scratch/edickie/saba_PINT/data/SPINS/hcp/
+fmri_basedir=/KIMEL/tigrlab/archive/data-2.0/SPINS/pipelines/fmri/rest
+
+subject_list=`cd ${HCP_DATA}; ls -1d SPN01_CMH*`
+
+cd $HCP_DATA
+
+parallel "echo ciftify_subject_fmri \
+  --SmoothingFWHM 8 \
+  --hcp-data-dir ${HCP_DATA} \
+  ${fmri_basedir}/{}/*_lowpass.nii.gz \
+  {} \
+  REST_01" ::: ${subject_list} |
+  qbatch --walltime 1:00:00 -c 1 -j 1 --ppj 7 -N  cfyfmri_SPINS -
+```
+
+```sh
+module load /KIMEL/quarantine/modules/quarantine
+module load Freesurfer/6.0.0
+module load FSL/5.0.9-ewd
+module load connectome-workbench/1.2.3
+module load python/3.6_ciftify_01
+module load GNU_PARALLEL/20170122
+
+HCP_DATA=/KIMEL/tigrlab/scratch/edickie/saba_PINT/data/ASDD/hcp/
+fmri_basedir=/KIMEL/tigrlab/archive/data-2.0/ASDD/pipelines/fmri/rest
+
+subject_list=`cd ${HCP_DATA}; ls -1d ASDD_CMH*`
+
+cd $HCP_DATA
+
+parallel "echo ciftify_subject_fmri \
+  --SmoothingFWHM 8 \
+  --hcp-data-dir ${HCP_DATA} \
+  ${fmri_basedir}/{}/*_lowpass.nii.gz \
+  {} \
+  REST_01" ::: ${subject_list} |
+  qbatch --walltime 1:00:00 -c 1 -j 1 --ppj 7 -N  cfyfmri_ASDD -
+```
+
+```sh
+module load /KIMEL/quarantine/modules/quarantine
+module load Freesurfer/6.0.0
+module load FSL/5.0.9-ewd
+module load connectome-workbench/1.2.3
+module load python/3.6_ciftify_01
+module load GNU_PARALLEL/20170122
+
+HCP_DATA=/KIMEL/tigrlab/scratch/edickie/saba_PINT/data/RTMSWM/hcp/
+fmri_basedir=/KIMEL/tigrlab/archive/data-2.0/RTMSWM/pipelines/fmri/rest
+
+subject_list=`cd ${HCP_DATA}; ls -1d RTMSWM_CMH*`
+
+cd $HCP_DATA
+
+parallel "echo ciftify_subject_fmri \
+  --SmoothingFWHM 8 \
+  --hcp-data-dir ${HCP_DATA} \
+  ${fmri_basedir}/{}/*_lowpass.nii.gz \
+  {} \
+  REST_01" ::: ${subject_list} |
+  qbatch --walltime 1:00:00 -c 1 -j 1 --ppj 7 -N  cfyfmri_RTMSWM -
+```
+
+################################ this is the old stuff.. ##################
 ls: cannot access 'EXP_21456_SESS01/MNINonLinear/Results/REST_01/REST_01_Atlas_s8.dtseries.nii': No such file or directory
 ls: cannot access 'EXP_21457_SESS01/MNINonLinear/Results/REST_01/REST_01_Atlas_s8.dtseries.nii': No such file or directory
 ls: cannot access 'EXP_21486_SESS01/MNINonLinear/Results/REST_01/REST_01_Atlas_s8.dtseries.nii': No such file or directory
