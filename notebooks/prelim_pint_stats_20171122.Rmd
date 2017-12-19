@@ -1,0 +1,217 @@
+---
+title: "Prelim PINT stats"
+output: html_notebook
+---
+
+Going to Start Loading saba's PINT data
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(readr)
+library(broom)
+library(igraph)
+library(stringr)
+library(tibble)
+library(purrr)
+```
+
+
+The phenotypic file is copied from saba's folder
+
+```{r}
+pint_outputs <- '../data/PINT_pcorr6-6-12_CMH_20171116/'
+subcortical_outputs_dir <- '../data/subcortical_ts/'
+pheno <- read_csv("../phenotypic/NEWallSubjects_completeData3_DM_not_sexmatched.csv",
+                  col_types = c(
+                    X1 = col_integer(),
+                    name = col_character(),
+                    subid = col_character(),
+                    DX_GROUP = col_integer(),
+                    mean_fd = col_double(),
+                    age = col_integer(),
+                    sex.x = col_integer(),
+                    educationCode = col_double(),
+                    site = col_integer(),
+                    sex.y = col_integer(),
+                    X.bad_fd = col_double(),
+                    global_corr = col_double(),
+                    mean_snfr = col_double()
+                  ))
+
+
+Yeo7_2011_80verts <- read_csv("~/code/ciftify/ciftify/data/PINT/Yeo7_2011_80verts.csv")
+```
+Reading in all the timeseries..
+
+```{r}
+pint_outputlist <- data.frame("filepath" = list.files(pint_outputs, 
+                                                      recursive = T,
+                                                      pattern = "_summary.csv")) %>%
+  separate(filepath, into = c("subid", "summary_file"), sep = '/')
+```
+
+```{r}
+subcort_outputlist <- data.frame("subid" = list.files(subcortical_outputs_dir, 
+                                                      recursive = F))
+
+pint_outputlist <- inner_join(pint_outputlist, subcort_outputlist, by = "subid")
+```
+
+```{r}
+#' reads and the mean time series file
+#'
+#' @param meants_filepath the full path to the mean timeseries file
+#' @return the meants data as data.frame
+read_meants_csv <- function(meants_filepath) {
+meants <- read_csv(meants_filepath, 
+                   col_names = FALSE,
+                   col_types = cols(.default = col_double()))
+return(meants)
+}
+
+#' determines the filepath for a pint generated meants output and loads the data
+#'
+#' @param subid the subject id prefix for the pint output
+#' @param vertex_type ivertex or tvertex
+#' @param pint_outputs_dir the path to the pint outputs
+#' 
+#' @return a data.frame of the meants outputs
+read_pint_meants <- function(subid, vertex_type, pint_outputs_dir) {
+  pint_meants <- read_meants_csv(file.path(pint_outputs_dir,
+                                           subid, 
+                                           str_c(subid, '_', vertex_type, '_meants.csv')))
+  return(pint_meants)
+}
+
+# a tibble table to specify the subcortical meants files that were generated
+subcortical_files <- tribble(
+  ~file_prefix, ~name,
+  "Thalamus_corrected", "Thalamus", 
+  "Striatum_network_1", "Striatum_VI",
+"Striatum_network_2", "Striatum_SM",
+"Striatum_network_3", "Striatum_DA",
+"Striatum_network_4", "Striatum_VA",
+"Striatum_network_5", "Striatum_Limbic",
+"Striatum_network_6", "Striatum_FP",
+"Striatum_network_7", "Striatum_DM")
+
+#' reads in the subcortical data for one subject specified in the subcortical template
+#'
+#' @param subid the subject id prefix for the output
+#' @param subcortical_outputs_dir the base output directory for the subcortical ts data
+#' @param subcortical_template a dataframe with a 'file_prefix' column decscribing the subcortical regions
+#' @param smoothing the amount of smoothing on the origianl dtseries (defaults to 0)
+#'
+#' @return the cpmcatenated mean timeseries data as a dataframe
+read_subcortical_meants <- function(subid, subcortical_outputs_dir, 
+                                    subcortical_template = subcortical_files,
+                                    smoothing = 's0') {
+  subcort_meants <- subcortical_template %>%
+    mutate(filepath = str_c(subcortical_outputs_dir,subid, '/', 
+                            subid, '_', smoothing, '_', file_prefix, '.nii_meants.csv'),
+           thedata = map(filepath, ~read_meants_csv(.x))) %>%
+    select(thedata) %>%
+    unnest() 
+  return(subcort_meants)
+}
+```
+
+```{r}
+subid <- pint_outputlist$subid[1]
+
+# read in data for one subject
+subject_subcort_corrs <- function(subid, pint_outputs, subcortical_outputs_dir,
+                                  Yeo7_2011_80verts, subcortical_files) {
+  
+ivertex_meants <- read_pint_meants(subid, 'ivertex', pint_outputs)
+tvertex_meants <- read_pint_meants(subid, 'tvertex', pint_outputs)
+subcort_meants <- read_subcortical_meants(subid, subcortical_outputs_dir, subcortical_template = subcortical_files) 
+
+ivertex_subcortcorr <- as.data.frame(cor(t(subcort_meants), t(ivertex_meants)))
+names(ivertex_subcortcorr) <- Yeo7_2011_80verts$SHORTNAME
+ivertex_result <- ivertex_subcortcorr %>%
+  mutate(subcort_ROI = subcortical_files$name) %>%
+  gather(PINT_ROI, ivertex_corr, -subcort_ROI)
+
+tvertex_subcortcorr <- as.data.frame(cor(t(subcort_meants), t(tvertex_meants)))
+names(tvertex_subcortcorr) <- Yeo7_2011_80verts$SHORTNAME
+tvertex_result <- tvertex_subcortcorr %>%
+  mutate(subcort_ROI = subcortical_files$name) %>%
+  gather(PINT_ROI, tvertex_corr, -subcort_ROI)
+
+subresult <- ivertex_result %>%
+  inner_join(tvertex_result, by = c("PINT_ROI", "subcort_ROI"))
+return(subresult)
+}
+
+```
+
+```{r}
+
+run_read_subject_subcort_corrs <- function(subid) {
+  df <-subject_subcort_corrs(subid, pint_outputs, subcortical_outputs_dir,
+                                  Yeo7_2011_80verts, subcortical_files)
+  return(df)
+}
+
+all_subcort_results <- pint_outputlist %>%
+  mutate(subcort_corrs = map(subid, ~run_read_subject_subcort_corrs(.x)))
+```
+
+```{r}
+results_pheno <- all_subcort_results %>%
+  inner_join(pheno, by = c("subid" = "name")) %>%
+  unnest()
+```
+
+```{r}
+table1 <- results_pheno %>%
+  mutate(corr_diff = ivertex_corr - tvertex_corr) %>%
+  gather(corr_type, rval, ivertex_corr, tvertex_corr, corr_diff) %>%
+  group_by(corr_type, PINT_ROI, subcort_ROI) %>%
+  summarise(n = n(),
+            mean = mean(rval),
+            sd = sd(rval)) %>%
+  
+
+library(knitr)
+kable(table1 %>% arrange(mean))
+```
+```{r}
+library(stringr)
+table2 <- results_pheno %>%
+  mutate(corr_diff = ivertex_corr - tvertex_corr,
+         YeoNet = str_sub(PINT_ROI, 1,2)) %>%
+  gather(corr_type, rval, ivertex_corr, tvertex_corr, corr_diff) %>%
+  group_by(corr_type, YeoNet, subcort_ROI) %>%
+  summarise(n = n(),
+            Mean = mean(rval),
+            SD = sd(rval)) 
+  
+
+
+kable(table2)
+```
+
+```{r}
+library(stringr)
+net_means <- results_pheno %>%
+  mutate(corr_diff = ivertex_corr - tvertex_corr,
+         YeoNet = str_sub(PINT_ROI, 1,2)) %>%
+  group_by(YeoNet, subcort_ROI, subid) %>%
+  summarise(netmean_ivertex = mean(ivertex_corr),
+            netmean_tvertex = mean(tvertex_corr)) %>%
+  ungroup() %>%
+  group_by(YeoNet, subcort_ROI) %>%
+  do(tidy(t.test(.$netmean_ivertex, .$netmean_tvertex, paired = TRUE)))
+  
+
+
+kable(net_means %>% arrange(p.value))
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
