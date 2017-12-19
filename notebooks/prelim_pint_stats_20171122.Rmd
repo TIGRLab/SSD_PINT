@@ -21,9 +21,27 @@ library(purrr)
 The phenotypic file is copied from saba's folder
 
 ```{r}
-pint_outputs <- '../data/PINT_pcorr6-6-12_CMH_20171116/'
+pint_outputs <- '../data/PINT_outputs_s8_6-6-12/'
 subcortical_outputs_dir <- '../data/subcortical_ts/'
-pheno <- read_csv("../phenotypic/NEWallSubjects_completeData3_DM_not_sexmatched.csv",
+
+Yeo7_2011_80verts <- read_csv("~/code/ciftify/ciftify/data/PINT/Yeo7_2011_80verts.csv",
+                              col_types = c(
+                                hemi = col_character(),
+                                tvertex = col_integer(),
+                                LRpairs = col_integer(),
+                                roiidx = col_integer(),
+                                NETWORK = col_integer(),
+                                LOBE = col_character(),
+                                SHORTNAME = col_character(),
+                                x = col_integer(),
+                                y = col_integer(),
+                                z = col_integer()
+                              ))
+```
+# read and mangle the phenotypic data
+
+```{r}
+pheno_raw <- read_csv("../phenotypic/NEWallSubjects_completeData3_DM_not_sexmatched.csv",
                   col_types = c(
                     X1 = col_integer(),
                     name = col_character(),
@@ -40,8 +58,12 @@ pheno <- read_csv("../phenotypic/NEWallSubjects_completeData3_DM_not_sexmatched.
                     mean_snfr = col_double()
                   ))
 
-
-Yeo7_2011_80verts <- read_csv("~/code/ciftify/ciftify/data/PINT/Yeo7_2011_80verts.csv")
+pheno <- pheno_raw %>%
+  mutate(Site = factor(site, levels = c(1,2,3),
+                       labels = c("CMH","ZHH","COBRE")) ,
+         DX = factor(DX_GROUP, level = c(1,2), labels = c('SSD', 'Ctrl')),
+         MRid = if_else(Site == "ZHH", str_c('EXP_',subid, "_SESS01"), subid))
+  
 ```
 Reading in all the timeseries..
 
@@ -60,31 +82,6 @@ pint_outputlist <- inner_join(pint_outputlist, subcort_outputlist, by = "subid")
 ```
 
 ```{r}
-#' reads and the mean time series file
-#'
-#' @param meants_filepath the full path to the mean timeseries file
-#' @return the meants data as data.frame
-read_meants_csv <- function(meants_filepath) {
-meants <- read_csv(meants_filepath, 
-                   col_names = FALSE,
-                   col_types = cols(.default = col_double()))
-return(meants)
-}
-
-#' determines the filepath for a pint generated meants output and loads the data
-#'
-#' @param subid the subject id prefix for the pint output
-#' @param vertex_type ivertex or tvertex
-#' @param pint_outputs_dir the path to the pint outputs
-#' 
-#' @return a data.frame of the meants outputs
-read_pint_meants <- function(subid, vertex_type, pint_outputs_dir) {
-  pint_meants <- read_meants_csv(file.path(pint_outputs_dir,
-                                           subid, 
-                                           str_c(subid, '_', vertex_type, '_meants.csv')))
-  return(pint_meants)
-}
-
 # a tibble table to specify the subcortical meants files that were generated
 subcortical_files <- tribble(
   ~file_prefix, ~name,
@@ -148,6 +145,8 @@ return(subresult)
 
 ```
 
+## This reads all the subcortical files it can find
+
 ```{r}
 
 run_read_subject_subcort_corrs <- function(subid) {
@@ -160,9 +159,12 @@ all_subcort_results <- pint_outputlist %>%
   mutate(subcort_corrs = map(subid, ~run_read_subject_subcort_corrs(.x)))
 ```
 
+## process and merge with the phenotypic data
+
+
 ```{r}
 results_pheno <- all_subcort_results %>%
-  inner_join(pheno, by = c("subid" = "name")) %>%
+  inner_join(pheno, by = c("subid" = "MRid")) %>%
   unnest()
 ```
 
@@ -172,15 +174,14 @@ table1 <- results_pheno %>%
   gather(corr_type, rval, ivertex_corr, tvertex_corr, corr_diff) %>%
   group_by(corr_type, PINT_ROI, subcort_ROI) %>%
   summarise(n = n(),
-            mean = mean(rval),
-            sd = sd(rval)) %>%
+            Mean = mean(rval),
+            SD = sd(rval)) 
   
 
-library(knitr)
-kable(table1 %>% arrange(mean))
+
+knitr::kable(table1 %>% arrange(Mean))
 ```
 ```{r}
-library(stringr)
 table2 <- results_pheno %>%
   mutate(corr_diff = ivertex_corr - tvertex_corr,
          YeoNet = str_sub(PINT_ROI, 1,2)) %>%
@@ -192,7 +193,7 @@ table2 <- results_pheno %>%
   
 
 
-kable(table2)
+knitr::kable(table2)
 ```
 
 ```{r}
@@ -209,7 +210,23 @@ net_means <- results_pheno %>%
   
 
 
-kable(net_means %>% arrange(p.value))
+knitr::kable(net_means %>% arrange(p.value))
+```
+
+```{r}
+net_means_byDX <- results_pheno %>%
+  mutate(corr_diff = ivertex_corr - tvertex_corr,
+         YeoNet = str_sub(PINT_ROI, 1,2)) %>%
+  group_by(YeoNet, subcort_ROI, subid, DX) %>%
+  summarise(netmean_ivertex = mean(ivertex_corr),
+            netmean_tvertex = mean(tvertex_corr)) %>%
+  ungroup() %>%
+  group_by(YeoNet, subcort_ROI, DX) %>%
+  do(tidy(t.test(.$netmean_ivertex, .$netmean_tvertex, paired = TRUE)))
+  
+
+
+knitr::kable(net_means_byDX %>% arrange(p.value))
 ```
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
