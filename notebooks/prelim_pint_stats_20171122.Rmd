@@ -6,7 +6,7 @@ output: html_notebook
 Going to Start Loading saba's PINT data
 
 
-```{r}
+```{r message=FALSE}
 library(dplyr)
 library(tidyr)
 library(readr)
@@ -15,6 +15,7 @@ library(igraph)
 library(stringr)
 library(tibble)
 library(purrr)
+library(ggplot2)
 ```
 
 
@@ -228,6 +229,39 @@ net_means_byDX <- results_pheno %>%
 
 knitr::kable(net_means_byDX %>% arrange(p.value))
 ```
+```{r}
+ggplot(net_means_byDX, aes(x = YeoNet, y=subcort_ROI, fill = statistic)) +
+  geom_tile(color = "black") +
+  scale_fill_gradient2() +
+  facet_wrap(~ DX)
+```
+```{r}
+results_pheno %>%
+  mutate(corr_diff = ivertex_corr - tvertex_corr,
+         YeoNet = str_sub(PINT_ROI, 1,2)) %>%
+  group_by(YeoNet, subcort_ROI, subid, DX, age) %>%
+  summarise(netmean_ivertex = mean(ivertex_corr),
+            netmean_tvertex = mean(tvertex_corr)) %>%
+  filter(age > 17, age < 51) %>%
+  ggplot(aes(x = YeoNet, y=subcort_ROI, fill = netmean_ivertex)) +
+  geom_tile(color = "black") +
+  scale_fill_gradient2(breaks = c(-0.5,0.5)) +
+  facet_wrap(~ DX)
+```
+```{r}
+results_pheno %>%
+  mutate(corr_diff = ivertex_corr - tvertex_corr,
+         YeoNet = str_sub(PINT_ROI, 1,2)) %>%
+  group_by(YeoNet, subcort_ROI, subid, DX, age) %>%
+  summarise(netmean_ivertex = mean(ivertex_corr),
+            netmean_tvertex = mean(tvertex_corr)) %>%
+  filter(age > 17, age < 51) %>%
+  ggplot(aes(x = YeoNet, y=subcort_ROI, fill = netmean_tvertex)) +
+  geom_tile(color = "black") +
+  scale_fill_gradient2(breaks = c(-0.5,0.5)) +
+  facet_wrap(~ DX)
+```
+
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
 
