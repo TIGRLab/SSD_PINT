@@ -1,13 +1,12 @@
 Why are the following missing?
 
-
-A00013816
-A00014839
-A00016197
-A00016723
-A00021598
-A00037649
-DTI_CMH_H036_02
+A00021598: Run one and two do exist - just late
+A00013816: Too many TRs to remove, using drop method!
+A00016723 Too many TRs to remove, using drop method!
+A00037649: Too many TRs to remove, using drop method!
+A00014839: check anat and rerun
+A00016197: same problem as above
+DTI_CMH_H036_02:
 DTI_CMH_H163_01
 DTI_CMH_H166_01
 DTI_CMH_H167_01
@@ -25,4 +24,3 @@ SPN01_CMH_0047_01
 SPN01_CMH_0054_01
 SPN01_CMH_0055_01
 SPN01_CMH_0065_01
-

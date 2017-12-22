@@ -255,11 +255,40 @@ results_pheno %>%
   group_by(YeoNet, subcort_ROI, subid, DX, age) %>%
   summarise(netmean_ivertex = mean(ivertex_corr),
             netmean_tvertex = mean(tvertex_corr)) %>%
+  gather(vertex_type, netmean_corZ, netmean_ivertex, netmean_tvertex) %>%
   filter(age > 17, age < 51) %>%
-  ggplot(aes(x = YeoNet, y=subcort_ROI, fill = netmean_tvertex)) +
+  ggplot(aes(x = YeoNet, y=subcort_ROI, fill = netmean_corZ)) +
   geom_tile(color = "black") +
   scale_fill_gradient2(breaks = c(-0.5,0.5)) +
-  facet_wrap(~ DX)
+  facet_wrap(vertex_type ~ DX)
+```
+```{r}
+library(knitr)
+
+DX_lm_model <- results_pheno %>%
+  mutate(corr_diff = ivertex_corr - tvertex_corr,
+         YeoNet = str_sub(PINT_ROI, 1,2)) %>%
+  group_by(YeoNet, subcort_ROI, subid, DX, age, sex.x, Site) %>%
+  summarise(netmean_ivertex = mean(ivertex_corr),
+            netmean_tvertex = mean(tvertex_corr)) %>%
+  gather(vertex_type, netmean_corZ, netmean_ivertex, netmean_tvertex) %>%
+  filter(age > 17, age < 51) %>%
+  group_by(vertex_type, subcort_ROI, YeoNet) %>%
+  do(tidy(lm(netmean_corZ ~ DX + age + sex.x + Site, data = .))) %>%
+  filter(term == "DXCtrl") %>%
+  select(vertex_type, subcort_ROI, YeoNet, statistic, p.value) %>%
+  ungroup() %>%
+  mutate(p_FDR = p.adjust(p.value, method = "fdr"),
+         p_stars = ) %>%
+  arrange(p.value)
+
+kable(DX_lm_model)
+```
+```{r}
+ggplot(DX_lm_model, aes(x = YeoNet, y=subcort_ROI, fill = statistic)) +
+  geom_tile(color = "black") +
+  scale_fill_gradient2(breaks = c(-4.5,-4.5)) +
+  facet_wrap(~ vertex_type)
 ```
 
 
