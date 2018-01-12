@@ -1,0 +1,401 @@
+---
+title: "ABIDEI PINT FC mat stats"
+author: "Erin W Dickie"
+date: "October 14, 2016"
+output: html_document
+---
+
+This is an analysis of the FC Mats
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(broom)
+library(igraph)
+library(corrplot)
+library(effsize)
+library(knitr)
+library(ggplot2)
+
+## Modified by Saba Shahab on November 9, 2016 for SPINS-CMH data.
+
+## set pint_dir to be the pint outputs
+pint_dir <- "../data/PINT_outputs_s8_6-6-12/"
+
+## reading in the qced_sublists csv to get the sublists
+qced_sublists <- read.csv("../phenotypic/NEWallSubjects_completeData3_DM_not_sexmatched.csv")
+
+##load the more descriptive list of the vertices...not we may want to change a few based on these results...
+Yeo7_80verts <- read.csv("~/code/ciftify/ciftify/data/PINT/Yeo7_2011_80verts.csv")
+```
+
+## Some functions we're using
+
+```{r}
+## functions
+read_subject_meants <- function(subid, pint_dir, vertex_type) {
+  meants <- read.csv(file.path(pint_dir,
+                               subid, 
+                               paste(subid, vertex_type, "meants.csv", sep="_")),
+                     header=FALSE)
+  return(meants)
+}
+
+
+load_all_subject_matrices <- function(subids, myedgenames, pint_dir, 
+                                      vertex_type) {
+  ## use these parameters to set up a blank dataframe to hold all the correlations
+  theZs <- as.data.frame(cbind("subid" = subids, 
+                               matrix(numeric(), 
+                                      nrow = length(subids),
+                                      ncol = numedges,
+                                      dimnames = list(1:length(subids),
+                                                      myedgenames))))
+  theZs[ ,2:ncol(theZs)] <- numeric(nrow(theZs)*(ncol(theZs)-1))
+  
+  ## now correlate everyones ts and write the correlations to a massive data frame
+  for (i in 1:nrow(theZs)) {
+    ## get the subid from the dataframe and read in the meants
+    meants <- read_subject_meants(theZs$subid[i], pint_dir, vertex_type)
+    
+    ## correlate and graph
+    cormat <- cor(t(meants))
+    g<-graph_from_adjacency_matrix(cormat,mode="upper", 
+                                   weighted=T, diag=F)
+    # take the egde list as a vector
+    thecorrs <- E(g)$weight
+    
+    # apply the Z transform (so we can do stats)
+    theseZ <- atanh(thecorrs) 
+    
+    # save the output to the data.frame
+    theZs[i,2:ncol(theZs)] <- theseZ
+  }
+  return(theZs)
+}
+
+make_corrplot <-function(data, attrtoplot, graph_title) {
+  forplot <- as.data.frame(data) 
+  forplot <- forplot %>% separate(Edge, into = c("V1", "V2"), sep = '\\.')
+  g <- graph_from_data_frame(forplot, directed=F)
+  g.mat <- get.adjacency(g, attr=attrtoplot)
+  corrplot(as.matrix(g.mat), 
+           is.corr = F, tl.cex = 0.3, tl.col = "black",
+           title = graph_title)
+}
+
+#new circle graph function
+radian.rescale <- function(x, start=0, direction=1) {
+  c.rotate <- function(x) (x + start) %% (2 * pi) * direction
+  c.rotate(scales::rescale(x, c(0, 2 * pi), range(x)))
+}
+
+draw_circle_graph <- function(data, Yeo7_80verts) {
+  CircleOrder <- as.character(Yeo7_80verts$SHORTNAME)
+  CircleOrder <- c(CircleOrder[75:length(CircleOrder)], CircleOrder[1:74])
+  g <- graph.data.frame(data, directed = F)
+  Yeo7_80verts$wnetname <- substr(Yeo7_80verts$SHORTNAME,3,6)
+  Yeo7_80verts$Vhex <- NA
+  Yeo7_80verts$Vhex[Yeo7_80verts$NETWORK==2] <- "#781286"
+  Yeo7_80verts$Vhex[Yeo7_80verts$NETWORK==3] <- "#00760E"
+  Yeo7_80verts$Vhex[Yeo7_80verts$NETWORK==4] <- "#C43AFA"
+  Yeo7_80verts$Vhex[Yeo7_80verts$NETWORK==5] <- "#4682B4"
+  Yeo7_80verts$Vhex[Yeo7_80verts$NETWORK==6] <- "#E69422"
+  Yeo7_80verts$Vhex[Yeo7_80verts$NETWORK==7] <- "#CD3E3A"
+  V(g)$color <- Yeo7_80verts$Vhex
+  g$layout <- layout_in_circle(g,order = CircleOrder)
+  lab.locs <- radian.rescale(x=1:80, direction=-1, start=0)
+  d <-as.matrix(dist(g$layout, method = "euclidean", 
+                     upper = TRUE, diag = TRUE, p = 2))
+  gdist <-graph_from_adjacency_matrix(as.matrix(dist(g$layout, method = "euclidean", 
+                                                     upper = TRUE, diag = TRUE, p = 2)),
+                                      mode="upper", weighted=T, diag=F)
+  dist.df <- cbind(data,E(gdist)$weight)
+  dist.df$scaledD <- (dist.df$`E(gdist)$weight`/(-2)) + 1
+  dist.df$scaleDc <- dist.df$scaledD
+  dist.df$netcombo <- paste(substr(dist.df$V1,1,2), substr(dist.df$V2,1,2),sep =".")
+  switchlist <- c("DA.VI", "DA.SM")
+  dist.df$scaleDc[dist.df$netcombo %in% switchlist] <- dist.df$scaleD[dist.df$netcombo %in% switchlist] * (-1)
+  
+  plot(g, edge.width=E(g)$logp*5, 
+       edge.curved=dist.df$scaleDc, 
+       edge.color = E(g)$posneg,
+       vertex.size = 3.5,
+       vertex.label.family="sans",
+       vertex.label.font=1,
+       vertex.label.cex = 0.5,
+       vertex.label = Yeo7_80verts$wnetname,
+       vertex.label.dist=0.5,
+       vertex.label.degree=lab.locs,
+       vertex.label.color = V(g)$color)
+}
+
+```
+
+### Load the ivertex and tvertex Zs for all subjects
+
+```{r}
+## read in one examplar to get some parameters we want
+meants1 <- read_subject_meants(qced_sublists$subid[1], pint_dir, 'ivertex')
+## sort the meants into the order from the new naming scheme
+names(meants1) <- paste0("TR_",1:ncol(meants1))
+Yeo_meants <- cbind(Yeo7_80verts,meants1)
+
+## correlate and graph from the first one
+cormat <- cor(t(select(Yeo_meants,starts_with("TR_"))))
+rownames(cormat) <- Yeo_meants$SHORTNAME
+colnames(cormat) <- Yeo_meants$SHORTNAME
+g<-graph_from_adjacency_matrix(cormat,mode="upper", 
+                               weighted=T, diag=F, 
+                               add.rownames = "code")
+g.df <- as.data.frame(get.edgelist(g), names=T)
+
+# take the egde list as a vector
+thecorrs <- E(g)$weight
+    
+# apply the Z transform (so we can do stats)
+theseZ <- atanh(thecorrs) 
+
+## get two variables of interest.. edgenames and the number of edges
+myedgenames <- paste(g.df[ ,1],g.df[ ,2],sep=".") ## the V1.V2 name
+numedges <- length(myedgenames)                   ## the number of edges
+
+
+## get all the Z's from ivertex
+theZs_ivertex <- load_all_subject_matrices(as.character(qced_sublists$subid),
+                                           myedgenames, pint_dir, 'ivertex') 
+                                          
+
+## merge all those correlations back with the demographics
+alldemZs_i_m <- merge(qced_sublists,theZs_ivertex,by="subid") %>%
+    gather_("Edge", "FC", myedgenames)
+
+
+## get all the Z's from tvertex
+theZs_tvertex <- load_all_subject_matrices(as.character(qced_sublists$subid),
+                                           myedgenames, pint_dir, 
+                                           'tvertex')
+
+## merge all those correlations back with the demographics
+alldemZs_t_m <- merge(qced_sublists,theZs_tvertex,by="subid")  %>%
+  gather_("Edge", "FC", myedgenames)  
+
+
+```
+
+### Run the ivertex and tvertex models for all subjects
+
+```{r}
+lmres_i <- alldemZs_i_m %>%
+  group_by(Edge) %>%
+  do(tidy(lm(FC ~ DX_GROUP + mean_fd + age + sex.x + educationCode + site + global_corr + mean_snfr,.)))
+
+lmres_i_Dx <- lmres_i %>% 
+  filter(term == "DX_GROUP") 
+
+
+# Run the following three lines only if the code where "lmres_t" is defined gives an error. Rerun the lmres_t code after running these three lines and see if it works.
+alldemZs_t_m$FC[which(!is.finite(alldemZs_t_m$FC))] = NA
+alldemZs_t_m$FC[which(is.nan(alldemZs_t_m$FC))] = NA
+alldemZs_t_m$FC[which(alldemZs_t_m$FC==Inf)] = NA
+
+lmres_t <- alldemZs_t_m %>%
+  group_by(Edge) %>%
+  do(tidy(lm(FC ~ DX_GROUP + mean_fd + age + sex.x + educationCode + site + global_corr + mean_snfr,.)))
+
+lmres_t_Dx <- lmres_t %>% 
+  filter(term == "DX_GROUP") 
+
+DxResults <- merge(lmres_i_Dx, lmres_t_Dx, by = "Edge", suffixes = c(".i",".t")) %>%
+  select(Edge, statistic.i, p.value.i, statistic.t, p.value.t)
+
+DxResults$p.FDR.i <- p.adjust(DxResults$p.value.i, method = "fdr")
+DxResults$p.FDR.t <- p.adjust(DxResults$p.value.t, method = "fdr")
+
+DxResults <- DxResults %>%
+  select(Edge, statistic.t, p.value.t, p.FDR.t, statistic.i, p.value.i, p.FDR.i) 
+  
+  
+#write.csv(separate(DxResults, Edge, into = c("V1","V2"), sep = "\\."),file.path(pint_dir,"FCmat_DX_MeanFDAgeSexEducationSite_Results.csv"), row.names = F)
+
+#rm(lmres_t_Dx, lmres_i_Dx)
+```
+
+
+```{r fig.height=8, fig.width=8}
+
+dx_delta <- DxResults %>%
+  mutate("abstdiff" = abs(statistic.t) - abs(statistic.i),
+         "nets" = paste(substr(Edge, 1,2), substr(Edge,7,8),sep = ".")) 
+
+dx_delta$sigfor <- "neither"
+dx_delta$sigfor[dx_delta$p.value.i < 0.05] <- "i_sig"
+dx_delta$sigfor[dx_delta$p.value.t < 0.05] <- "t_sig"
+dx_delta$sigfor[dx_delta$p.value.t < 0.05 & dx_delta$p.value.i < 0.05] <- "both"
+
+kable((dx_delta  %>% group_by(nets) %>%
+    summarise("mean_tdiff" = mean(abstdiff)) %>%
+    arrange(mean_tdiff)))
+
+```
+
+
+
+```{r}
+
+forgraph_i <- DxResults %>%
+  separate(Edge, into = c("V1","V2"), sep = "\\.") %>%
+  select(V1, V2, ends_with('.i'))
+forgraph_i$posneg <- ifelse(forgraph_i$statistic.i < 0 , 1, 2)
+forgraph_i$logp <- log(forgraph_i$p.value.i)
+forgraph_i$statistic.i[forgraph_i$p.value.i > 0.01] <- 0
+forgraph_i$logp[forgraph_i$p.value.i > 0.01] <- 0
+forgraph_i$posneg[forgraph_i$p.value.i > 0.01] <- NA
+draw_circle_graph(forgraph_i, Yeo7_80verts)
+
+forgraph_t <- DxResults %>%
+  separate(Edge, into = c("V1","V2"), sep = "\\.") %>%
+  select(V1, V2, ends_with('.t'))
+forgraph_t$posneg <- ifelse(forgraph_t$statistic.t < 0 , 1, 2)
+forgraph_t$logp <- log(forgraph_t$p.value.t)
+forgraph_t$statistic.t[forgraph_t$p.value.t > 0.01] <- 0
+forgraph_t$logp[forgraph_t$p.value.t > 0.01] <- 0
+forgraph_t$posneg[forgraph_t$p.value.t > 0.01] <- NA
+draw_circle_graph(forgraph_t, Yeo7_80verts)
+
+# Dividing forgraph into within and between connectivity
+Wthn_net_connectivity_t <- subset(forgraph_t, substr(forgraph_t$V1, 0,2) == substr(forgraph_t$V2, 0,2))
+Btwn_net_connectivity_t <- subset(forgraph_t, substr(forgraph_t$V1, 0,2) != substr(forgraph_t$V2, 0,2))
+Wthn_net_connectivity_i <- subset(forgraph_i, substr(forgraph_i$V1, 0,2) == substr(forgraph_i$V2, 0,2))
+Btwn_net_connectivity_i <- subset(forgraph_i, substr(forgraph_i$V1, 0,2) != substr(forgraph_i$V2, 0,2))
+
+# Counting number of edges that have a p-value <= 0.05
+nrow_wthn_t <- nrow(subset(Wthn_net_connectivity_t, p.value.t <= 0.01))
+nrow_btwn_t <- nrow(subset(Btwn_net_connectivity_t, p.value.t <= 0.01))
+nrow_wthn_i <- nrow(subset(Wthn_net_connectivity_i, p.value.i <= 0.01))
+nrow_btwn_i <- nrow(subset(Btwn_net_connectivity_i, p.value.i <= 0.01))
+
+# Max and min stat for t-vertex - separately for within and between connections
+max_stat_wthn_t <- max(Wthn_net_connectivity_t[Wthn_net_connectivity_t[,"p.value.t"]<=0.05 , "statistic.t"])
+min_stat_wthn_t <- min(Wthn_net_connectivity_t[Wthn_net_connectivity_t[,"p.value.t"]<=0.05 , "statistic.t"])
+max_stat_btwn_t <- max(Btwn_net_connectivity_t[Btwn_net_connectivity_t[,"p.value.t"]<=0.05 , "statistic.t"])
+min_stat_btwn_t <- min(Btwn_net_connectivity_t[Btwn_net_connectivity_t[,"p.value.t"]<=0.05 , "statistic.t"])
+
+# Max and min stat for i-vertex - separately for within and between connections
+max_stat_wthn_i <- max(Wthn_net_connectivity_i[Wthn_net_connectivity_i[,"p.value.i"]<=0.05 , "statistic.i"])
+min_stat_wthn_i <- min(Wthn_net_connectivity_i[Wthn_net_connectivity_i[,"p.value.i"]<=0.05 , "statistic.i"])
+max_stat_btwn_i <- max(Btwn_net_connectivity_i[Btwn_net_connectivity_i[,"p.value.i"]<=0.05 , "statistic.i"])
+min_stat_btwn_i <- min(Btwn_net_connectivity_i[Btwn_net_connectivity_i[,"p.value.i"]<=0.05 , "statistic.i"])
+
+# Looking at the differences in number of edges, min and max t stats between the i-vertex and t-vertex results.
+df$nrow_wthn_diff <- df$nrow_wthn_t - df$nrow_wthn_i
+df$nrow_btwn_diff <- df$nrow_btwn_t - df$nrow_btwn_i
+df$max_stat_wthn_diff <- df$max_stat_wthn_t - df$max_stat_wthn_i
+df$max_stat_btwn_diff <- df$max_stat_btwn_t - df$max_stat_btwn_i
+df$min_stat_wthn_diff <- df$min_stat_wthn_t - df$min_stat_wthn_i
+df$min_stat_btwn_diff <- df$min_stat_btwn_t - df$min_stat_btwn_i
+
+```
+
+### New stuff for graph theory - 30 July 2017
+
+```{r}
+
+# New stuff for graph theory - 30 July 2017
+
+## merge all those correlations back with the demographics
+alldemZs_i_m <- merge(qced_sublists,theZs_ivertex,by="subid")
+alldemZs_t_m <- merge(qced_sublists,theZs_tvertex,by="subid")
+
+
+# Averaging z-scores for each diagnostic group for the i vertices
+aggregate_all_i <- aggregate(alldemZs_i_m[, 14:3173], list(alldemZs_i_m$DX_GROUP), mean)
+
+# Subsetting into patients and controls so I can make separate adjacency matrices
+aggregate_all_i_SCZ <- aggregate_all_i[1,2:3161]
+aggregate_all_i_HC <- aggregate_all_i[2,2:3161]
+
+# Averaging z-scores for each diagnostic group for the t vertices
+aggregate_all_t <- aggregate(alldemZs_t_m[, 14:3173], list(alldemZs_t_m$DX_GROUP), mean)
+
+# Subsetting into patients and controls so I can make separate adjacency matrices
+aggregate_all_t_SCZ <- aggregate_all_t[1,2:3161]
+aggregate_all_t_HC <- aggregate_all_t[2,2:3161]
+
+## Thresholding the values here
+# aggregate_all_i_SCZ[aggregate_all_i_SCZ < 0.60] <- 0
+
+# Creating an iGraph - will change weights to represent different diagnostic groups 
+g<-graph_from_adjacency_matrix(cormat,mode="upper", 
+                               weighted=T, diag=F, 
+                               add.rownames = "code")
+
+# Color coding the networks
+V(g)$color <- ifelse(substr(V(g)$name, 0,2) == "DM", "#CD3E3A", (ifelse(substr(V(g)$name, 0,2) == "EX", "#E69422", (ifelse(substr(V(g)$name, 0,2) == "SA", "#C43AFA", (ifelse(substr(V(g)$name, 0,2) == "VI", "#781286", (ifelse(substr(V(g)$name, 0,2) == "DA", "#00760E", "#4682B4")))))))))
+
+# Creating labels for the vertices - just the lobe and the hemisphere as the network is color-coded
+V(g)$label_name <- substr(V(g)$name, 3,5)
+
+# Creating adjacency matrices for i vertices
+aggregate_all_i_SCZ_data <- as.matrix(aggregate_all_i_SCZ)
+aggregate_all_i_SCZ_data <- as.vector(aggregate_all_i_SCZ_data)
+E(g)$weight <- aggregate_all_i_SCZ_data
+SCZ_i_vertex <- get.adjacency(g, type="both", attr="weight", sparse=FALSE)
+
+aggregate_all_i_HC_data <- as.matrix(aggregate_all_i_HC)
+aggregate_all_i_HC_data <- as.vector(aggregate_all_i_HC_data)
+E(g)$weight <- aggregate_all_i_HC_data
+HC_i_vertex <- get.adjacency(g, type="both", attr="weight", sparse=FALSE)
+
+# Creating adjacency matrices for t vertices
+aggregate_all_t_SCZ_data <- as.matrix(aggregate_all_t_SCZ)
+aggregate_all_t_SCZ_data <- as.vector(aggregate_all_t_SCZ_data)
+E(g)$weight <- aggregate_all_t_SCZ_data
+SCZ_t_vertex <- get.adjacency(g, type="both", attr="weight", sparse=FALSE)
+
+aggregate_all_t_HC_data <- as.matrix(aggregate_all_t_HC)
+aggregate_all_t_HC_data <- as.vector(aggregate_all_t_HC_data)
+E(g)$weight <- aggregate_all_t_HC_data
+HC_t_vertex <- get.adjacency(g, type="both", attr="weight", sparse=FALSE)
+
+# Writing the adjacency matrices to use in MATLAB
+write.csv(SCZ_i_vertex, "/projects/saba/HCP_fMRI_SCZ/new_analyses_20170412/FC_analyses/Graph_Theory/SCZ_i_vertex.csv")
+write.csv(HC_i_vertex, "/projects/saba/HCP_fMRI_SCZ/new_analyses_20170412/FC_analyses/Graph_Theory/HC_i_vertex.csv")
+write.csv(SCZ_t_vertex, "/projects/saba/HCP_fMRI_SCZ/new_analyses_20170412/FC_analyses/Graph_Theory/SCZ_t_vertex.csv")
+write.csv(HC_t_vertex, "/projects/saba/HCP_fMRI_SCZ/new_analyses_20170412/FC_analyses/Graph_Theory/HC_t_vertex.csv")
+
+
+#plot.igraph(g,vertex.label=V(g)$name,layout=layout.fruchterman.reingold, edge.color="black",edge.width=E(g)$weight)
+
+hist(aggregate_all_i_SCZ_data, main="SCZ: i-vertex", xlab = "z-scores", xlim=c(-0.5, 3.0))
+hist(aggregate_all_i_HC_data, main="HC: i-vertex", xlab = "z-scores", xlim=c(-0.5, 3.0))
+hist(aggregate_all_t_SCZ_data, main="SCZ: t-vertex", xlab = "z-scores", xlim=c(-0.5, 3.0))
+hist(aggregate_all_t_HC_data, main="HC: t-vertex", xlab = "z-scores", xlim=c(-0.5, 3.0))
+
+
+# Reassigning weights to the igraph
+E(g)$weight <- aggregate_all_i_SCZ_data
+E(g)$weight <- aggregate_all_i_HC_data
+E(g)$weight <- aggregate_all_t_SCZ_data
+E(g)$weight <- aggregate_all_t_HC_data
+
+# Using 0.65 for i-vertex, and 0.35 for t-vertex
+# Using 0.2 for i-vertex, and 0.19 for t-vertex
+
+g_few=delete.edges(g, which(E(g)$weight <=0.20))
+plot(g_few, vertex.label=V(g_few)$label_name)
+
+g_few_vert=delete.vertices(g_few,which(degree(g_few)<15))
+plot(g_few_vert, vertex.label=V(g_few_vert)$label_name)
+sum(degree(g_few))
+degree(g_few)
+betweenness(g_few_vert)
+degree(g_few_vert)
+
+# Ratio of the number of edges and the number of possible edges
+edge_density(g_few)
+
+## rm the extra object in memory
+#rm(cormat, meants1, theZs_tvertex, theZs_ivertex, Yeo_meants, g)
+```
+
