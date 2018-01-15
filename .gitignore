@@ -3,5 +3,5 @@
 .RData
 .Ruserdata
 /data
-/notebooks/.nb.html
+/notebooks/*.nb.html
 /deprecated
