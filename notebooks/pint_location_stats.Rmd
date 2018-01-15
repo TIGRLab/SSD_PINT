@@ -1,6 +1,8 @@
 ---
 title: "SZ Location Stats"
-output: html_notebook
+output:
+  pdf_document: default
+  html_notebook: default
 ---
 
 
@@ -30,7 +32,9 @@ pheno <- patient_info %>%
                        labels = c("CMH","ZHH","COBRE")) ,
          DX = factor(DX_GROUP, level = c(1,2), labels = c('SSD', 'Ctrl')),
          Sex = factor(sex.x),
-         MRid = if_else(Site == "ZHH", str_c('EXP_',subid, "_SESS01"), subid))
+         Edu = if_else(is.na(educationCode), 
+                       true = mean(educationCode, na.rm = F), 
+                       false = educationCode))
 
 # Concatenate PINT output and demographics
 concatenated_subject_list <- merge(qced_sublist, patient_info, by = "subid")
@@ -47,11 +51,11 @@ dist_by_network <- qced_sublist %>%
   group_by(subid, NETWORK) %>%
   summarise(MeanDistance = mean(std_distance)) %>%
   ungroup() %>%
-  inner_join(pheno, by = c("subid" = "MRid"))  
+  inner_join(pheno, by = "subid")  
 
 dist_by_network %>%
   ungroup() %>% group_by(NETWORK) %>%
-  do(tidy(lm(MeanDistance ~ DX*Sex*age + Site + educationCode + mean_fd, .))) %>%
+  do(tidy(lm(MeanDistance ~ DX*Sex + mean_fd + age + Edu + Site,.))) %>%
   mutate(p_bonf = p.value*6) %>%
   knitr::kable()
 ```
@@ -72,11 +76,11 @@ dist_by_network <- qced_sublist %>%
   group_by(subid, roiidx) %>%
   summarise(MeanDistance = mean(std_distance)) %>%
   ungroup() %>%
- inner_join(pheno, by = c("subid" = "MRid"))  
+ inner_join(pheno, by = "subid")  
 
 dist_by_network %>%
   ungroup() %>% group_by(roiidx) %>%
-  do(tidy(lm(MeanDistance ~ DX*Sex*age + Site + educationCode + mean_fd, .))) %>%
+  do(tidy(lm(MeanDistance ~ DX*Sex + mean_fd + age + Edu + Site,.))) %>%
   ungroup() %>% group_by(term) %>%
   mutate(p_bonf = p.adjust(p.value, method = "fdr")) %>%
   arrange(p.value) %>%         

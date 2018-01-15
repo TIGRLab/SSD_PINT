@@ -1,13 +1,15 @@
 ---
 title: "ABIDEI PINT FC mat stats"
-author: "Erin W Dickie"
-date: "October 14, 2016"
-output: html_document
+author: "Erin W Dickie, Saba Shahab"
+date: "January 15, 2018"
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 This is an analysis of the FC Mats
 
-```{r}
+```{r, message = F, error=FALSE}
 library(dplyr)
 library(tidyr)
 library(broom)
@@ -16,7 +18,18 @@ library(corrplot)
 library(effsize)
 library(knitr)
 library(ggplot2)
+library(gridExtra)
+```
 
+# Reading in the data
+
+A couple things to note here about the how the clinical data is being parsed:
+
+1. all catergorical variables are being set to Factors
+   + Note that sex.x still needs descriptive labels
+2. Education is being very basically impluted when it is not available so that we donot lose data
+
+```{r}
 ## Modified by Saba Shahab on November 9, 2016 for SPINS-CMH data.
 
 ## set pint_dir to be the pint outputs
@@ -24,6 +37,14 @@ pint_dir <- "../data/PINT_outputs_s8_6-6-12/"
 
 ## reading in the qced_sublists csv to get the sublists
 qced_sublists <- read.csv("../phenotypic/NEWallSubjects_completeData3_DM_not_sexmatched.csv")
+pheno <- qced_sublists %>%
+  mutate(Site = factor(site, levels = c(1,2,3),
+                       labels = c("CMH","ZHH","COBRE")) ,
+         DX = factor(DX_GROUP, level = c(1,2), labels = c('SSD', 'Ctrl')),
+         Sex = factor(sex.x),
+         Edu = if_else(is.na(educationCode), 
+                       true = mean(educationCode, na.rm = F), 
+                       false = educationCode))
 
 ##load the more descriptive list of the vertices...not we may want to change a few based on these results...
 Yeo7_80verts <- read.csv("~/code/ciftify/ciftify/data/PINT/Yeo7_2011_80verts.csv")
@@ -117,7 +138,7 @@ draw_circle_graph <- function(data, Yeo7_80verts) {
   switchlist <- c("DA.VI", "DA.SM")
   dist.df$scaleDc[dist.df$netcombo %in% switchlist] <- dist.df$scaleD[dist.df$netcombo %in% switchlist] * (-1)
   
-  plot(g, edge.width=E(g)$logp*5, 
+  plt <- plot(g, edge.width=E(g)$logp*5, 
        edge.curved=dist.df$scaleDc, 
        edge.color = E(g)$posneg,
        vertex.size = 3.5,
@@ -128,6 +149,7 @@ draw_circle_graph <- function(data, Yeo7_80verts) {
        vertex.label.dist=0.5,
        vertex.label.degree=lab.locs,
        vertex.label.color = V(g)$color)
+  return(plt)
 }
 
 ```
@@ -167,7 +189,7 @@ theZs_ivertex <- load_all_subject_matrices(as.character(qced_sublists$subid),
                                           
 
 ## merge all those correlations back with the demographics
-alldemZs_i_m <- merge(qced_sublists,theZs_ivertex,by="subid") %>%
+alldemZs_i_m <- merge(pheno,theZs_ivertex,by="subid") %>%
     gather_("Edge", "FC", myedgenames)
 
 
@@ -177,125 +199,126 @@ theZs_tvertex <- load_all_subject_matrices(as.character(qced_sublists$subid),
                                            'tvertex')
 
 ## merge all those correlations back with the demographics
-alldemZs_t_m <- merge(qced_sublists,theZs_tvertex,by="subid")  %>%
+alldemZs_t_m <- merge(pheno,theZs_tvertex,by="subid")  %>%
   gather_("Edge", "FC", myedgenames)  
 
 
 ```
 
-### Run the ivertex and tvertex models for all subjects
+# Run the linear model for all Template and Personalized FC edges
+
+Note: one trick here (but justified by Saba's thesis and Graces work, is to add a DX*Sex interation term ot all models)
 
 ```{r}
-lmres_i <- alldemZs_i_m %>%
-  group_by(Edge) %>%
-  do(tidy(lm(FC ~ DX_GROUP + mean_fd + age + sex.x + educationCode + site + global_corr + mean_snfr,.)))
+FC_lmres <- bind_rows("Template" = alldemZs_t_m, 
+          "Personalized" = alldemZs_i_m, 
+          .id = "vertex_type") %>%
+  group_by(Edge, vertex_type) %>%
+  do(tidy(lm(FC ~ DX*Sex + mean_fd + age + Edu + Site,.))) %>%
+  ungroup() %>% group_by(term) %>%
+  mutate(p.FDR = p.adjust(p.value, method = "fdr")) %>%
+  ungroup
+```
 
-lmres_i_Dx <- lmres_i %>% 
-  filter(term == "DX_GROUP") 
+## looking at all FDR corrected results..
 
+Most results are for the linear effect of age..but there is one significant effect of Diagnosis in the FP network (contralateral partietal areas..)
 
-# Run the following three lines only if the code where "lmres_t" is defined gives an error. Rerun the lmres_t code after running these three lines and see if it works.
-alldemZs_t_m$FC[which(!is.finite(alldemZs_t_m$FC))] = NA
-alldemZs_t_m$FC[which(is.nan(alldemZs_t_m$FC))] = NA
-alldemZs_t_m$FC[which(alldemZs_t_m$FC==Inf)] = NA
+```{r}
+FC_lmres %>%
+  filter(term %in% c("DXCtrl","Sex2", "DXCtrl:Sex2","age")) %>%
+  arrange(p.value) %>%
+  select(Edge, vertex_type, term, statistic, p.value, p.FDR) %>%
+  filter(p.value < 0.0001) %>%
+  kable()
+```
 
-lmres_t <- alldemZs_t_m %>%
-  group_by(Edge) %>%
-  do(tidy(lm(FC ~ DX_GROUP + mean_fd + age + sex.x + educationCode + site + global_corr + mean_snfr,.)))
+# Looking at the significant effect in FP network
 
-lmres_t_Dx <- lmres_t %>% 
-  filter(term == "DX_GROUP") 
-
-DxResults <- merge(lmres_i_Dx, lmres_t_Dx, by = "Edge", suffixes = c(".i",".t")) %>%
-  select(Edge, statistic.i, p.value.i, statistic.t, p.value.t)
-
-DxResults$p.FDR.i <- p.adjust(DxResults$p.value.i, method = "fdr")
-DxResults$p.FDR.t <- p.adjust(DxResults$p.value.t, method = "fdr")
-
-DxResults <- DxResults %>%
-  select(Edge, statistic.t, p.value.t, p.FDR.t, statistic.i, p.value.i, p.FDR.i) 
-  
-  
-#write.csv(separate(DxResults, Edge, into = c("V1","V2"), sep = "\\."),file.path(pint_dir,"FCmat_DX_MeanFDAgeSexEducationSite_Results.csv"), row.names = F)
-
-#rm(lmres_t_Dx, lmres_i_Dx)
+```{r}
+bind_rows("Template" = alldemZs_t_m, 
+          "Personalized" = alldemZs_i_m, .id = "vertex_type") %>%
+    filter(Edge == "FPP1L.FPP1R") %>%
+  ggplot(aes(x = DX, y = FC , by =Sex,  color = Sex)) +
+    geom_boxplot() + 
+    facet_grid(~vertex_type) +
+    labs(y = "Correlation (Z) of FPP1L.FPP1R")
 ```
 
 
-```{r fig.height=8, fig.width=8}
+## all the model terms within this edge
 
-dx_delta <- DxResults %>%
-  mutate("abstdiff" = abs(statistic.t) - abs(statistic.i),
-         "nets" = paste(substr(Edge, 1,2), substr(Edge,7,8),sep = ".")) 
-
-dx_delta$sigfor <- "neither"
-dx_delta$sigfor[dx_delta$p.value.i < 0.05] <- "i_sig"
-dx_delta$sigfor[dx_delta$p.value.t < 0.05] <- "t_sig"
-dx_delta$sigfor[dx_delta$p.value.t < 0.05 & dx_delta$p.value.i < 0.05] <- "both"
-
-kable((dx_delta  %>% group_by(nets) %>%
-    summarise("mean_tdiff" = mean(abstdiff)) %>%
-    arrange(mean_tdiff)))
-
+```{r}
+FC_lmres %>%
+filter(Edge == "FPP1L.FPP1R") %>%
+  select(Edge, vertex_type, term, statistic, p.value, p.FDR) %>%
+  kable()
 ```
 
+## splitting the plot by Site
 
 
 ```{r}
+bind_rows("Template" = alldemZs_t_m, 
+          "Personalized" = alldemZs_i_m, .id = "vertex_type") %>%
+    filter(Edge == "FPP1L.FPP1R") %>%
+  ggplot(aes(x = DX, y = FC , by =Sex,  color = Sex)) +
+    geom_boxplot() + 
+    facet_grid(Site~vertex_type) +
+    labs(y = "Correlation (Z) of FPP1L.FPP1R")
+```
 
-forgraph_i <- DxResults %>%
+
+# building circle plots of the subthreshold effects
+
+```{r}
+#' threshold and draw circle shot
+thresholded_circle_plot <- function(tidylm, p_thres, filter_term, filter_vtype) {
+forgraph <- tidylm %>%
+  filter(term == filter_term,
+         vertex_type ==filter_vtype) %>%
   separate(Edge, into = c("V1","V2"), sep = "\\.") %>%
-  select(V1, V2, ends_with('.i'))
-forgraph_i$posneg <- ifelse(forgraph_i$statistic.i < 0 , 1, 2)
-forgraph_i$logp <- log(forgraph_i$p.value.i)
-forgraph_i$statistic.i[forgraph_i$p.value.i > 0.01] <- 0
-forgraph_i$logp[forgraph_i$p.value.i > 0.01] <- 0
-forgraph_i$posneg[forgraph_i$p.value.i > 0.01] <- NA
-draw_circle_graph(forgraph_i, Yeo7_80verts)
+  select(V1, V2, statistic, p.value) %>%
+  mutate(thres_statistic = if_else(p.value <= p_thres, 
+                                   true = statistic, 
+                                   false= 0)) %>%
+  mutate(posneg = case_when(.$thres_statistic < -0.01 ~ 1,
+                            .$thres_statistic > 0.01 ~ 2,
+                            TRUE ~ NA_real_),
+        log_p = case_when(.$p.value <= p_thres ~ log(.$p.value),
+                          TRUE ~ 0)) 
+  plot <- draw_circle_graph(forgraph, Yeo7_80verts)
+  return(plot)
+}
+```
 
-forgraph_t <- DxResults %>%
-  separate(Edge, into = c("V1","V2"), sep = "\\.") %>%
-  select(V1, V2, ends_with('.t'))
-forgraph_t$posneg <- ifelse(forgraph_t$statistic.t < 0 , 1, 2)
-forgraph_t$logp <- log(forgraph_t$p.value.t)
-forgraph_t$statistic.t[forgraph_t$p.value.t > 0.01] <- 0
-forgraph_t$logp[forgraph_t$p.value.t > 0.01] <- 0
-forgraph_t$posneg[forgraph_t$p.value.t > 0.01] <- NA
-draw_circle_graph(forgraph_t, Yeo7_80verts)
-
-# Dividing forgraph into within and between connectivity
-Wthn_net_connectivity_t <- subset(forgraph_t, substr(forgraph_t$V1, 0,2) == substr(forgraph_t$V2, 0,2))
-Btwn_net_connectivity_t <- subset(forgraph_t, substr(forgraph_t$V1, 0,2) != substr(forgraph_t$V2, 0,2))
-Wthn_net_connectivity_i <- subset(forgraph_i, substr(forgraph_i$V1, 0,2) == substr(forgraph_i$V2, 0,2))
-Btwn_net_connectivity_i <- subset(forgraph_i, substr(forgraph_i$V1, 0,2) != substr(forgraph_i$V2, 0,2))
-
-# Counting number of edges that have a p-value <= 0.05
-nrow_wthn_t <- nrow(subset(Wthn_net_connectivity_t, p.value.t <= 0.01))
-nrow_btwn_t <- nrow(subset(Btwn_net_connectivity_t, p.value.t <= 0.01))
-nrow_wthn_i <- nrow(subset(Wthn_net_connectivity_i, p.value.i <= 0.01))
-nrow_btwn_i <- nrow(subset(Btwn_net_connectivity_i, p.value.i <= 0.01))
-
-# Max and min stat for t-vertex - separately for within and between connections
-max_stat_wthn_t <- max(Wthn_net_connectivity_t[Wthn_net_connectivity_t[,"p.value.t"]<=0.05 , "statistic.t"])
-min_stat_wthn_t <- min(Wthn_net_connectivity_t[Wthn_net_connectivity_t[,"p.value.t"]<=0.05 , "statistic.t"])
-max_stat_btwn_t <- max(Btwn_net_connectivity_t[Btwn_net_connectivity_t[,"p.value.t"]<=0.05 , "statistic.t"])
-min_stat_btwn_t <- min(Btwn_net_connectivity_t[Btwn_net_connectivity_t[,"p.value.t"]<=0.05 , "statistic.t"])
-
-# Max and min stat for i-vertex - separately for within and between connections
-max_stat_wthn_i <- max(Wthn_net_connectivity_i[Wthn_net_connectivity_i[,"p.value.i"]<=0.05 , "statistic.i"])
-min_stat_wthn_i <- min(Wthn_net_connectivity_i[Wthn_net_connectivity_i[,"p.value.i"]<=0.05 , "statistic.i"])
-max_stat_btwn_i <- max(Btwn_net_connectivity_i[Btwn_net_connectivity_i[,"p.value.i"]<=0.05 , "statistic.i"])
-min_stat_btwn_i <- min(Btwn_net_connectivity_i[Btwn_net_connectivity_i[,"p.value.i"]<=0.05 , "statistic.i"])
-
-# Looking at the differences in number of edges, min and max t stats between the i-vertex and t-vertex results.
-df$nrow_wthn_diff <- df$nrow_wthn_t - df$nrow_wthn_i
-df$nrow_btwn_diff <- df$nrow_btwn_t - df$nrow_btwn_i
-df$max_stat_wthn_diff <- df$max_stat_wthn_t - df$max_stat_wthn_i
-df$max_stat_btwn_diff <- df$max_stat_btwn_t - df$max_stat_btwn_i
-df$min_stat_wthn_diff <- df$min_stat_wthn_t - df$min_stat_wthn_i
-df$min_stat_btwn_diff <- df$min_stat_btwn_t - df$min_stat_btwn_i
+```{r}
+thresholded_circle_plot(FC_lmres, p_thres = 0.001, 
+                              filter_term = "DXCtrl", filter_vtype = "Template")
+thresholded_circle_plot(FC_lmres, p_thres = 0.001, 
+                              filter_term = "DXCtrl", filter_vtype = "Personalized")
 
 ```
+
+```{r}
+thresholded_circle_plot(FC_lmres, p_thres = 0.001, 
+                              filter_term = "DXCtrl:Sex2", filter_vtype = "Template")
+thresholded_circle_plot(FC_lmres, p_thres = 0.001, 
+                              filter_term = "DXCtrl:Sex2", filter_vtype = "Personalized")
+```
+```{r}
+thresholded_circle_plot(FC_lmres, p_thres = 0.001, 
+                              filter_term = "Sex2", filter_vtype = "Template")
+thresholded_circle_plot(FC_lmres, p_thres = 0.001, 
+                              filter_term = "Sex2", filter_vtype = "Personalized")
+```
+```{r}
+thresholded_circle_plot(FC_lmres, p_thres = 0.001, 
+                              filter_term = "age", filter_vtype = "Template")
+thresholded_circle_plot(FC_lmres, p_thres = 0.001, 
+                              filter_term = "age", filter_vtype = "Personalized")
+```
+
 
 ### New stuff for graph theory - 30 July 2017
 
@@ -358,11 +381,11 @@ aggregate_all_t_HC_data <- as.vector(aggregate_all_t_HC_data)
 E(g)$weight <- aggregate_all_t_HC_data
 HC_t_vertex <- get.adjacency(g, type="both", attr="weight", sparse=FALSE)
 
-# Writing the adjacency matrices to use in MATLAB
-write.csv(SCZ_i_vertex, "/projects/saba/HCP_fMRI_SCZ/new_analyses_20170412/FC_analyses/Graph_Theory/SCZ_i_vertex.csv")
-write.csv(HC_i_vertex, "/projects/saba/HCP_fMRI_SCZ/new_analyses_20170412/FC_analyses/Graph_Theory/HC_i_vertex.csv")
-write.csv(SCZ_t_vertex, "/projects/saba/HCP_fMRI_SCZ/new_analyses_20170412/FC_analyses/Graph_Theory/SCZ_t_vertex.csv")
-write.csv(HC_t_vertex, "/projects/saba/HCP_fMRI_SCZ/new_analyses_20170412/FC_analyses/Graph_Theory/HC_t_vertex.csv")
+# # Writing the adjacency matrices to use in MATLAB
+# write.csv(SCZ_i_vertex, "..//projects/saba/HCP_fMRI_SCZ/new_analyses_20170412/FC_analyses/Graph_Theory/SCZ_i_vertex.csv")
+# write.csv(HC_i_vertex, "/projects/saba/HCP_fMRI_SCZ/new_analyses_20170412/FC_analyses/Graph_Theory/HC_i_vertex.csv")
+# write.csv(SCZ_t_vertex, "/projects/saba/HCP_fMRI_SCZ/new_analyses_20170412/FC_analyses/Graph_Theory/SCZ_t_vertex.csv")
+# write.csv(HC_t_vertex, "/projects/saba/HCP_fMRI_SCZ/new_analyses_20170412/FC_analyses/Graph_Theory/HC_t_vertex.csv")
 
 
 #plot.igraph(g,vertex.label=V(g)$name,layout=layout.fruchterman.reingold, edge.color="black",edge.width=E(g)$weight)
