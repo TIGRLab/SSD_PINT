@@ -13,13 +13,13 @@ For Stratium:
 
 
 To-Do: 
--[] Remove the possibly duplicated ZHH data
--[] Fix that one guy in COBRE
--[] Maybe? Rerun PINT using recommended settings from final draft of PINT paper
--[] Lit search on excutive-network/ frontal parietal network connectivity in SSD
-    -[] think about looking a neurocongitive scores for secondary analysis
--[] Extract Anatomical measures into a spreadsheets so that we can rerun the Dayton Analyses
-     -[] Sulcal Depth (per person/per ROI/pre and post PINT)
-     -[] gyrification index?
+ - [] Remove the possibly duplicated ZHH data
+ - [] Fix that one guy in COBRE
+ - [] Maybe? Rerun PINT using recommended settings from final draft of PINT paper
+ - [] Lit search on excutive-network/ frontal parietal network connectivity in SSD
+     - [] think about looking a neurocongitive scores for secondary analysis
+ - [] Extract Anatomical measures into a spreadsheets so that we can rerun the Dayton Analyses
+      - [] Sulcal Depth (per person/per ROI/pre and post PINT)
+      - [] gyrification index?
      
      
