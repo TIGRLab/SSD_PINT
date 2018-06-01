@@ -164,3 +164,45 @@ parallel -j 10 " echo cifti_vis_PINT snaps --qcdir ${qc_dir_base}/qc_REST_01_PIN
 
 
 ```
+
+# 2018-02-27
+
+```sh
+module load /KIMEL/quarantine/modules/quarantine
+module load Freesurfer/6.0.0
+module load FSL/5.0.9-ewd
+module load connectome-workbench/1.2.3
+module load python/3.6_ciftify_01
+module load GNU_PARALLEL/20170122
+
+HCP_DATA=/KIMEL/tigrlab/external/SchizConnect/COBRE/hcp
+export CIFTIFY_TEMPLATES=${HOME}/code/ciftify/ciftify/data
+export TMPDIR=/export/ramdisk
+
+pint_outputdir=/imaging/scratch/kimel/edickie/saba_PINT/PINT_pcorr10-6-12_CMH_20170227
+
+basesubs=`ls -1d ${HCP_DATA}/COBRE_A*`
+subject_list=""
+for subject in ${basesubs}; do
+  dtseriesfile=${subject}/MNINonLinear/Results/REST_01/REST_01_Atlas_s8.dtseries.nii
+  bsubject=$(basename $subject)
+  pint_summary=${pint_outputdir}/${bsubject}/${bsubject}_summary.csv
+  if [ -f ${dtseriesfile} ] ; then
+    if [ ! -f ${pint_summary} ] ; then
+      subject_list="${subject_list} ${subject}"
+    fi
+  fi
+done
+
+mkdir -p  ${pint_outputdir}
+cd ${pint_outputdir}
+
+parallel "echo ciftify_PINT_vertices \
+  --pcorr --sampling-radius 10 --search-radius 6 --padding-radius 12 \
+  {}/MNINonLinear/Results/REST_01/REST_01_Atlas_s8.dtseries.nii \
+  {}/MNINonLinear/fsaverage_LR32k/{/}.L.midthickness.32k_fs_LR.surf.gii \
+  {}/MNINonLinear/fsaverage_LR32k/{/}.R.midthickness.32k_fs_LR.surf.gii \
+  ${CIFTIFY_TEMPLATES}/PINT/Yeo7_2011_80verts.csv \
+  ${pint_outputdir}/{/}/{/}" ::: ${subject_list} |
+  qbatch --walltime 1:00:00 -c 1 -j 1 --ppj 6 -N  pint_COBRE -
+```
