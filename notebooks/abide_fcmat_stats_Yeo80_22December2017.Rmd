@@ -7,15 +7,13 @@ output:
   html_document: default
 ---
 
-This is an analysis of the FC Mats
+This is an analysis of the FC Mats - 8mm
 
 ```{r, message = F, error=FALSE}
 library(dplyr)
 library(tidyr)
 library(broom)
 library(igraph)
-library(corrplot)
-library(effsize)
 library(knitr)
 library(ggplot2)
 library(gridExtra)
@@ -33,7 +31,7 @@ A couple things to note here about the how the clinical data is being parsed:
 ## Modified by Saba Shahab on November 9, 2016 for SPINS-CMH data.
 
 ## set pint_dir to be the pint outputs
-pint_dir <- "../data/PINT_outputs_s8_6-6-12/"
+pint_dir <- "../data/PINT_outputs_s8_10-6-12/"
 
 ## reading in the qced_sublists csv to get the sublists
 qced_sublists <- read.csv("../phenotypic/NEWallSubjects_completeData3_DM_not_sexmatched.csv")
@@ -214,8 +212,8 @@ FC_lmres <- bind_rows("Template" = alldemZs_t_m,
           "Personalized" = alldemZs_i_m, 
           .id = "vertex_type") %>%
   group_by(Edge, vertex_type) %>%
-  do(tidy(lm(FC ~ DX*Sex + mean_fd + age + Edu + Site,.))) %>%
-  ungroup() %>% group_by(term) %>%
+  do(tidy(lm(FC ~ DX*Sex + mean_fd + poly(age,2) + Edu + Site,.))) %>%
+  ungroup() %>% group_by(term, vertex_type) %>%
   mutate(p.FDR = p.adjust(p.value, method = "fdr")) %>%
   ungroup
 ```
@@ -229,9 +227,39 @@ FC_lmres %>%
   filter(term %in% c("DXCtrl","Sex2", "DXCtrl:Sex2","age")) %>%
   arrange(p.value) %>%
   select(Edge, vertex_type, term, statistic, p.value, p.FDR) %>%
-  filter(p.value < 0.0001) %>%
+  filter(p.value < 0.001) %>%
   kable()
 ```
+
+```{r}
+library(stringr)
+FC_lmres %>%
+  filter(term == "DXCtrl") %>%
+  mutate(nets = str_c(str_sub(Edge, 1,2), str_sub(Edge, 6,8))) %>%
+  ggplot(aes(x=statistic, fill = vertex_type)) + geom_density(alpha = 0.5) + 
+  geom_vline(xintercept = 0) + facet_wrap(~nets)
+```
+```{r}
+FC_lmres_net <- bind_rows("Template" = alldemZs_t_m, 
+          "Personalized" = alldemZs_i_m, 
+          .id = "vertex_type") %>%
+  mutate(nets = str_c(str_sub(Edge, 1,2), str_sub(Edge, 5,8), str_sub(Edge, 11))) %>% 
+  group_by(subid, vertex_type, nets) %>%
+  summarise(meanZ = mean(FC)) %>%
+  inner_join(pheno, by = "subid") %>%
+  ungroup() %>%
+  group_by(nets, vertex_type) %>%
+  do(tidy(lm(meanZ ~ DX*Sex + mean_fd + poly(age,2) + Edu + Site,.))) %>%
+  ungroup() %>% group_by(term, vertex_type) %>%
+  mutate(p.FDR = p.adjust(p.value, method = "fdr")) %>%
+  ungroup
+
+```
+
+```{r}
+kable(FC_lmres_net %>% filter(term %in% "DXCtrl"))
+```
+
 
 # Looking at the significant effect in FP network
 
@@ -240,7 +268,7 @@ bind_rows("Template" = alldemZs_t_m,
           "Personalized" = alldemZs_i_m, .id = "vertex_type") %>%
     filter(Edge == "FPP1L.FPP1R") %>%
   ggplot(aes(x = DX, y = FC , by =Sex,  color = Sex)) +
-    geom_boxplot() + 
+    geom_boxplot() +
     facet_grid(~vertex_type) +
     labs(y = "Correlation (Z) of FPP1L.FPP1R")
 ```

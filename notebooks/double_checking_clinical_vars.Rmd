@@ -46,7 +46,7 @@ pheno <- qced_sublists %>%
   mutate(Site = factor(site, levels = c(1,2,3),
                        labels = c("CMH","ZHH","COBRE")) ,
          DX = factor(DX_GROUP, level = c(1,2), labels = c('SSD', 'Ctrl')),
-         Sex = factor(sex.x),
+         Sex = factor(sex.x, levels = c(1,2), labels = c('M','F')),
          Edu = if_else(is.na(educationCode), 
                        true = mean(educationCode, na.rm = T), 
                        false = educationCode))
@@ -103,6 +103,26 @@ Conclusion: These two participants are NOT Controls...
 
 COBRE_A00028189_SESS01				
 COBRE_A00035836_SESS01
+
+```{r}
+pheno_corrected <- pheno
+for (badsub in cobre_weird$subid) {
+  pheno_corrected$DX[pheno_corrected$subid == badsub] <- 'SSD'
+  pheno_corrected$DX_GROUP[pheno_corrected$subid == badsub] <- 1
+}
+
+cobre_recheck <- inner_join(schizconnect_COBRE_assessmentData_3125, pheno_corrected, by = "subid")
+
+cobre_recheck %>%
+  filter(question_id == "CODEM_17") %>%
+  select(DX_GROUP, question_value) %>%
+  ftable()
+```
+
+
+
+
+
 
 ## Now looking at ZHH data
 
@@ -181,6 +201,7 @@ ggplot(ZHH_HC, aes(x = age, y = Age)) + geom_point()
 names(ZHH_HC)
 ```
 
+
 ```{r}
 ggplot(ZHH_HC, aes(x = PtEdYears, y = educationCode)) + geom_point()
 ```
@@ -198,6 +219,23 @@ ggplot(ZHH_SZ, aes(x = PtEdYears_NI, y = educationCode)) + geom_point()
 
 ```{r}
 ggplot(ZHH_SZ, aes(x = PtEdHighestHol_Demo, y = educationCode)) + geom_point()
+```
+
+```{r}
+set.seed(14)
+ZHH_SZ_subsampled <- qrySZ_Sess_Miklos %>%
+  mutate(subid = str_c('EXP_',SessNo, '_SESS01')) %>%
+  ungroup() %>% 
+  group_by(grid) %>%
+  sample_n(1) %>%
+  select(subid) %>%
+  ungroup()
+
+to_drop <- ZHH_SZ %>%
+  anti_join(ZHH_SZ_subsampled, by = "subid")
+
+pheno_corrected1 <- pheno_corrected %>%
+  anti_join(to_drop, by = "subid")
 ```
 ## Now for SPINS
 
@@ -222,3 +260,17 @@ spins_check %>%
   select(sex, sex.x, group) %>%
   ftable()
 ```
+
+# Finally writting results from corrected version back to csv
+
+```{r}
+names(pheno_corrected1)
+```
+
+```{r}
+pheno_corrected1 %>%
+  select(subid, name, Site, DX, age, Sex, Edu, mean_fd, X.bad_fd, global_corr, mean_snfr) %>%
+  write_csv('../phenotypic/subjects_not_sexmatched_20180507.csv')
+```
+
+

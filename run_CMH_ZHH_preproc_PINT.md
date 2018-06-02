@@ -537,3 +537,88 @@ EXP_21849_SESS01 - questionalable - some temporal lobe missing
 [cifti_vis_fmri] ERROR: Expected fmri file /mnt/tigrlab/projects/dmiranda/NEW_HCP/DTI3T/hcp_lgi/DTI_CMH_S156_01/MNINonLinear/Results/REST/REST_Atlas_s0.dtseries.nii not found.
 [cifti_vis_fmri] ERROR: Expected fmri file /mnt/tigrlab/projects/dmiranda/NEW_HCP/DTI3T/hcp_lgi/DTI_CMH_S171_01/MNINonLinear/Results/REST/REST_Atlas_s0.dtseries.nii not found.
 [cifti_vis_fmri] ERROR: Expected fmri file /mnt/tigrlab/projects/dmiranda/NEW_HCP/PNSC/hcp_lgi/PNS_CMH_0023_01/MNINonLinear/Results/REST/REST_Atlas_s0.dtseries.nii not found.
+
+# 2018-02-27
+
+## Running PINT with other sampling radius options
+
+```sh
+module load /KIMEL/quarantine/modules/quarantine
+module load Freesurfer/6.0.0
+module load FSL/5.0.9-ewd
+module load connectome-workbench/1.2.3
+module load python/3.6_ciftify_01
+module load GNU_PARALLEL/20170122
+
+BASE_DATA=/KIMEL/tigrlab/scratch/edickie/saba_PINT/data/
+export CIFTIFY_TEMPLATES=${HOME}/code/ciftify/ciftify/data
+export TMPDIR=/export/ramdisk
+
+pint_outputdir=/imaging/scratch/kimel/edickie/saba_PINT/PINT_pcorr10-6-12_CMH_20170227
+
+basesubs=`ls -1d ${BASE_DATA}/*/hcp/*_CMH_*`
+subject_list=""
+for subject in ${basesubs}; do
+  dtseriesfile=${subject}/MNINonLinear/Results/REST_01/REST_01_Atlas_s8.dtseries.nii
+  bsubject=$(basename $subject)
+  pint_summary=${pint_outputdir}/${bsubject}/${bsubject}_summary.csv
+  if [ -f ${dtseriesfile} ] ; then
+    if [ ! -f ${pint_summary} ] ; then
+      subject_list="${subject_list} ${subject}"
+    fi
+  fi
+done
+
+mkdir -p  ${pint_outputdir}
+cd ${pint_outputdir}
+
+parallel "echo ciftify_PINT_vertices \
+  --pcorr --sampling-radius 10 --search-radius 6 --padding-radius 12 \
+  {}/MNINonLinear/Results/REST_01/REST_01_Atlas_s8.dtseries.nii \
+  {}/MNINonLinear/fsaverage_LR32k/{/}.L.midthickness.32k_fs_LR.surf.gii \
+  {}/MNINonLinear/fsaverage_LR32k/{/}.R.midthickness.32k_fs_LR.surf.gii \
+  ${CIFTIFY_TEMPLATES}/PINT/Yeo7_2011_80verts.csv \
+  ${pint_outputdir}/{/}/{/}" ::: ${subject_list} |
+  qbatch --walltime 1:00:00 -c 1 -j 1 --ppj 6 -N  pint_CMH -
+```
+
+## now the ZHH data
+
+```sh
+module load /KIMEL/quarantine/modules/quarantine
+module load Freesurfer/6.0.0
+module load FSL/5.0.9-ewd
+module load connectome-workbench/1.2.3
+module load python/3.6_ciftify_01
+module load GNU_PARALLEL/20170122
+
+HCP_DATA=/KIMEL/tigrlab/scratch/edickie/saba_PINT/data/ZHH/hcp
+fmri_basedir=/KIMEL/tigrlab/external/miklos/epitome/EXP
+export CIFTIFY_TEMPLATES=${HOME}/code/ciftify/ciftify/data
+export TMPDIR=/export/ramdisk
+
+subject_list=`cd ${HCP_DATA}; ls -1d EXP_2????_SESS01`
+pint_outputdir=/imaging/scratch/kimel/edickie/saba_PINT/data/ZHH/PINT_pcorr8-6-12_CMH_20170227
+
+mkdir -p  ${pint_outputdir}
+cd ${pint_outputdir}
+
+parallel "echo ciftify_PINT_vertices \
+  --pcorr --sampling-radius 8 --search-radius 6 --padding-radius 12 \
+  ${HCP_DATA}/{}/MNINonLinear/Results/REST_01/REST_01_Atlas_s8.dtseries.nii \
+  ${HCP_DATA}/{}/MNINonLinear/fsaverage_LR32k/{}.L.midthickness.32k_fs_LR.surf.gii \
+  ${HCP_DATA}/{}/MNINonLinear/fsaverage_LR32k/{}.R.midthickness.32k_fs_LR.surf.gii \
+  ${CIFTIFY_TEMPLATES}/PINT/Yeo7_2011_80verts.csv \
+  ${pint_outputdir}/{}/{}" ::: ${subject_list} |
+  qbatch --walltime 1:00:00 -c 1 -j 1 --ppj 6 -N  pint_ZHH -
+```
+
+## copy all the outputs into two folders
+
+```sh
+ssh dev01
+
+/imaging/scratch/kimel/edickie/saba_PINT
+/KIMEL/tigrlab/scratch/edickie/saba_PINT/PINT_outputs_s8_8-6-12
+/KIMEL/tigrlab/scratch/edickie/saba_PINT/PINT_outputs_s8_10-6-12
+
