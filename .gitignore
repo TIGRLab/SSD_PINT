@@ -3,7 +3,8 @@
 .RData
 .Ruserdata
 /data
-/notebooks/*.nb.html
-/notebooks/*.pdf
-/notebooks/*.png
-/deprecated
+notebooks/*.nb.html
+notebooks/*.html
+notebooks/*.pdf
+notebooks/*.png
+deprecated
