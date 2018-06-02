@@ -1,8 +1,6 @@
 ---
 title: "Prelim PINT stats"
-output:
-  pdf_document: default
-  html_notebook: default
+output: github_document
 ---
 
 Going to Start Loading saba's PINT data
@@ -28,7 +26,7 @@ library(knitr)
 pint_outputs <- '../data/PINT_outputs_s8_6-6-12/'
 subcortical_outputs_dir <- '../data/subcortical_ts/'
 
-Yeo7_2011_80verts <- read_csv("~/code/ciftify/ciftify/data/PINT/Yeo7_2011_80verts.csv",
+Yeo7_2011_80verts <- read_csv("/projects/edickie/code/ciftify/ciftify/data/PINT/Yeo7_2011_80verts.csv",
                               col_types = c(
                                 hemi = col_character(),
                                 tvertex = col_integer(),
@@ -48,31 +46,7 @@ Yeo7_2011_80verts <- read_csv("~/code/ciftify/ciftify/data/PINT/Yeo7_2011_80vert
 ```{r}
 
 ## reading in the qced_sublists csv to get the sublists
-qced_sublists <- read_csv("../phenotypic/NEWallSubjects_completeData3_DM_not_sexmatched.csv",
-                          col_types = c(
-                            X1 = col_integer(),
-                            name = col_character(),
-                            subid = col_character(),
-                            DX_GROUP = col_integer(),
-                            mean_fd = col_double(),
-                            age = col_integer(),
-                            sex.x = col_integer(),
-                            educationCode = col_double(),
-                            site = col_integer(),
-                            sex.y = col_integer(),
-                            X.bad_fd = col_double(),
-                            global_corr = col_double(),
-                            mean_snfr = col_double()
-                          )) 
-  
-pheno <- qced_sublists %>%
-  mutate(Site = factor(site, levels = c(1,2,3),
-                       labels = c("CMH","ZHH","COBRE")) ,
-         DX = factor(DX_GROUP, level = c(1,2), labels = c('SSD', 'Ctrl')),
-         Sex = factor(sex.x),
-         Edu = if_else(is.na(educationCode), 
-                       true = mean(educationCode, na.rm = T), 
-                       false = educationCode))
+pheno <- read_csv("../phenotypic/subjects_not_sexmatched_20180507.csv")
   
 ```
 
@@ -270,6 +244,25 @@ results_pheno <- results_pheno %>%
 
 ```
 
+## make a subject table from resuts pheno
+
+```{r}
+unique(results_pheno$subcort_ROI)
+```
+
+
+```{r}
+library(tableone)
+therealtable1 <- CreateTableOne(
+  strata = c("Site", "DX"),
+  vars = c("age", "Edu", "Sex"),
+  data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="Striatum_VA")
+)
+
+print(therealtable1)
+
+```
+
 # Is PINT "focusing" cortical subcortical connectivity
 
 ```{r fig.height = 8}
@@ -315,14 +308,112 @@ net_means <- results_pheno %>%
   group_by(YeoNet, subcort_ROI) %>%
   do(tidy(t.test(.$netmean_ivertex, .$netmean_tvertex, paired = TRUE)))
 
-net_means %>%
+net_means%>%
   ungroup() %>%
-  mutate(sig = if_else(p.value < 0.005, '*', NA_character_)) %>%
-ggplot(aes(y = YeoNet, x = subcort_ROI, fill = statistic)) + 
-  geom_tile(color = "white") +
-  geom_point(aes(shape = sig)) +
+  mutate(sig = if_else(p.value < 0.005, '*', NA_character_) ) %>%
+ggplot(aes(x = YeoNet, y = subcort_ROI, fill = statistic)) + 
+  geom_tile(color = "black", na.rm = TRUE) +
+  geom_point(aes(shape = sig), na.rm = TRUE) +
   scale_fill_gradient2() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+```
+```{r}
+
+net_means <- results_pheno %>%
+  mutate(corr_diff = ivertex_corr - tvertex_corr,
+         YeoNet = str_sub(PINT_ROI, 1,2)) %>%
+  group_by(YeoNet, subcort_ROI, subid) %>%
+  summarise(netmean_ivertex = mean(ivertex_corr),
+            netmean_tvertex = mean(tvertex_corr),
+            pint_diff = netmean_ivertex - netmean_tvertex) 
+
+pint_diff_sub_DM <- net_means %>%
+  ungroup %>% 
+  filter(YeoNet == "DM") %>%
+  select(subid, subcort_ROI, pint_diff) %>%
+  spread(subcort_ROI, pint_diff) %>%
+  mutate(overall_pint_diff = Striatum_DM - (Striatum_SM + Striatum_VA + Striatum_FP)/3,
+         x_val = '') %>%
+  select(subid, overall_pint_diff, x_val) %>%
+  ggplot(aes(y = overall_pint_diff, x = x_val)) +
+    geom_boxplot() +
+    geom_jitter(alpha = 0.3, color = '#cd3e4e', fill = "grey") +
+    geom_hline(yintercept = 0) + 
+    labs(y = "Change in correlation after PINT", x = "Striatum DM - Others") +
+  scale_y_continuous(limits = c(-0.3, 0.3))
+  
+pint_diff_sub_DM
+```
+
+```{r}
+library(forcats)
+library(cowplot)
+
+DM_submeans_plot <- net_means %>%
+  mutate(is_DM = if_else(subcort_ROI == 'Striatum_DM', TRUE, FALSE),
+          SubCort_ROI = factor(subcort_ROI, 
+                               levels = c("Striatum_DM", 'Striatum_FP',"Striatum_VA",'Striatum_SM'),
+                               labels = c('DM', 'FP','VA','SM'))) %>%
+  filter(YeoNet == "DM", 
+         subcort_ROI %in% c('Striatum_SM', "Striatum_VA", "Striatum_DM", 'Striatum_FP')) %>%
+  ggplot(aes(y = pint_diff, x = SubCort_ROI, color = is_DM)) +
+  geom_boxplot(color = "black") + 
+  geom_jitter(alpha = 0.3) +
+  geom_hline(yintercept = 0) +
+  scale_color_manual(values = c('black','#cd3e4e')) +
+  labs(y = "Change in correlation after PINT", color = NULL, x = "Subregion of Striatum") +
+  theme(legend.position = "none") +
+  scale_y_continuous(limits = c(-0.3, 0.3))
+
+# DM_brain_pic <- ggdraw + draw_image('DM_striatum_pic.png')
+
+plot_grid(pint_diff_sub_DM, DM_submeans_plot, rel_widths = c(1,2.5))
+```
+
+
+```{r}
+net_means <- results_pheno %>%
+  mutate(corr_diff = ivertex_corr - tvertex_corr,
+         YeoNet = str_sub(PINT_ROI, 1,2)) %>%
+  group_by(YeoNet, subcort_ROI, subid) %>%
+  summarise(netmean_ivertex = mean(ivertex_corr),
+            netmean_tvertex = mean(tvertex_corr),
+            pint_diff = netmean_ivertex - netmean_tvertex) 
+
+pint_diff_sub_VA <- net_means %>%
+  ungroup %>% 
+  filter(YeoNet == "VA") %>%
+  select(subid, subcort_ROI, pint_diff) %>%
+  spread(subcort_ROI, pint_diff) %>%
+  mutate(overall_pint_diff = Striatum_VA - (Striatum_SM + Striatum_DM + Striatum_FP)/3,
+         x_val = '') %>%
+  select(subid, overall_pint_diff, x_val) %>%
+  ggplot(aes(y = overall_pint_diff, x = x_val)) +
+    geom_boxplot() +
+    geom_jitter(alpha = 0.3, color = '#c43afa', fill = "grey") +
+    geom_hline(yintercept = 0) + 
+    labs(y = "Change in correlation after PINT", x = "Striatum VA - Others") +
+  scale_y_continuous(limits = c(-0.3, 0.3))
+
+VA_submeans_plot <- net_means %>%
+  mutate(is_VA = if_else(subcort_ROI == 'Striatum_VA', TRUE, FALSE),
+          SubCort_ROI = factor(subcort_ROI, 
+                               levels = c("Striatum_VA", 'Striatum_SM', 'Striatum_FP',"Striatum_DM"),
+                               labels = c('VA', 'SM', 'FP','DM'))) %>%
+  filter(YeoNet == "VA", 
+         subcort_ROI %in% c('Striatum_SM', "Striatum_VA", "Striatum_DM", 'Striatum_FP')) %>%
+  ggplot(aes(y = pint_diff, x = SubCort_ROI, color = is_VA)) +
+  geom_boxplot(color = "black") + 
+  geom_jitter(alpha = 0.3) +
+  geom_hline(yintercept = 0) +
+  scale_color_manual(values = c('black','#c43afa')) +
+  labs(y = "Change in correlation after PINT", color = NULL, x = "Subregion of Striatum") +
+  theme(legend.position = "none") +
+  scale_y_continuous(limits = c(-0.3, 0.3))
+
+# DM_brain_pic <- ggdraw + draw_image('DM_striatum_pic.png')
+
+plot_grid(pint_diff_sub_VA, VA_submeans_plot, rel_widths = c(1,2.5))
 ```
 
 
@@ -347,19 +438,7 @@ ggplot(aes(x = YeoNet, y = subcort_ROI, fill = statistic)) +
   facet_wrap(~ DX)
 ```
 
-```{r}
-results_pheno %>%
-  mutate(corr_diff = ivertex_corr - tvertex_corr,
-         YeoNet = str_sub(PINT_ROI, 1,2)) %>%
-  group_by(YeoNet, subcort_ROI, subid, DX, age) %>%
-  summarise(netmean_ivertex = mean(ivertex_corr),
-            netmean_tvertex = mean(tvertex_corr)) %>%
-  filter(age > 17, age < 51) %>%
-  ggplot(aes(x = YeoNet, y=subcort_ROI, fill = netmean_ivertex)) +
-  geom_tile(color = "black") +
-  scale_fill_gradient2(breaks = c(-0.5,0.5)) +
-  facet_wrap(~ DX)
-```
+
 ```{r}
 results_pheno %>%
   mutate(corr_diff = ivertex_corr - tvertex_corr,
@@ -393,23 +472,7 @@ DX_lm_model %>%
   filter(p.value < 0.1) %>%
   kable()
 ```
-```{r}
-DX_lm_model <- results_pheno %>%
-  gather(vertex_type, corZ, ivertex_corr, tvertex_corr) %>%
-  filter(age > 17, age < 51) %>%
-  group_by(vertex_type, subcort_ROI, PINT_ROI) %>%
-  do(tidy(lm(corZ ~ DX*Sex + mean_fd_pt + poly(Age_std,2) + Edu_std + Site,.))) %>%
-  select(vertex_type, subcort_ROI, PINT_ROI, term, statistic, p.value) %>%
-  ungroup() %>%
-  group_by(term) %>%
-  mutate(p_FDR = p.adjust(p.value, method = "fdr")) %>%
-  arrange(p.value)
 
-DX_lm_model %>% 
-  filter(term %in% c("DXCtrl", "Sex2")) %>%
-  filter(p.value < 0.1) %>%
-  kable()
-```
 ```{r}
 DX_lm_model <- results_pheno %>%
   group_by(YeoNet, subcort_ROI, hemisphere, 
@@ -417,9 +480,9 @@ DX_lm_model <- results_pheno %>%
   summarise(netmean_ivertex = mean(ivertex_corr),
             netmean_tvertex = mean(tvertex_corr)) %>%
   gather(vertex_type, netmean_corZ, netmean_ivertex, netmean_tvertex) %>%
-  group_by(vertex_type, hemisphere, subcort_ROI, YeoNet) %>%
+  group_by(vertex_type, subcort_ROI, YeoNet) %>%
   do(tidy(lm(netmean_corZ ~ DX*Sex + mean_fd_pt + poly(Age_std,2) + Edu_std + Site,.))) %>%
-  select(vertex_type, subcort_ROI, YeoNet, hemisphere, term, statistic, p.value) %>%
+  select(vertex_type, subcort_ROI, YeoNet, term, statistic, p.value) %>%
   ungroup() %>%
   group_by(term) %>%
   mutate(p_FDR = p.adjust(p.value, method = "fdr")) %>%
@@ -431,13 +494,15 @@ kable(DX_lm_model %>% filter(term %in% c("DXCtrl", "Sex2", "DXCtrl:Sex2"), p.val
 0.05/24
 ```
 
+![](VA_Striatum_pic.png)
+
 ```{r}
 DX_lm_model %>%
   filter(term == "DXCtrl") %>%
 ggplot(aes(x = YeoNet, y=subcort_ROI, fill = statistic)) +
   geom_tile(color = "black") +
   scale_fill_gradient2(breaks = c(-4.5,-4.5)) +
-  facet_wrap(~ vertex_type + hemisphere, ncol = 4)
+  facet_wrap(~ vertex_type, ncol = 4)
 ```
 ```{r}
 DX_lm_model %>%
@@ -462,30 +527,43 @@ results_pheno %>%
   facet_wrap(~ vertex_type + Site)
 ```
 
-```{r}
-results_pheno %>%
+```{r, fig.height=8, fig.width = 5}
+fig1 <- results_pheno %>%
   group_by(YeoNet, subcort_ROI, 
            subid, DX, Age_std, Sex, Site, Edu_std, mean_fd_pt) %>%
-  summarise(netmean_ivertex = mean(ivertex_corr),
-            netmean_tvertex = mean(tvertex_corr)) %>%
-  gather(vertex_type, netmean_corZ, netmean_ivertex, netmean_tvertex) %>%
+  summarise(Personalized = mean(ivertex_corr),
+            Template = mean(tvertex_corr)) %>%
+  gather(vertex_type, netmean_corZ, Personalized, Template) %>%
   filter(YeoNet == "VA", subcort_ROI == "Striatum_VA") %>%
-  ggplot(aes(y = netmean_corZ, x = Sex, by = DX, color = DX)) + 
-  geom_boxplot() +
+  ggplot(aes(y = netmean_corZ, x = DX, color = DX)) + 
+  geom_boxplot() + geom_jitter(aes(shape = Sex), alpha = 0.5) +
   scale_color_brewer(palette = "Dark2") +
-  facet_grid(Site ~ vertex_type)
+  facet_grid(Site ~ vertex_type) +
+  labs(y = "Striatum- Cortex Resting State Correlation (Z)")
+
+ggsave(fig1, filename = 'VA_results.png',height = 8, width = 5)
+
+fig1
+```
+```{r, fig.height=8, fig.width = 5}
+fig2 <- results_pheno %>%
+  group_by(YeoNet, subcort_ROI, 
+           subid, DX, Age_std, Sex, Site, Edu_std, mean_fd_pt) %>%
+  summarise(Personalized = mean(ivertex_corr),
+            Template = mean(tvertex_corr)) %>%
+  gather(vertex_type, netmean_corZ, Personalized, Template) %>%
+  filter(YeoNet == "DM", subcort_ROI == "Striatum_DM") %>%
+  ggplot(aes(y = netmean_corZ, x = DX, color = DX)) + 
+  geom_boxplot() + geom_jitter(aes(shape = Sex), alpha = 0.5) +
+  scale_color_brewer(palette = "Dark2") +
+  facet_grid(Site ~ vertex_type) +
+  labs(y = "Striatum- Cortex Resting State Correlation (Z)")
+
+ggsave(fig2, filename = 'DM_results.png',height = 8, width = 5)
+
+fig2
 ```
 
-```{r fig.height=8, fig.width=4}
-results_pheno %>%
-  group_by(YeoNet, subcort_ROI, hemisphere, 
-           subid, DX, Age_std, Sex, Site, Edu_std, mean_fd_pt) %>%
-  summarise(netmean_ivertex = mean(ivertex_corr),
-            netmean_tvertex = mean(tvertex_corr)) %>%
-  gather(vertex_type, netmean_corZ, netmean_ivertex, netmean_tvertex) %>%
-  filter(YeoNet == "VA", subcort_ROI == "Striatum_VA") %>%
-  ggplot(aes(y = netmean_corZ, x = Sex, by = DX, color = DX)) + 
-  geom_boxplot() +
-  scale_color_brewer(palette = "Dark2") +
-  facet_wrap(~ Site + vertex_type + hemisphere)
-```
+
+
+
