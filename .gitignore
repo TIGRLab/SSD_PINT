@@ -4,4 +4,6 @@
 .Ruserdata
 /data
 /notebooks/*.nb.html
+/notebooks/*.pdf
+/notebooks/*.png
 /deprecated
