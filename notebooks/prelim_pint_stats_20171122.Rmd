@@ -45,7 +45,7 @@ Yeo7_2011_80verts <- read_csv("../templates/Yeo7_2011_80verts.csv",
 
 # read and mangle the phenotypic data
 
-```{r reading phenotypic data}
+```{r reading-phenotypic-data}
 
 ## reading in the qced_sublists csv to get the sublists
 pheno <- read_csv("../phenotypic/subjects_not_sexmatched_20180507.csv")
@@ -54,7 +54,7 @@ pheno <- read_csv("../phenotypic/subjects_not_sexmatched_20180507.csv")
 
 ## adding transformed variables 
 
-```{r mangle pheno}
+```{r mangle-pheno}
 transform_to_normal <- function(X) {
   # calculate the best exponent using powerTransform:
   pT <- car::powerTransform(X)
@@ -75,7 +75,7 @@ pheno <- pheno %>%
 
 ## searching for the meants files
 
-```{r finding pint outputs}
+```{r finding-pint-outputs}
 pint_outputlist <- data.frame("filepath" = list.files(pint_outputs, 
                                                       recursive = T,
                                                       pattern = "_summary.csv")) %>%
@@ -89,7 +89,7 @@ pint_outputlist <- inner_join(pint_outputlist, subcort_outputlist, by = "subid")
 
 A table that describes the current expected subortical files
 
-```{r define subcotical files}
+```{r define-subcotical-files}
 # a tibble table to specify the subcortical meants files that were generated
 subcortical_files <- tribble(
   ~file_prefix, ~name,
@@ -263,7 +263,7 @@ print(therealtable1)
 
 # Is PINT "focusing" cortical subcortical connectivity
 
-```{r plotting PINT change matrix, fig.height=8}
+```{r plotting-PINT-change-matrix, fig.height=8}
 table1 <- results_pheno %>%
   mutate(corr_diff = ivertex_corr - tvertex_corr) %>%
   gather(corr_type, rval, ivertex_corr, tvertex_corr, corr_diff) %>%
@@ -279,7 +279,7 @@ ggplot(table1, aes(y = PINT_ROI, x = subcort_ROI, fill = Mean)) +
   facet_wrap(~corr_type, ncol = 3) 
 
 ```
-```{r plotting PINT change by network}
+```{r plotting-PINT-change-by-network}
 table2 <- results_pheno %>%
   mutate(corr_diff = ivertex_corr - tvertex_corr) %>%
   gather(corr_type, rval, ivertex_corr, tvertex_corr, corr_diff) %>%
@@ -295,7 +295,7 @@ ggplot(table2, aes(y = YeoNet, x = subcort_ROI, fill = Mean)) +
   facet_wrap(~corr_type, ncol = 3) 
 ```
 
-```{r paired t tests of PINT effect}
+```{r paired-ttests-of-PINT-effect}
 net_means <- results_pheno %>%
   mutate(corr_diff = ivertex_corr - tvertex_corr,
          YeoNet = str_sub(PINT_ROI, 1,2)) %>%
@@ -315,7 +315,7 @@ ggplot(aes(x = YeoNet, y = subcort_ROI, fill = statistic)) +
   scale_fill_gradient2() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
 ```
-```{r DM subcortical plot part 1}
+```{r DM-subcortical-plot-part1}
 
 net_means <- results_pheno %>%
   mutate(corr_diff = ivertex_corr - tvertex_corr,
@@ -341,7 +341,7 @@ pint_diff_sub_DM <- net_means %>%
   scale_y_continuous(limits = c(-0.3, 0.3))
 ```
 
-```{r DM subcortical plot part 2}
+```{r DM-subcortical-plot-part-2}
 library(forcats)
 library(cowplot)
 
@@ -367,7 +367,7 @@ plot_grid(pint_diff_sub_DM, DM_submeans_plot, rel_widths = c(1,2.5))
 ```
 
 
-```{r VA subcortical plot}
+```{r VA-subcortical-plot}
 net_means <- results_pheno %>%
   mutate(corr_diff = ivertex_corr - tvertex_corr,
          YeoNet = str_sub(PINT_ROI, 1,2)) %>%
@@ -413,7 +413,7 @@ plot_grid(pint_diff_sub_VA, VA_submeans_plot, rel_widths = c(1,2.5))
 ```
 
 
-```{r plotting PINT effect separately by DX}
+```{r plotting-PINT-effect-separately-by-DX}
 net_means_byDX <- results_pheno %>%
   mutate(corr_diff = ivertex_corr - tvertex_corr) %>%
   group_by(YeoNet, subcort_ROI, subid, DX) %>%
@@ -435,7 +435,7 @@ ggplot(aes(x = YeoNet, y = subcort_ROI, fill = statistic)) +
 ```
 
 
-```{r plotting striatal cortical by DX and PINT}
+```{r plotting-striatal-cortical-by-DX-and-PINT}
 results_pheno %>%
   mutate(corr_diff = ivertex_corr - tvertex_corr,
          YeoNet = str_sub(PINT_ROI, 1,2)) %>%
@@ -452,7 +452,7 @@ results_pheno %>%
 
 ## running model again with sex interaction
 
-```{r running subcortical model with sex interaction}
+```{r running-subcortical-model-with-sex-interaction}
 library(knitr)
 
 DX_lm_model <- results_pheno %>%

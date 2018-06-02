@@ -1,4 +1,4 @@
-# Prelim PINT stats
+# Striatum Cortical Stats
 
 Going to Start Loading saba's PINT data
 
@@ -327,7 +327,7 @@ ggplot(table1, aes(y = PINT_ROI, x = subcort_ROI, fill = Mean)) +
   facet_wrap(~corr_type, ncol = 3) 
 ```
 
-![](prelim_pint_stats_20171122_files/figure-html/plotting-PINT-change-matrix-1.png)<!-- -->
+![](03_striatal_cortical_stats_files/figure-html/plotting-PINT-change-matrix-1.png)<!-- -->
 
 ```r
 table2 <- results_pheno %>%
@@ -345,7 +345,7 @@ ggplot(table2, aes(y = YeoNet, x = subcort_ROI, fill = Mean)) +
   facet_wrap(~corr_type, ncol = 3) 
 ```
 
-![](prelim_pint_stats_20171122_files/figure-html/plotting-PINT-change-by-network-1.png)<!-- -->
+![](03_striatal_cortical_stats_files/figure-html/plotting-PINT-change-by-network-1.png)<!-- -->
 
 
 ```r
@@ -369,7 +369,7 @@ ggplot(aes(x = YeoNet, y = subcort_ROI, fill = statistic)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
 ```
 
-![](prelim_pint_stats_20171122_files/figure-html/paired-ttests-of-PINT-effect-1.png)<!-- -->
+![](03_striatal_cortical_stats_files/figure-html/paired-ttests-of-PINT-effect-1.png)<!-- -->
 
 ```r
 net_means <- results_pheno %>%
@@ -435,7 +435,7 @@ DM_submeans_plot <- net_means %>%
 plot_grid(pint_diff_sub_DM, DM_submeans_plot, rel_widths = c(1,2.5))
 ```
 
-![](prelim_pint_stats_20171122_files/figure-html/DM-subcortical-plot-part-2-1.png)<!-- -->
+![](03_striatal_cortical_stats_files/figure-html/DM-subcortical-plot-part-2-1.png)<!-- -->
 
 
 
@@ -492,7 +492,7 @@ plot_grid(pint_diff_sub_VA, VA_submeans_plot, rel_widths = c(1,2.5))
 ## Warning: Removed 4 rows containing missing values (geom_point).
 ```
 
-![](prelim_pint_stats_20171122_files/figure-html/VA-subcortical-plot-1.png)<!-- -->
+![](03_striatal_cortical_stats_files/figure-html/VA-subcortical-plot-1.png)<!-- -->
 
 
 
@@ -517,7 +517,7 @@ ggplot(aes(x = YeoNet, y = subcort_ROI, fill = statistic)) +
   facet_wrap(~ DX)
 ```
 
-![](prelim_pint_stats_20171122_files/figure-html/plotting-PINT-effect-separately-by-DX-1.png)<!-- -->
+![](03_striatal_cortical_stats_files/figure-html/plotting-PINT-effect-separately-by-DX-1.png)<!-- -->
 
 
 
@@ -536,7 +536,7 @@ results_pheno %>%
   facet_wrap(vertex_type ~ DX)
 ```
 
-![](prelim_pint_stats_20171122_files/figure-html/plotting-striatal-cortical-by-DX-and-PINT-1.png)<!-- -->
+![](03_striatal_cortical_stats_files/figure-html/plotting-striatal-cortical-by-DX-and-PINT-1.png)<!-- -->
 
 ## running model again with sex interaction
 
@@ -621,7 +621,7 @@ ggplot(aes(x = YeoNet, y=subcort_ROI, fill = statistic)) +
   facet_wrap(~ vertex_type, ncol = 4)
 ```
 
-![](prelim_pint_stats_20171122_files/figure-html/plotting model DX t-tstats-1.png)<!-- -->
+![](03_striatal_cortical_stats_files/figure-html/plotting-model-DX-ttstats-1.png)<!-- -->
 
 ```r
 DX_lm_model %>%
@@ -632,7 +632,7 @@ ggplot(aes(x = YeoNet, y=subcort_ROI, fill = statistic)) +
   facet_wrap(~ vertex_type, ncol = 4)
 ```
 
-![](prelim_pint_stats_20171122_files/figure-html/plotting model Sex Effects-1.png)<!-- -->
+![](03_striatal_cortical_stats_files/figure-html/plotting-model-Sex-Effects-1.png)<!-- -->
 
 
 
@@ -657,7 +657,7 @@ ggsave(fig1, filename = 'VA_results.png',height = 8, width = 5)
 fig1
 ```
 
-![](prelim_pint_stats_20171122_files/figure-html/VA DX effect figure-1.png)<!-- -->
+![](03_striatal_cortical_stats_files/figure-html/VA-DX-effect-figure-1.png)<!-- -->
 
 ```r
 fig2 <- results_pheno %>%
@@ -680,7 +680,7 @@ ggsave(fig2, filename = 'DM_results.png',height = 8, width = 5)
 fig2
 ```
 
-![](prelim_pint_stats_20171122_files/figure-html/DM DX effect figure-1.png)<!-- -->
+![](03_striatal_cortical_stats_files/figure-html/DM-DX-effect-figure-1.png)<!-- -->
 
 
 
