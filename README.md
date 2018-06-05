@@ -10,8 +10,7 @@ For Stratium:
    + note: using network-wise analysis, bonferroni corrected against 6 network or 12 `network*hemishphere` comparisons.
 3. For Edge-wise comparision (pre and post pint):
    + FPP1R - FPP1L connectivity is greater in SSD before PINT, but no differences after PINT
-
-lalalala
+   
 
 To-Do:
  - [] Remove the possibly duplicated ZHH data
