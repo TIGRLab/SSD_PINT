@@ -47,7 +47,7 @@ wc -l */*/*/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log | sort
      135 PNSC/hcp/PNS_CMH_0023_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
      135 SPINS/hcp/SPN01_CMH_0004_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
      
-
+# Dies at line 144 means ciftify_subject_fmri probably timed out
      144 DTI3T/hcp/DTI_CMH_H163_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
      144 DTI3T/hcp/DTI_CMH_H166_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
      144 DTI3T/hcp/DTI_CMH_H167_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
@@ -58,7 +58,10 @@ wc -l */*/*/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log | sort
      144 SPINS/hcp/SPN01_CMH_0047_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
      144 SPINS/hcp/SPN01_CMH_0054_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
      144 SPINS/hcp/SPN01_CMH_0065_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+# Dies at line 145 means ciftify_subject_fmri probably timed out
      145 SPINS/hcp/SPN01_CMH_0055_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     
+# Dies at line 160 means ciftify_subject_fmri probably timed out at smoothing
      160 DTI3T/hcp/DTI_CMH_H164_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
      160 DTI3T/hcp/DTI_CMH_H165_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
      160 DTI3T/hcp/DTI_CMH_H169_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
