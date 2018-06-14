@@ -1,20 +1,20 @@
 The following are missing in the new processed data:
 
-A00021598: Run one and two do exist - just late
+A00021598: Run one and two do exist - just  - rerun PINT
 A00013816: Too many TRs to remove, using drop method!
 A00016723 Too many TRs to remove, using drop method!
 A00037649: Too many TRs to remove, using drop method!
 A00014839: check anat and rerun
 A00016197: same problem as above
-DTI_CMH_H036_02:
-DTI_CMH_H163_01
-DTI_CMH_H166_01
-DTI_CMH_H167_01
-DTI_CMH_H168_01
-DTI_CMH_S055_02
-DTI_CMH_S156_01
-DTI_CMH_S171_01
-PNS_CMH_0023_01
+DTI_CMH_H036_02: - ciftify_recon_all didn't finish... need to (or grab the good ones from archive)
+DTI_CMH_H163_01: - ciftify_recon_all didn't finish... need to rerun
+DTI_CMH_H166_01: - ciftify_recon_all didn't finish... need to rerun
+DTI_CMH_H167_01: - ciftify_recon_all didn't finish... need to rerun
+DTI_CMH_H168_01: - ciftify_recon_all didn't finish... need to rerun
+DTI_CMH_S055_02: - ciftify_recon_all didn't finish... need to rerun
+DTI_CMH_S156_01: - ciftify_recon_all didn't finish... need to rerun
+DTI_CMH_S171_01: no directory in /scratch/edickie
+PNS_CMH_0023_01: 
 RTMSWM_CMH_WM047_01
 SPN01_CMH_0004_01
 SPN01_CMH_0039_01
@@ -25,10 +25,10 @@ SPN01_CMH_0054_01
 SPN01_CMH_0055_01
 SPN01_CMH_0065_01
 
-The folders exist for the following subjects but the CSV files are missing - PINT log shows errors:
+The folders exist for the following subjects but the CSV files are missing - PINT log shows errors: (but this may be a mount..or a missing smoothing file?)
 
-DTI_CMH_H165_01
-SPN01_CMH_0056_01
+DTI_CMH_H165_01 - note there is probably a problem with the smoothed file - need to rerun cifti-smooth - then PINT
+SPN01_CMH_0056_01 - note there is probably a problem with the smoothed file - need to rerun cifti-smooth - then PINT
 
 The following are extra in the new processed data:
 
