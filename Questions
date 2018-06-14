@@ -14,16 +14,86 @@ DTI_CMH_H168_01: - ciftify_recon_all didn't finish... need to rerun
 DTI_CMH_S055_02: - ciftify_recon_all didn't finish... need to rerun
 DTI_CMH_S156_01: - ciftify_recon_all didn't finish... need to rerun
 DTI_CMH_S171_01: no directory in /scratch/edickie
-PNS_CMH_0023_01: 
-RTMSWM_CMH_WM047_01
-SPN01_CMH_0004_01
-SPN01_CMH_0039_01
-SPN01_CMH_0040_01
-SPN01_CMH_0042_01
-SPN01_CMH_0047_01
-SPN01_CMH_0054_01
-SPN01_CMH_0055_01
-SPN01_CMH_0065_01
+PNS_CMH_0023_01: errors in ciftify_recon_all step.. rerun..
+RTMSWM_CMH_WM047_01: errors in ciftify_recon_all step.. rerun..
+SPN01_CMH_0004_01:  errors in ciftify_recon_all step.. rerun..
+SPN01_CMH_0039_01: ciftify_subject_fmri timeout
+SPN01_CMH_0040_01: ciftify_subject_fmri timeout
+SPN01_CMH_0042_01: ciftify_subject_fmri timeout
+SPN01_CMH_0047_01: ciftify_subject_fmri timeout
+SPN01_CMH_0054_01: ciftify_subject_fmri timeout
+SPN01_CMH_0055_01: ciftify_subject_fmri timeout
+SPN01_CMH_0065_01: cciftify_subject_fmri timeout
+SPN01_CMH_0031_01
+SPN01_CMH_0034_01
+SPN01_CMH_0052_01
+SPN01_CMH_0056_01
+SPN01_CMH_0058_01
+SPN01_CMH_0066_01
+
+## Note a trick for fast debugging...check the number of lines in the input file
+wc -l */*/*/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log | sort
+
+# Dies at line 41 means not input fMRI available
+41 ASDD/hcp/ASDD_CMH_HEF011_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+41 RTMSWM/hcp/RTMSWM_CMH_WM017_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+41 RTMSWM/hcp/RTMSWM_CMH_WM047_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+
+# Dies at line 135 means "roi shape file does not exist - rerun ciftify_recon_all/freesurfer 
+     135 DTI3T/hcp/DTI_CMH_H036_02/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     135 DTI3T/hcp/DTI_CMH_S055_02/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     135 DTI3T/hcp/DTI_CMH_S156_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     135 DTI3T/hcp/DTI_CMH_S171_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     135 PNSC/hcp/PNS_CMH_0023_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     135 SPINS/hcp/SPN01_CMH_0004_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     
+
+     144 DTI3T/hcp/DTI_CMH_H163_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 DTI3T/hcp/DTI_CMH_H166_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 DTI3T/hcp/DTI_CMH_H167_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 DTI3T/hcp/DTI_CMH_H168_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 SPINS/hcp/SPN01_CMH_0039_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 SPINS/hcp/SPN01_CMH_0040_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 SPINS/hcp/SPN01_CMH_0042_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 SPINS/hcp/SPN01_CMH_0047_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 SPINS/hcp/SPN01_CMH_0054_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 SPINS/hcp/SPN01_CMH_0065_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     145 SPINS/hcp/SPN01_CMH_0055_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_H164_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_H165_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_H169_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_H170_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_H171_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_H172_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_S143_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_S149_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 SPINS/hcp/SPN01_CMH_0031_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 SPINS/hcp/SPN01_CMH_0034_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 SPINS/hcp/SPN01_CMH_0052_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 SPINS/hcp/SPN01_CMH_0056_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 SPINS/hcp/SPN01_CMH_0058_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 SPINS/hcp/SPN01_CMH_0066_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21458_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21459_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21464_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21473_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21480_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21493_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21498_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21500_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21506_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21508_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21510_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21517_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21531_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21533_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21540_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21570_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_22597_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_22663_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+
+
+
 
 The folders exist for the following subjects but the CSV files are missing - PINT log shows errors: (but this may be a mount..or a missing smoothing file?)
 
