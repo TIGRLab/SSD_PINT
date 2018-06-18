@@ -1,11 +1,11 @@
 ---
-title: "Sub-cortical Cortical Stats"
+title: "Sub-cortical Cortical Stats Split by Hemisphere"
 output:
   html_document:
     keep_md: TRUE
 ---
 
-# Sub-cortical Cortical Stats
+# Sub-cortical Cortical Stats Left and Right
 
 This analysis tries to combine timeseries data from PINT outputs with subcortical timeseries to ask two questions
 
@@ -14,6 +14,7 @@ This analysis tries to combine timeseries data from PINT outputs with subcortica
    
 2. To interograte SSD related differences in Cortical-Subcortical connectivity - and to see if they persist after PINT.
 
+Some work Ji (in prep) kinda suggests that there might be differences between left and right subcortical structures. AND spliting the left and right seemed to make more sense for whole brain correlations (because our cortical nodes have a hemisphere). So in this analysis have separate left and right ROIs
 
 ```{r message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -28,7 +29,7 @@ library(cowplot)
 
 ```{r setting paths}
 pint_outputs <- '../data/PINT_outputs_s8_6-6-12/'
-subcortical_outputs_dir <- '/KIMEL/tigrlab/projects/dmiranda/subcortical/output_ts/'
+subcortical_outputs_dir <- '/KIMEL/tigrlab/projects/dmiranda/subcortical_split_LR/output_ts'
 
 Yeo7_2011_80verts <- read_csv("../templates/Yeo7_2011_80verts.csv",
                               col_types = c(
@@ -103,6 +104,11 @@ pint_outputlist <- inner_join(pint_outputlist, subcort_outputlist, by = "subid")
 
 ```
 
+```{r}
+list.files(file.path(subcortical_outputs_dir, subcort_outputlist$subid[1]))
+```
+
+
 A table that describes the current expected subortical files
 
 ```{r define-subcotical-files}
@@ -127,15 +133,17 @@ read_meants_csv <- function(filepath) {
 }
 
 #' Read the contents of a subcortical csv
+#' expample file path is ASDD_CMH_HEF003_01_s0_L_rsn_cerebellum_7networks_networks_MWfix.dlabel_meants.csv
 #'
 #' @param subid The subject identifier
+#' @param hemi The hemisphere "L" or "R"
 #' @param subregion region "thalamus", "stiatum", "cerebellum"
 #' @param pint_outputs the basepath of the pint outputs
 #'
 #' @return a dataframe of the _meants.csv contents
-read_subcortical_meants <- function(subid, subregion, subcortical_outputs_dir) {
+read_subcortical_hemi_meants <- function(subid, hemi, subregion, subcortical_outputs_dir) {
   expected_filepath <- file.path(subcortical_outputs_dir, subid, 
-                           str_c(subid, '_s0_rsn_', subregion, '_7networks_networks_MWfix.dlabel_meants.csv'))
+                           str_c(subid, '_s0_', hemi, '_rsn_', subregion, '_7networks_networks_MWfix.dlabel_meants.csv'))
   meants = read_meants_csv(expected_filepath)
   return(meants)
 }
@@ -160,6 +168,16 @@ This reads all files and generate PINT to subcortical correlation values for a g
 
 ```{r read and correlated function}
 
+the_subcortical_guide <- tribble(
+ ~subcort_hemi, ~subcort_ROI, ~subcort_NET,
+ "L", "thalamus", c('VI','SM','DA','VA', 'FP','DM'),
+ "L", "striatum", c('SM','DA','VA', 'LI','FP','DM'),
+ "L", "cerebellum", c('VI','SM','DA','VA', 'LI','FP','DM'),
+ "R", "thalamus", c('VI','SM','DA','VA', 'LI','FP','DM'),
+ "R", "striatum", c('VI','SM','DA','VA', 'LI','FP','DM'),
+ "R", "cerebellum", c('VI','SM','DA','VA', 'LI','FP','DM')) %>%
+  unnest()
+
 
 #' read all fMRI timeseries data for one subject and correlates PINT ROIs with subcortex
 #'
@@ -177,45 +195,36 @@ subject_subcort_corrs <- function(subid, pint_outputs, subcortical_outputs_dir,
   tvertex_meants <- read_pint_meants(subid, 'tvertex', pint_outputs)
   
   # read the subcortical meants files
-  thalamus_meants <- read_subcortical_meants(subid, "thalamus", subcortical_outputs_dir)
-  striatum_meants <- read_subcortical_meants(subid, "striatum", subcortical_outputs_dir)
-  cerebellum_meants <- read_subcortical_meants(subid, "cerebellum", subcortical_outputs_dir)
+  thalamus_L_meants <- read_subcortical_hemi_meants(subid, "L","thalamus", subcortical_outputs_dir)
+  striatum_L_meants <- read_subcortical_hemi_meants(subid, "L","striatum", subcortical_outputs_dir)
+  cerebellum_L_meants <- read_subcortical_hemi_meants(subid, "L", "cerebellum", subcortical_outputs_dir)
+  thalamus_R_meants <- read_subcortical_hemi_meants(subid, "R","thalamus", subcortical_outputs_dir)
+  striatum_R_meants <- read_subcortical_hemi_meants(subid, "R","striatum", subcortical_outputs_dir)
+  cerebellum_R_meants <- read_subcortical_hemi_meants(subid, "R", "cerebellum", subcortical_outputs_dir)
   
   # prepare to bind
-  subcort_meants <- bind_rows(thalamus_meants, striatum_meants, cerebellum_meants)
-  subcort_region_list <- c(rep("thalamus", nrow(thalamus_meants)), 
-                           rep("striatum", nrow(striatum_meants)),
-                           rep("cerebellum", nrow(cerebellum_meants)))
-  subcort_net_list <- rep(c('VI','SM','DA','VA', 'LI','FP','DM'),3)
+  subcort_meants <- bind_rows(thalamus_L_meants, striatum_L_meants, cerebellum_L_meants,
+                              thalamus_R_meants, striatum_R_meants, cerebellum_R_meants)
   
   # correlate the ivertex timeseries with the subcortical data
   ivertex_subcortcorr <- as.data.frame(cor(t(subcort_meants), t(ivertex_meants)))
   names(ivertex_subcortcorr) <- Yeo7_2011_80verts$SHORTNAME
-  ivertex_result <- ivertex_subcortcorr %>%
-    mutate(subcort_ROI = subcort_region_list,
-           subcort_NET = subcort_net_list) %>%
-    gather(PINT_ROI, ivertex_corr, -subcort_ROI, -subcort_NET)
+  ivertex_result <- the_subcortical_guide %>% 
+    bind_cols(ivertex_subcortcorr) %>%
+    gather(PINT_ROI, ivertex_corr, -subcort_ROI, -subcort_NET, -subcort_hemi)
   
   # correlated the tvertex timeseries with the subcortical data
   tvertex_subcortcorr <- as.data.frame(cor(t(subcort_meants), t(tvertex_meants)))
   names(tvertex_subcortcorr) <- Yeo7_2011_80verts$SHORTNAME
-  tvertex_result <- tvertex_subcortcorr %>%
-    mutate(subcort_ROI = subcort_region_list,
-           subcort_NET = subcort_net_list) %>%
-    gather(PINT_ROI, tvertex_corr, -subcort_ROI, -subcort_NET)
+  tvertex_result <- the_subcortical_guide %>% 
+    bind_cols(tvertex_subcortcorr) %>%
+    gather(PINT_ROI, tvertex_corr, -subcort_ROI, -subcort_NET, -subcort_hemi)
   
   # combine ivertex and tvertex and return
   subresult <- ivertex_result %>%
-    inner_join(tvertex_result, by = c("PINT_ROI", "subcort_ROI", "subcort_NET"))
+    inner_join(tvertex_result, by = c("PINT_ROI", "subcort_ROI", "subcort_NET", "subcort_hemi"))
   return(subresult)
 }
-
-```
-
-
-### This reads all the subcortical files it can find
-
-```{r read all the data}
 
 run_read_subject_subcort_corrs <- function(subid) {
   df <-subject_subcort_corrs(subid, pint_outputs, subcortical_outputs_dir,
@@ -223,6 +232,14 @@ run_read_subject_subcort_corrs <- function(subid) {
   return(df)
 }
 
+# run_read_subject_subcort_corrs(subcort_outputlist$subid[1])
+
+```
+
+
+### This reads all the subcortical files it can find
+
+```{r read all the data}
 
 all_subcort_results <- pint_outputlist %>%
   mutate(subcort_corrs = map(subid, ~run_read_subject_subcort_corrs(.x)))
@@ -241,7 +258,7 @@ results_pheno <- all_subcort_results %>%
          YeoNet = factor(YeoNet, levels = c("VI", "SM", "DA", "VA", "FP", "DM")),
          subcort_NET = factor(subcort_NET, levels = c("VI", "SM", "DA", "VA", "FP", "DM", "LI"))) %>%
   #       ) %>%
-  select(subid, PINT_ROI, subcort_ROI, subcort_NET,
+  select(subid, PINT_ROI, subcort_ROI, subcort_NET,subcort_hemi, 
          ivertex_corr, tvertex_corr, 
          DX, Edu, Sex, mean_fd, age, Site,
          Age_pt, mean_fd_pt, Edu_std, Age_std, 
@@ -260,7 +277,7 @@ library(tableone)
 therealtable1 <- CreateTableOne(
   strata = c("Site", "DX"),
   vars = c("age", "Edu", "Sex"),
-  data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="thalamus", subcort_NET=="VA")
+  data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L")
 )
 
 print(therealtable1)
@@ -283,6 +300,23 @@ ggplot(table1, aes(y = YeoNet, x = subcort_NET, fill = Mean)) +
   scale_fill_gradient2(breaks = c(-0.5,0.5)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   facet_grid(subcort_ROI~corr_type) 
+
+```
+
+```{r plotting-PINT-change-matrix-hemi, fig.height=8}
+table1 <- results_pheno %>%
+  mutate(corr_diff = ivertex_corr - tvertex_corr) %>%
+  gather(corr_type, rval, ivertex_corr, tvertex_corr) %>%
+  group_by(corr_type, YeoNet, hemisphere, subcort_ROI, subcort_NET, subcort_hemi) %>%
+  summarise(n = n(),
+            Mean = mean(rval),
+            SD = sd(rval)) 
+  
+ggplot(table1, aes(y = YeoNet, x = subcort_NET, fill = Mean)) + 
+  geom_tile() +
+  scale_fill_gradient2(breaks = c(-0.5,0.5)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_grid(subcort_ROI*subcort_hemi~corr_type*hemisphere) 
 
 ```
 
@@ -496,12 +530,12 @@ DX_lm_model %>%
 
 ```{r}
 DX_lm_model <- results_pheno %>%
-  group_by(YeoNet, subcort_ROI, subcort_NET, hemisphere, 
+  group_by(YeoNet, subcort_ROI, subcort_NET, hemisphere, subcort_hemi, 
            subid, DX, Age_std, Sex, Site, Edu_std, mean_fd_pt) %>%
   summarise(netmean_ivertex = mean(ivertex_corr),
             netmean_tvertex = mean(tvertex_corr)) %>%
   gather(vertex_type, netmean_corZ, netmean_ivertex, netmean_tvertex) %>%
-  group_by(vertex_type, subcort_ROI, subcort_NET, YeoNet) %>%
+  group_by(vertex_type, subcort_ROI, subcort_NET, YeoNet, hemisphere, subcort_hemi) %>%
   do(tidy(lm(netmean_corZ ~ DX + Sex + mean_fd_pt + poly(Age_std,2) + Edu_std + Site,.))) %>%
   select(vertex_type, subcort_ROI, YeoNet, term, statistic, p.value) %>%
   ungroup() %>%
@@ -514,10 +548,11 @@ kable(DX_lm_model %>% filter(term %in% c("DXSSD"), p.value < 0.06))
 ```{r}
 DX_lm_model %>%
   filter(term == "DXSSD") %>%
-  select(subcort_ROI, subcort_NET, vertex_type, YeoNet, statistic) %>%
+  select(subcort_ROI, subcort_NET, vertex_type, YeoNet, statistic, subcort_hemi, hemisphere) %>%
   spread(vertex_type, statistic) %>%
   ggplot(aes(x = netmean_ivertex, y = netmean_tvertex)) +
   geom_point(aes(color=YeoNet)) +
+  geom_smooth(method = "lm") +
   geom_abline(slope = 1, intercept =0) +
   facet_wrap(~subcort_NET)
 ```
@@ -527,7 +562,7 @@ DX_lm_model %>%
   mutate(matchnet = if_else(as.character(subcort_NET)==as.character(YeoNet), TRUE, FALSE)) %>%
   filter(term == "DXSSD",
          matchnet==TRUE) %>%
-  select(subcort_ROI, subcort_NET, vertex_type, YeoNet, statistic, term) %>%
+  select(subcort_ROI, subcort_NET, vertex_type, YeoNet, statistic, term, hemisphere, subcort_hemi) %>%
   spread(vertex_type, statistic) %>%
   ggplot(aes(x = netmean_ivertex, y = netmean_tvertex)) +
   geom_point(aes(color=subcort_NET)) +
