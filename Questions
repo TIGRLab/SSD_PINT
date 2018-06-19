@@ -31,6 +31,10 @@ SPN01_CMH_0056_01
 SPN01_CMH_0058_01
 SPN01_CMH_0066_01
 
+niifiles=`ls */hcp/*/MNINonLinear/Results/REST_01/REST_01.nii.gz`
+for nfile in $niifiles; do trs=`fslval ${nfile} dim4`; echo $trs $nfile; done | sort > number_tr.txt
+
+
 ## Note a trick for fast debugging...check the number of lines in the input file
 wc -l */*/*/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log | sort
 
