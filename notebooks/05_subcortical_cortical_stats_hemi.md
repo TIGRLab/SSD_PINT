@@ -556,7 +556,8 @@ pint_diff_sub_DM <- net_means %>%
 
 DM_submeans_plot <- net_means %>%
   mutate(is_DM = if_else(subcort_NET == 'DM', TRUE, FALSE),
-         SubCortNET = factor(subcort_NET, levels = c("DM", "SM", "DA", "VA", "FP"))) %>% 
+         SubCortNET = factor(subcort_NET, levels = c("DM", "SM", "DA", "VA", "FP"))) %>%
+  filter(subcort_ROI == "cerebellum", !is.na(SubCortNET), YeoNet == "DM") %>%
   ggplot(aes(y = pint_diff, x = SubCortNET, color = is_DM)) +
   geom_boxplot(color = "black") + 
   geom_jitter(alpha = 0.3) +
@@ -577,14 +578,6 @@ plot_grid(pint_diff_sub_DM, DM_submeans_plot, rel_widths = c(1,2.5))
 
 ```
 ## Warning: Removed 1 rows containing missing values (geom_point).
-```
-
-```
-## Warning: Removed 10 rows containing non-finite values (stat_boxplot).
-```
-
-```
-## Warning: Removed 10 rows containing missing values (geom_point).
 ```
 
 ![](05_subcortical_cortical_stats_hemi_files/figure-html/DM-cerebellum-plot-part1-1.png)<!-- -->
@@ -611,7 +604,7 @@ pint_diff_sub_VA <- net_means %>%
 VA_submeans_plot <- net_means %>%
   mutate(is_VA = if_else(subcort_NET == 'VA', TRUE, FALSE),
           SubCort_ROI = factor(subcort_NET, 
-                               levels = c("VA", 'SM', 'FP', "DM", "DA"))) %>%
+                               levels = c("VA", "DA", 'SM', 'FP', "DM"))) %>%
   filter(YeoNet == "VA", 
          subcort_ROI == "cerebellum",
          subcort_NET %in% c('SM', "VA", "DM", 'FP', "DA")) %>%
@@ -1400,6 +1393,36 @@ tvertex_corr   striatum      FP            VAF2L      DXSSD    -2.371659   0.018
 ivertex_corr   thalamus      VI            FPP2L      DXSSD    -2.369337   0.0181288   0.0993686
 ivertex_corr   thalamus      VI            VI05L      DXSSD     2.367979   0.0181949   0.0995682
 
+```r
+DX_lm_model %>% 
+  filter(term %in% c("DXSSD"), vertex_type == "ivertex_corr") %>%
+  filter(p_FDR < 0.05) %>%
+  summarise(n())
+```
+
+```
+## # A tibble: 1 x 2
+##    term `n()`
+##   <chr> <int>
+## 1 DXSSD   220
+```
+
+
+```r
+DX_lm_model %>% 
+  filter(term %in% c("DXSSD"), vertex_type == "tvertex_corr") %>%
+  filter(p_FDR < 0.05) %>%
+  summarise(n())
+```
+
+```
+## # A tibble: 1 x 2
+##    term `n()`
+##   <chr> <int>
+## 1 DXSSD   180
+```
+
+
 
 ```r
 DX_lm_model %>%
@@ -1437,7 +1460,8 @@ DX_lm_model %>%
 ## Adding missing grouping variables: `term`
 ```
 
-![](05_subcortical_cortical_stats_hemi_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
+![](05_subcortical_cortical_stats_hemi_files/figure-html/unnamed-chunk-7-1.png)<!-- -->
+
 
 
 ```r
@@ -1457,7 +1481,7 @@ DX_lm_model %>%
 ## Adding missing grouping variables: `term`
 ```
 
-![](05_subcortical_cortical_stats_hemi_files/figure-html/unnamed-chunk-6-1.png)<!-- -->
+![](05_subcortical_cortical_stats_hemi_files/figure-html/unnamed-chunk-9-1.png)<!-- -->
 
 
 ```r

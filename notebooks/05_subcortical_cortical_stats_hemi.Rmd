@@ -443,7 +443,8 @@ pint_diff_sub_DM <- net_means %>%
 
 DM_submeans_plot <- net_means %>%
   mutate(is_DM = if_else(subcort_NET == 'DM', TRUE, FALSE),
-         SubCortNET = factor(subcort_NET, levels = c("DM", "SM", "DA", "VA", "FP"))) %>% 
+         SubCortNET = factor(subcort_NET, levels = c("DM", "SM", "DA", "VA", "FP"))) %>%
+  filter(subcort_ROI == "cerebellum", !is.na(SubCortNET), YeoNet == "DM") %>%
   ggplot(aes(y = pint_diff, x = SubCortNET, color = is_DM)) +
   geom_boxplot(color = "black") + 
   geom_jitter(alpha = 0.3) +
@@ -480,7 +481,7 @@ pint_diff_sub_VA <- net_means %>%
 VA_submeans_plot <- net_means %>%
   mutate(is_VA = if_else(subcort_NET == 'VA', TRUE, FALSE),
           SubCort_ROI = factor(subcort_NET, 
-                               levels = c("VA", 'SM', 'FP', "DM", "DA"))) %>%
+                               levels = c("VA", "DA", 'SM', 'FP', "DM"))) %>%
   filter(YeoNet == "VA", 
          subcort_ROI == "cerebellum",
          subcort_NET %in% c('SM', "VA", "DM", 'FP', "DA")) %>%
@@ -640,6 +641,20 @@ DX_lm_model %>%
 
 
 ```
+```{r}
+DX_lm_model %>% 
+  filter(term %in% c("DXSSD"), vertex_type == "ivertex_corr") %>%
+  filter(p_FDR < 0.05) %>%
+  summarise(n())
+```
+
+```{r}
+DX_lm_model %>% 
+  filter(term %in% c("DXSSD"), vertex_type == "tvertex_corr") %>%
+  filter(p_FDR < 0.05) %>%
+  summarise(n())
+```
+
 
 ```{r DX-effect-of-PINT-scatter, fig.height=4, fig.width=4}
 DX_lm_model %>%
@@ -664,6 +679,9 @@ DX_lm_model %>%
   geom_smooth(method = "lm", color = "blue") +
   geom_abline(slope = 1, intercept = 0) +
   facet_wrap(~YeoNet)
+```
+```{r}
+
 ```
 
 ```{r}
