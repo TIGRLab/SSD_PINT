@@ -442,11 +442,9 @@ pint_diff_sub_DM <- net_means %>%
   scale_y_continuous(limits = c(-0.3, 0.3))
 
 DM_submeans_plot <- net_means %>%
-  mutate(is_DM = if_else(subcort_NET == 'DM', TRUE, FALSE)) %>%
-  filter(YeoNet == "DM", 
-         subcort_ROI == "cerebellum",
-         subcort_NET %in% c('SM', "VA", "DM", 'FP', 'DA')) %>%
-  ggplot(aes(y = pint_diff, x = subcort_NET, color = is_DM)) +
+  mutate(is_DM = if_else(subcort_NET == 'DM', TRUE, FALSE),
+         SubCortNET = factor(subcort_NET, levels = c("DM", "SM", "DA", "VA", "FP"))) %>% 
+  ggplot(aes(y = pint_diff, x = SubCortNET, color = is_DM)) +
   geom_boxplot(color = "black") + 
   geom_jitter(alpha = 0.3) +
   geom_hline(yintercept = 0) +
@@ -572,7 +570,7 @@ SM_submeans_plot <- net_means %>%
 
 # DM_brain_pic <- ggdraw + draw_image('DM_striatum_pic.png')
 
-plot_grid(pint_diff_sub_VA, VA_submeans_plot, rel_widths = c(1,2.5))
+plot_grid(pint_diff_sub_SM, SM_submeans_plot, rel_widths = c(1,2.5))
 ```
 
 ```{r}
@@ -643,7 +641,7 @@ DX_lm_model %>%
 
 ```
 
-```{r}
+```{r DX-effect-of-PINT-scatter, fig.height=4, fig.width=4}
 DX_lm_model %>%
   filter(term %in% c("DXSSD")) %>%
   select(vertex_type, subcort_ROI, subcort_NET, PINT_ROI, statistic) %>%
@@ -651,7 +649,9 @@ DX_lm_model %>%
   ggplot(aes(x = ivertex_corr, y = tvertex_corr)) +
   geom_point() +
   geom_smooth(method = "lm", color = "blue") +
-  geom_abline(slope = 1, intercept = 0)
+  geom_abline(slope = 1, intercept = 0) +
+  labs(x = "Personalized (after)", y = "Template (before)",
+       title = "Effect of SSD Diagnosis (t-tstat)")
 ```
 ```{r}
 DX_lm_model %>%
@@ -732,49 +732,17 @@ kable(DX_lm_model_bySite %>% filter(term %in% c("DXSSD"),
 ```
 
 
-```{r}
-DX_lm_model
-```
 
 
 
 
 
-```{r}
-DX_lm_model %>%
-  filter(term == "DXSSD") %>%
-  select(subcort_ROI, subcort_NET, vertex_type, YeoNet, statistic, subcort_hemi, hemisphere) %>%
-  spread(vertex_type, statistic) %>%
-  ggplot(aes(x = netmean_ivertex, y = netmean_tvertex)) +
-  geom_point(aes(color=YeoNet)) +
-  geom_smooth(method = "lm") +
-  geom_abline(slope = 1, intercept =0) +
-  facet_wrap(~subcort_NET)
-```
 
-```{r}
-DX_lm_model %>%
-  mutate(matchnet = if_else(as.character(subcort_NET)==as.character(YeoNet), TRUE, FALSE)) %>%
-  filter(term == "DXSSD",
-         matchnet==TRUE) %>%
-  select(subcort_ROI, subcort_NET, vertex_type, YeoNet, statistic, term, hemisphere, subcort_hemi) %>%
-  spread(vertex_type, statistic) %>%
-  ggplot(aes(x = netmean_ivertex, y = netmean_tvertex)) +
-  geom_point(aes(color=subcort_NET)) +
-  geom_abline(slope = 1, intercept = 0)
-```
+
+
 
 ![](VA_Striatum_pic.png)
 ##################################### Edit from Here! ################################################################
-
-```{r plotting-model-DX-ttstats}
-DX_lm_model %>%
-  filter(term == "DXSSD") %>%
-ggplot(aes(x = YeoNet, y=subcort_NET, fill = statistic)) +
-  geom_tile(color = "black") +
-  scale_fill_gradient2(breaks = c(-4.5,-4.5)) +
-  facet_grid(subcort_ROI~ vertex_type)
-```
 
 
 
