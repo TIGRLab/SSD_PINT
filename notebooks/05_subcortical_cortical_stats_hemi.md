@@ -1,4 +1,9 @@
-# Sub-cortical Cortical Stats Split by Hemisphere
+---
+title: "Sub-cortical Cortical Stats Split by Hemisphere"
+output:
+  html_document:
+    keep_md: TRUE
+---
 
 # Sub-cortical Cortical Stats Left and Right
 
@@ -26,7 +31,7 @@ library(cowplot)
 
 ```r
 pint_outputs <- '../data/PINT_outputs_s8_6-6-12/'
-subcortical_outputs_dir <- '/KIMEL/tigrlab/projects/dmiranda/subcortical_split_LR/output_ts'
+subcortical_outputs_dir <- '/projects/dmiranda/subcortical_split_LR/output_ts'
 
 Yeo7_2011_80verts <- read_csv("../templates/Yeo7_2011_80verts.csv",
                               col_types = c(
@@ -559,7 +564,7 @@ DM_submeans_plot <- net_means %>%
          SubCortNET = factor(subcort_NET, levels = c("DM", "SM", "DA", "VA", "FP"))) %>%
   filter(subcort_ROI == "cerebellum", !is.na(SubCortNET), YeoNet == "DM") %>%
   ggplot(aes(y = pint_diff, x = SubCortNET, color = is_DM)) +
-  geom_boxplot(color = "black") + 
+  geom_boxplot(color = "black", outlier.shape = NA) + 
   geom_jitter(alpha = 0.3) +
   geom_hline(yintercept = 0) +
   scale_color_manual(values = c('black','#cd3e4e')) +
@@ -595,7 +600,7 @@ pint_diff_sub_VA <- net_means %>%
          x_val = '') %>%
   select(subid, overall_pint_diff, x_val) %>%
   ggplot(aes(y = overall_pint_diff, x = x_val)) +
-    geom_boxplot() +
+    geom_boxplot(outlier.shape = NA) +
     geom_jitter(alpha = 0.3, color = '#c43afa', fill = "grey") +
     geom_hline(yintercept = 0) + 
     labs(y = "Change in correlation after PINT", x = "Cerebellum VA - Others") +
@@ -609,7 +614,7 @@ VA_submeans_plot <- net_means %>%
          subcort_ROI == "cerebellum",
          subcort_NET %in% c('SM', "VA", "DM", 'FP', "DA")) %>%
   ggplot(aes(y = pint_diff, x = SubCort_ROI, color = is_VA)) +
-  geom_boxplot(color = "black") + 
+  geom_boxplot(color = "black", outlier.shape = NA) + 
   geom_jitter(alpha = 0.3) +
   geom_hline(yintercept = 0) +
   scale_color_manual(values = c('black','#c43afa')) +
@@ -635,7 +640,7 @@ pint_diff_sub_VA <- net_means %>%
          x_val = '') %>%
   select(subid, overall_pint_diff, x_val) %>%
   ggplot(aes(y = overall_pint_diff, x = x_val)) +
-    geom_boxplot() +
+    geom_boxplot(outlier.shape = NA) +
     geom_jitter(alpha = 0.3, color = '#c43afa', fill = "grey") +
     geom_hline(yintercept = 0) + 
     labs(y = "Change in correlation after PINT", x = "Striatum VA - Others") +
@@ -649,7 +654,7 @@ VA_submeans_plot <- net_means %>%
          subcort_ROI == "striatum",
          subcort_NET %in% c('SM', "VA", "DM", 'FP')) %>%
   ggplot(aes(y = pint_diff, x = SubCort_ROI, color = is_VA)) +
-  geom_boxplot(color = "black") + 
+  geom_boxplot(color = "black", outlier.shape = NA) + 
   geom_jitter(alpha = 0.3) +
   geom_hline(yintercept = 0) +
   scale_color_manual(values = c('black','#c43afa')) +
@@ -674,7 +679,7 @@ pint_diff_sub_SM <- net_means %>%
          x_val = '') %>%
   select(subid, overall_pint_diff, x_val) %>%
   ggplot(aes(y = overall_pint_diff, x = x_val)) +
-    geom_boxplot() +
+    geom_boxplot(outlier.shape = NA) +
     geom_jitter(alpha = 0.3, color = 'blue', fill = "grey") +
     geom_hline(yintercept = 0) + 
     labs(y = "Change in correlation after PINT", x = "Striatum VA - Others") +
@@ -688,7 +693,7 @@ SM_submeans_plot <- net_means %>%
          subcort_ROI == "thalamus",
          subcort_NET %in% c('SM', "VA", "DA","DM", 'FP')) %>%
   ggplot(aes(y = pint_diff, x = SubCort_ROI, color = is_SM)) +
-  geom_boxplot(color = "black") + 
+  geom_boxplot(color = "black", outlier.shape = NA) + 
   geom_jitter(alpha = 0.3) +
   geom_hline(yintercept = 0) +
   scale_color_manual(values = c('black','blue')) +
@@ -1402,7 +1407,7 @@ DX_lm_model %>%
 
 ```
 ## # A tibble: 1 x 2
-##    term `n()`
+##   term  `n()`
 ##   <chr> <int>
 ## 1 DXSSD   220
 ```
@@ -1417,7 +1422,7 @@ DX_lm_model %>%
 
 ```
 ## # A tibble: 1 x 2
-##    term `n()`
+##   term  `n()`
 ##   <chr> <int>
 ## 1 DXSSD   180
 ```
