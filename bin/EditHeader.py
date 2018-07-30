@@ -30,7 +30,7 @@ def EditTR(filepath, TR):
 	n1_img.header['pixdim'][4] = TR
 	nibabel.save(n1_img, filepath)
 
-
+# This function edits the xyzt_units field in the header
 def EditTRunits(filepath, TRunits):
 	n1_img.header['xyzt_units'] = TRunits
 	nibabel.save(n1_img, filepath)
