@@ -24,8 +24,11 @@ workdir=$BBUFFER/fmriprep_wd/${dataset}/      # this is where the fmriprep "work
 mkdir -p ${sing_home} ${outdir} ${workdir}
 
 ## acutally builds a submission script and submits all subjects the tasks (note we are using qbatch and gnu-parallel to run across participants)
-cd ${indir}; ls -1d sub-[1-5]* | sed 's/sub-//g' | \
-  parallel "echo singularity run \
+SUBJECTS=`cd ${indir}; ls -1d sub-[1-5]* | sed 's/sub-//g'`
+
+cd ${outdir}
+
+parallel "echo singularity run \
   -H ${sing_home} \
   -B ${indir}:/bids \
   -B ${outdir}:/output \
@@ -39,7 +42,7 @@ cd ${indir}; ls -1d sub-[1-5]* | sed 's/sub-//g' | \
       --omp-nthreads 4 \
       --output-space T1w template \
       --work-dir /workdir \
-      --notrack --fs-license-file /freesurfer_license.txt" | \
+      --notrack --fs-license-file /freesurfer_license.txt" ::: $SUBJECTS | \
       qbatch \
        --walltime 11:30:00 --nodes 1 --ppj 40 \
        --chunksize 10 --cores 10 \
