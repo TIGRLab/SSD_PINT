@@ -431,3 +431,124 @@ for SID in $SIDlist; do
     qsub -V -l walltime=23:00:00,nodes=1:ppn=4 -N ciftify2_$SID -j oe -o ${bids_dir}/COBRE/logs;
 done
 ```
+
+## 2018-09-08 and now running subcortical extraction for Cobre
+
+```sh
+ssh dev02
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/COBRE/out
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img
+cleaning_script=/KIMEL/tigrlab/projects/edickie/code/SZ_PINT/bin/participant_ciftify_clean_and_subcortical.sh
+
+module load singularity/2.5.2
+export OMP_NUM_THREADS=4
+
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
+  session=$(basename $(dirname $(dirname ${preprocfile})))
+echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${sing_home} ${ciftify_container} | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject}_${session} -j oe -o ${outputdir}/../../COBRE/logs;
+done
+```
+
+
+## now let's try running the cleaning and PINT bit..
+
+```sh
+ssh dev01
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/COBRE/out
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img
+cleaning_script=/KIMEL/tigrlab/projects/edickie/code/bids-on-scinet/examples/participant_ciftify_clean_and_PINT.sh
+
+module load singularity/2.5.2
+export OMP_NUM_THREADS=4
+
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
+  session=$(basename $(dirname $(dirname ${preprocfile})))
+echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${sing_home} ${ciftify_container} | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N pint_${subject}_${session} -j oe -o ${outputdir}/../../COBRE/logs;
+done
+```
+
+## 2018-09-08 Running the cobre mriqc on the scc too
+
+```sh
+ssh dev02
+bids_dir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+mkdir -p $sing_home
+
+
+SIDlist=`cd ${bids_dir}/COBRE/COBRE; ls -1d sub* | sed 's/sub-//g'`
+cd /KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep
+mkdir -p COBRE/out COBRE/work COBRE/logs
+cd $sing_home
+for SID in $SIDlist; do
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/bids \
+    /KIMEL/tigrlab/archive/code/containers/MRIQC/poldracklab_mriqc_0.11.0-2018-06-05-1e4ac9792325.img \
+    /bids/COBRE/COBRE /bids/COBRE/out participant \
+    --participant_label=$SID \
+    -w /bids/COBRE/work \
+    --n_procs 2 \
+    --no-sub | \
+    qsub -V -l walltime=4:00:00,nodes=1:ppn=2 -N mriqc_$SID -j oe -o ${bids_dir}/COBRE/logs;
+done
+```
+## 2018-09-08 Lastly we will try to run the SZ and CTRLs from CNP on the scc
+
+in this case we are using the public (release 1.0.5 freesurfer outputs)
+but rerunning fmriprep for rest and ciftify
+
+```sh
+ssh dev02
+dataset="ds000030_R1.0.5"
+bids_dir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/bids_in/ds000030/ds000030_R1.0.5
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+mkdir -p $sing_home
+
+
+SIDlist=`cd ${bids_dir}; ls -1d sub* | sed 's/sub-//g'`
+cd /KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep
+mkdir -p ${dataset}/out ${dataset}/work ${dataset}/logs
+cd $sing_home
+for SID in $SIDlist; do
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/input \
+    -B ${outputdir}:/output \
+    -B /quarantine/Freesurfer/6.0.0/freesurfer/license.txt:/license_file.txt \
+    /KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img \
+    /input /output/ZHH/out participant \
+    --participant_label=$SID \
+    --task_label=rest \
+    --fmriprep-workdir /output/${dataset}/work \
+    --fs-license /license_file.txt \
+    --n_cpus 4 \
+    --fmriprep-args="--use-aroma" | \
+    qsub -l walltime=23:00:00,nodes=1:ppn=4 -N ciftify_$SID -j oe -o ${outputdir}/${dataset}/logs;
+done
+```
+
+## running ghetto (no container) PINT qc for COBRE
+
+```sh
+ssh kandel
+module load /projects/edickie/privatemodules/ciftify/201803
+outputdir=/scratch/edickie/saba_PINT/ciftify_fmriprep/COBRE/out
+func_base="task-rest_bold"
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+  echo ${preprocfile}
+  subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
+  session=$(basename $(dirname $(dirname ${preprocfile})))
+ cifti_vis_PINT subject \
+      --ciftify-work-dir ${outputdir}/ciftify/ \
+      --qcdir ${outputdir}/ciftify_PINT/qc \
+      ${outputdir}/ciftify_clean_img/${subject}/${session}/${subject}_${session}_${func_base}_desc-clean_bold.dtseries.nii \
+      ${subject} \
+      ${outputdir}/ciftify_PINT/${subject}/${session}/${subject}_${session}_${func_base}_desc-clean_bold_summary.csv
+done
+```
