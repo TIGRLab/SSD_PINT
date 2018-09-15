@@ -1,0 +1,131 @@
+---
+title: "Mangle the phenotypic data"
+output: html_notebook
+---
+
+and now it starts
+
+let's get some idea of what data we have
+
+There are now Four/ish Center's sites from which we are pooling data for this project
+
++ CAMH data (pooling across ASDD, RTMSWM, PNSC, SPINS studies..)
++ COBRE data
++ CNP data
++ ZHH older data
+
+For all sites we want:
+
++ the preprosessed data
++ the MRIQC metrics
++ scanner
++ age
++ sex
++ education
++ diagnosis
+
+Additionally, we want to get an idea of the available:
+
++ medications
++ neurocognitive (esp executive function)
++ age of onset/ first episode vs not
++ negative symptoms?
+
+## Starting with ZHH 
+
+```{r}
+library(foreign)
+library(tidyverse)
+
+older_data <- read_csv("../phenotypic/subjects_not_sexmatched_20180620.csv")
+
+ZHH_SZ = read.spss('~/Downloads/PatientSample7-30-18.sav', to.data.frame=TRUE)
+ZHH_CRTL = read.spss('~/Downloads/Control Sample 7-30-18.sav', to.data.frame=TRUE)
+
+qryHC_NewResting_15_40 <- read_excel("/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
+
+zhh_bold_qc <- read_csv("../data/ciftify_fmriprep/ZHH/out/mriqc/bold.csv")
+zhh_t1w_qc <- read_csv("../data/ciftify_fmriprep/ZHH/out/mriqc/T1w.csv")
+zhh_pipeline_complete <- read_csv("../data/ciftify_fmriprep/ZHH/out/ciftify/ciftify_runs_complete_2018-09-13.csv")
+
+names(ZHH_SZ)
+```
+```{r}
+names(ZHH_CRTL)
+```
+
+Putting together the simplest stuff
+
+```{r}
+ZHH_CRTL$DX <- "CTRL"
+ZHH_SZ$DX <- "SCZ"
+
+vars_from_both <- c("GRID", "SessNo","MRI_Date", "Age", "Sex", "DX", "Edu")
+
+mangle_CTRL_ZHH <- qryHC_NewResting_15_40 %>%
+  select(SessNo, sex) %>%
+  right_join(ZHH_CRTL, by = "SessNo") %>%
+  mutate(Sex = factor(sex, levels = c(1,2), labels = c("M", "F")),
+         DX = "CTRL",
+         Edu = EducatPtHighest) %>%
+  select(one_of(vars_from_both))
+
+mangle_SZ_ZHH <- ZHH_SZ %>%
+  mutate(GRID = grid,
+         Sex = factor(sex, levels = c("male", "female"), labels = c("M", "F")),
+         DX = "SZ",
+         Edu = EducationPatient) %>%
+  select(one_of(vars_from_both))
+
+ZHH_pheno <-bind_rows(mangle_SZ_ZHH, mangle_CTRL_ZHH)  
+
+rm(mangle_CTRL_ZHH, mangle_SZ_ZHH)
+
+GRIDs_w_cerebellum_cutoff <- c(7793, 7834, 9405)
+```
+
+## Note - re picking motion cutoffs
+
+Based on our looking at the mriqc outputs, any visual QC issues are associated with high motion (mean fd > 0.6mm percent > 48%)
+
+## Now looking at what we have from COBRE
+
+```{r}
+library(readr)
+cobre_participants <- read_delim("/mnt/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/COBRE/COBRE/participants.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+
+check_cobreness <- anti_join(filter(older_data, Site == "COBRE"), cobre_participants, by = c("name" = "participant_id"))
+```
+
+
+```{r}
+cobre_mriqc <- 
+```
+
+From the COBRE data dictionary we see that:
+
++ CODEM_6: Highest Level of Education for Primary Caretaker until 18 years old
++ CODEM_7: Highest Level of Education for Secondary Caretaker until subject was 18 years old
++ There is also a smoking scale 
++ and hours of sleep night before scan
++ There is a medictions scale as well (COMED)
++ And a PANSS
++ Neuropsych includes the (CNP cols) WTAR, WASI, and Matrics..
+
+## Now looking at the CNP we have..
+
++ wais, sans, medication, bprs, education, smoking status. cpt
+
+## add where are is the CMH demographic info..
+
+```{r}
+
+```
+```{r}
+PNS_DATA_2018_07_16_1026 <- read_csv("/mnt/tigrlab/projects/saba/PINT_SCZ/new_analyses_20170412/Summer2018/Spreadsheets/ClinicalData/PNS/PNS_DATA_2018-07-16_1026.csv")
+
+
+PNS_DATA_2018_07_16_1026$record_id
+
+```

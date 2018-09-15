@@ -552,3 +552,305 @@ for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-r
       ${outputdir}/ciftify_PINT/${subject}/${session}/${subject}_${session}_${func_base}_desc-clean_bold_summary.csv
 done
 ```
+
+## and...let's move all the stuff back that needs to move back..on kandel
+
+```sh
+dataset="ds000030_R1.0.5"
+bids_dir=/scratch/edickie/saba_PINT/bids_in/ds000030/ds000030_R1.0.5
+outputdir=/scratch/edickie/saba_PINT/ciftify_fmriprep/
+cd ${outputdir}
+mkdir -p ${dataset}/out/fmriprep/ ${dataset}/out/ciftify/qc_fmri ${dataset}/out/ciftify/qc_recon_all
+SIDlist=`cd ${bids_dir}; ls -1d sub*`
+
+cd ${outputdir}
+for SID in $SIDlist; do
+ mv ZHH/out/fmriprep/${SID} ${dataset}/out/fmriprep/${SID}
+ mv ZHH/out/fmriprep/${SID}.html ${dataset}/out/fmriprep/${SID}.html
+ mv ZHH/out/ciftify/$SID ${dataset}/out/ciftify/${SID}
+ mv ZHH/out/ciftify/qc_fmri/${SID}_task-rest_bold ${dataset}/out/ciftify/qc_fmri/
+ mv ZHH/out/ciftify/qc_recon_all/${SID} ${dataset}/out/ciftify/qc_recon_all/
+done
+```
+
+## Note..when we did so..we got these hints as to what files may not have finished..
+
+sorting the earlier steps to the top..
+
+```
+mv: cannot stat 'ZHH/out/fmriprep/sub-10299': No such file or directory
+mv: cannot stat 'ZHH/out/fmriprep/sub-10299.html': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/sub-10299': No such file or directory
+mv: cannot stat 'ZHH/out/fmriprep/sub-10428': No such file or directory
+mv: cannot stat 'ZHH/out/fmriprep/sub-10428.html': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/sub-10428': No such file or directory
+mv: cannot stat 'ZHH/out/fmriprep/sub-10501': No such file or directory
+mv: cannot stat 'ZHH/out/fmriprep/sub-10501.html': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/sub-10501': No such file or directory
+mv: cannot stat 'ZHH/out/fmriprep/sub-10971': No such file or directory
+mv: cannot stat 'ZHH/out/fmriprep/sub-10971.html': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/sub-10971': No such file or directory
+mv: cannot stat 'ZHH/out/fmriprep/sub-11121': No such file or directory
+mv: cannot stat 'ZHH/out/fmriprep/sub-11121.html': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/sub-11121': No such file or directory
+```
+
+From the logs..it appears that these 5 participants have no T1w image??
+This was actually reflected in the participants.tsv as a known issue..so we will just proceed..
+
+
+```
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-10193_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-10290_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-10299_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-10428_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-10501_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-10565_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-10624_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-10686_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-10877_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-10891_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-10893_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-10948_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-10971_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-11019_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-11077_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-11082_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-11121_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-11122_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-11156_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-50029_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-50034_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-50036_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-50038_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-50056_task-rest_bold': No such file or directory
+mv: cannot stat 'ZHH/out/ciftify/qc_fmri/sub-50067_task-rest_bold': No such file or directory
+```
+
+```sh
+ssh dev01
+dataset="ds000030_R1.0.5"
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/${dataset}/out
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img
+cleaning_script=/KIMEL/tigrlab/projects/edickie/code/bids-on-scinet/examples/participant_ciftify_clean_and_PINT.sh
+
+module load singularity/2.5.2
+export OMP_NUM_THREADS=4
+
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/func/sub-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname ${preprocfile})))
+  session=none
+echo ${cleaning_script} ${subject} none task-rest_bold ${outputdir} ${sing_home} ${ciftify_container}  | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N pint_${subject} -j oe -o ${outputdir}/../../${dataset}/logs;
+done
+```
+
+## 2018-09-08 and now running subcortical extraction for Cobre
+
+```sh
+ssh dev02
+dataset="ds000030_R1.0.5"
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/${dataset}/out
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img
+cleaning_script=/KIMEL/tigrlab/projects/edickie/code/SZ_PINT/bin/participant_ciftify_clean_and_subcortical.sh
+
+module load singularity/2.5.2
+export OMP_NUM_THREADS=4
+
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/func/sub-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname ${preprocfile})))
+echo ${cleaning_script} ${subject} none task-rest_bold ${outputdir} ${sing_home} ${ciftify_container} | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject} -j oe -o ${outputdir}/../../${dataset}/logs;
+done
+```
+
+
+## running ghetto (no container) PINT qc for CNP
+
+```sh
+ssh kandel
+module load /projects/edickie/privatemodules/ciftify/201803
+outputdir=/scratch/edickie/saba_PINT/ciftify_fmriprep/ds000030_R1.0.5/out
+func_base="task-rest_bold"
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/func/sub-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+  echo ${preprocfile}
+  subject=$(basename $(dirname $(dirname ${preprocfile})))
+  cifti_vis_PINT subject \
+      --ciftify-work-dir ${outputdir}/ciftify/ \
+      --qcdir ${outputdir}/ciftify_PINT/qc \
+      ${outputdir}/ciftify_clean_img/${subject}/${subject}_${func_base}_desc-clean_bold.dtseries.nii \
+      ${subject} \
+      ${outputdir}/ciftify_PINT/${subject}/${subject}_${func_base}_desc-clean_bold_summary.csv
+done
+```
+
+## rerunning PINT and cleaning for those last ZHH peeps
+
+```sh
+ssh dev02
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/ZHH/out
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img
+cleaning_script=/KIMEL/tigrlab/projects/edickie/code/bids-on-scinet/examples/participant_ciftify_clean_and_PINT.sh
+
+module load singularity/2.5.2
+export OMP_NUM_THREADS=4
+
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
+  session=$(basename $(dirname $(dirname ${preprocfile})))
+  if [ ! -f ${outputdir}/ciftify_PINT/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-clean_bold_summary.csv ]; then
+echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${sing_home} ${ciftify_container}  | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N pint_${subject}_${session} -j oe -o ${outputdir}/../../ZHH/logs;
+fi
+done
+```
+
+## rerunning subcortical extraction for those last ZHH peeps
+
+```sh
+ssh dev02
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/ZHH/out
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img
+cleaning_script=/KIMEL/tigrlab/projects/edickie/code/SZ_PINT/bin/participant_ciftify_clean_and_subcortical.sh
+
+module load singularity/2.5.2
+export OMP_NUM_THREADS=4
+
+
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
+  session=$(basename $(dirname $(dirname ${preprocfile})))
+  if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
+echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${sing_home} ${ciftify_container} | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject}_${session} -j oe -o ${outputdir}/../../ZHH/logs;
+fi
+done
+```
+
+## 2018-09-12 Urg rerunning a bunch of the ciftify container runs with no ica aroma - because it failed so many times!
+
+```sh
+ssh dev01
+bids_dir=/KIMEL/tigrlab/scratch/dmiranda/BIDS_ZHH
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+
+SIDlist="10944
+8523
+3123
+11323
+10185
+8873
+11315
+7749
+11316
+10511
+10608
+9612
+11242
+8158
+11500
+10630
+7631
+11450
+10914
+11082
+84
+10559
+9574
+9056
+8484
+8418
+9725
+7861
+10803
+8723
+1942
+11400
+10298
+7701
+10690
+8758
+10186
+8861
+10523
+9060
+10504
+10505
+8724
+10365
+7286
+7255
+9606
+7817
+8142
+10736
+8619
+6729
+8695
+8872
+10782
+9308
+9125
+8946
+7723
+108
+7290
+10570
+10469
+8557
+10605
+10391
+377
+11392
+8889
+11305
+9577
+9284
+9404
+8887
+7576
+7726
+9714
+10294
+10683"
+
+mkdir -p $sing_home
+cd $sing_home
+for SID in $SIDlist; do
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/input \
+    -B ${outputdir}:/output \
+    -B /quarantine/Freesurfer/6.0.0/freesurfer/license.txt:/license_file.txt \
+    /KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img \
+    /input /output/ZHH/out participant \
+    --participant_label=$SID \
+    --fmriprep-workdir /output/ZHH/work2 \
+    --fs-license /license_file.txt \
+    --n_cpus 4 | \
+    qsub -l walltime=23:00:00,nodes=1:ppn=4 -N ciftify4_$SID -j oe -o ${outputdir}/ZHH/logs;
+done
+
+```
+
+## 2018-09-13 Running the group combine for mriqc on cobre
+
+```sh
+ssh dev02
+bids_dir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+mkdir -p $sing_home
+
+cd $sing_home
+
+echo singularity run -H ${sing_home}:/myhome \
+  -B ${bids_dir}:/bids \
+  /KIMEL/tigrlab/archive/code/containers/MRIQC/poldracklab_mriqc_0.11.0-2018-06-05-1e4ac9792325.img \
+  /bids/COBRE/COBRE /bids/COBRE/out group \
+  -w /bids/COBRE/work \
+  --n_procs 2 \
+  --no-sub | \
+  qsub -V -l walltime=4:00:00,nodes=1:ppn=2 -N mriqc_group -j oe -o ${bids_dir}/COBRE/logs
+
+```
