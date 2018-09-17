@@ -24,3 +24,13 @@ if [ ! -f ds000030_R1.0.5_derivatives_freesurfer_${chunck_name}.zip ]; then
 wget https://s3.amazonaws.com/openneuro/ds000030/ds000030_R1.0.5/compressed/ds000030_R1.0.5_derivatives_freesurfer_${chunck_name}.zip
 fi
 done
+
+wget https://s3.amazonaws.com/openneuro/ds000030/ds000030_R1.0.4/compressed/ds000030_R1.0.4_metadata_derivatives.zip
+
+wget https://s3.amazonaws.com/openneuro/ds000030/ds000030_R1.0.5/compressed/ds000030_R1.0.5_derivatives_mriqc_physioplots_parameterplots.zip
+
+cd ds000030_R1.0.5
+wget https://s3.amazonaws.com/openneuro/ds000030/ds000030_R1.0.5/uncompressed/dataset_description.json
+wget https://s3.amazonaws.com/openneuro/ds000030/ds000030_R1.0.5/uncompressed/participants.tsv
+wget https://s3.amazonaws.com/openneuro/ds000030/ds000030_R1.0.5/uncompressed/README
+wget https://s3.amazonaws.com/openneuro/ds000030/ds000030_R1.0.5/uncompressed/task-rest_bold.json

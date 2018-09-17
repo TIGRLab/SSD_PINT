@@ -854,3 +854,141 @@ echo singularity run -H ${sing_home}:/myhome \
   qsub -V -l walltime=4:00:00,nodes=1:ppn=2 -N mriqc_group -j oe -o ${bids_dir}/COBRE/logs
 
 ```
+
+## Running mriqc for
+
+```sh
+ssh dev02
+dataset="ds000030_R1.0.5"
+bids_dir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/bids_in/ds000030/ds000030_R1.0.5
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+mkdir -p $sing_home
+
+SIDlist=`cd ${bids_dir}; ls -1d sub* | sed 's/sub-//g'`
+cd $sing_home
+for SID in $SIDlist; do
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/bids \
+    -B ${outputdir}:/output \
+    /KIMEL/tigrlab/archive/code/containers/MRIQC/poldracklab_mriqc_0.11.0-2018-06-05-1e4ac9792325.img \
+    /bids /output/${dataset}/out participant \
+    --participant_label=$SID \
+    -w /output/${dataset}/work \
+    --n_procs 2 \
+    --no-sub | \
+    qsub -V -l walltime=6:00:00,nodes=1:ppn=2 -N mriqc_$SID -j oe -o ${outputdir}/${dataset}/logs;
+done
+```
+
+```sh
+ssh dev01
+dataset="ds000030_R1.0.5"
+bids_dir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/bids_in/ds000030/ds000030_R1.0.5
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+mkdir -p $sing_home
+
+SIDlist=`cd ${bids_dir}; ls -1d sub* | sed 's/sub-//g'`
+cd $sing_home
+
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/bids \
+    -B ${outputdir}:/output \
+    /KIMEL/tigrlab/archive/code/containers/MRIQC/poldracklab_mriqc_0.11.0-2018-06-05-1e4ac9792325.img \
+    /bids /output/${dataset}/out group \
+    -w /output/${dataset}/work \
+    --n_procs 2 \
+    --no-sub | \
+    qsub -V -l walltime=2:00:00,nodes=1:ppn=2 -N mriqc_group -j oe -o ${outputdir}/${dataset}/logs;
+
+```
+
+# COBRE to rerun mriqc
+
+sub-A00000541     
+sub-A00014830     
+sub-A00018979
+
+```sh
+ssh dev02
+bids_dir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+mkdir -p $sing_home
+
+
+SIDlist="A00000541 A00014830 A00018979"
+
+cd /KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep
+mkdir -p COBRE/out COBRE/work COBRE/logs
+cd $sing_home
+for SID in $SIDlist; do
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/bids \
+    /KIMEL/tigrlab/archive/code/containers/MRIQC/poldracklab_mriqc_0.11.0-2018-06-05-1e4ac9792325.img \
+    /bids/COBRE/COBRE /bids/COBRE/out participant \
+    --participant_label=$SID \
+    -w /bids/COBRE/work \
+    --n_procs 2 \
+    --no-sub | \
+    qsub -V -l walltime=4:00:00,nodes=1:ppn=2 -N mriqc2_$SID -j oe -o ${bids_dir}/COBRE/logs;
+done
+```
+
+# COBRE to rerun PINT..
+
+sub-A00000909
+sub-A00006754
+sub-A00009280
+sub-A00017147
+sub-A00021598
+sub-A00027755
+
+
+## rerunning subcortical extraction for those last COBRE peeps
+
+```sh
+ssh dev01
+dataset="COBRE"
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/${dataset}/out
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img
+cleaning_script=/KIMEL/tigrlab/projects/edickie/code/SZ_PINT/bin/participant_ciftify_clean_and_subcortical.sh
+
+module load singularity/2.5.2
+export OMP_NUM_THREADS=4
+
+
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
+  session=$(basename $(dirname $(dirname ${preprocfile})))
+  if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
+echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${sing_home} ${ciftify_container} | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject}_${session} -j oe -o ${outputdir}/../../${dataset}/logs;
+fi
+done
+```
+
+## rerunning PINT and cleaning for those last ZHH peeps
+
+```sh
+ssh dev02
+dataset="COBRE"
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/${dataset}/out
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img
+cleaning_script=/KIMEL/tigrlab/projects/edickie/code/bids-on-scinet/examples/participant_ciftify_clean_and_PINT.sh
+
+module load singularity/2.5.2
+export OMP_NUM_THREADS=4
+
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
+  session=$(basename $(dirname $(dirname ${preprocfile})))
+  if [ ! -f ${outputdir}/ciftify_PINT/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-clean_bold_summary.csv ]; then
+echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${sing_home} ${ciftify_container}  | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N pint_${subject}_${session} -j oe -o ${outputdir}/../../${dataset}/logs;
+fi
+done
+```
