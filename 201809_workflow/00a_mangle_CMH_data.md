@@ -138,20 +138,27 @@ anti_join(filter(pintdf, dataset == thisdataset),
 ```r
 anti_join(filter(bolds_condensed, dataset == thisdataset),
           filter(pintdf, dataset == thisdataset),
-          by = c("subid", "sessid")) %>%
-  select(subid) %>% distinct()
+          by = c("subid", "sessid")) 
 ```
 
 ```
-## # A tibble: 6 x 1
-##           subid
-##           <chr>
-## 1 sub-A00000909
-## 2 sub-A00006754
-## 3 sub-A00009280
-## 4 sub-A00017147
-## 5 sub-A00021598
-## 6 sub-A00027755
+## # A tibble: 12 x 13
+##    dataset subject_id session_id task_id run_id acq_id   fd_mean fd_num
+##      <chr>      <chr>      <chr>   <chr>  <chr>  <chr>     <dbl>  <int>
+##  1   COBRE  A00000909   20110101    rest     01   <NA> 0.6120177    138
+##  2   COBRE  A00000909   20110101    rest     02   <NA> 1.6746560    142
+##  3   COBRE  A00006754   20110101    rest     01   <NA> 0.4104313    114
+##  4   COBRE  A00006754   20110101    rest     02   <NA> 0.3613004     84
+##  5   COBRE  A00009280   20110101    rest     01   <NA> 0.2762584     53
+##  6   COBRE  A00009280   20110101    rest     02   <NA> 0.2151688     45
+##  7   COBRE  A00017147   20110101    rest     01   <NA> 0.4232372    118
+##  8   COBRE  A00017147   20110101    rest     02   <NA> 0.5175373    129
+##  9   COBRE  A00021598   20110101    rest     01   <NA> 0.1287690     13
+## 10   COBRE  A00021598   20110101    rest     02   <NA> 0.1173435      8
+## 11   COBRE  A00027755   20110101    rest     01   <NA> 0.6113676    135
+## 12   COBRE  A00027755   20110101    rest     02   <NA> 0.7707580    148
+## # ... with 5 more variables: fd_perc <dbl>, size_t <int>,
+## #   spacing_tr <dbl>, subid <chr>, sessid <chr>
 ```
 
 ASDD is done!

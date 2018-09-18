@@ -66,14 +66,14 @@ rm(pint_summarys_nses, pint_summarys_wses, pintdf_nses, pintdf_wses)
 
 ```{r}
 bolds_condensed <- all_the_bolds %>%
-  select(studyname, ends_with('_id'), starts_with('fd_'), size_t, spacing_tr) %>%
+  select(studyname, ends_with('_id'), starts_with('fd_'), starts_with('size'), starts_with('spacing')) %>%
   rename(dataset = studyname) %>%
   mutate(participant_id = str_c("sub-", subject_id),
          sessid = str_c("ses-",session_id)) 
 ```
 
 ```{r}
-simple_pheno <- read_csv('../phenotypic/simple_pheno_201809.csv')
+simple_pheno <- read_csv('../phenotypic/simple_pheno_201809.csv') 
 ```
 
 ```{r}
@@ -100,12 +100,42 @@ anti_join(qa_passes_pheno, pintdf,
           by = c("dataset", "participant_id" = "subid", "sessid"))
 ```
 
-ASDD is done!
+ASDD has to rerun ciftify for 4 subs because the missing Results!
 ZHH is done!
 RTMSWM is done!
-PNSC (CMH0020 no PINT)
-DTI3T (H171 no PINT..)
-SPINS has one extra bold (CMHAA2102 - odd id)
-COBRE has issues..(some need to rerun..)
+PNSC (CMH0020 missing confounds file)
+DTI3T is done!
+SPINS has one extra bold (CMHAA2102 - from VIPR - disregard)
+COBRE has issues..(two subs refuse to run)
+ds00030 several subject need to rerun ciftify..
 
+```{r}
+qa_passes_pheno %>%
+  group_by(subject_id) %>%
+  sample_n(1) %>%
+  ungroup() %>%
+  group_by(site, DX) %>%
+  summarise(n = n(),
+            nMale = sum(Sex == "M"),
+            perc_male = nMale/n()*100,
+            age_mean = mean(age, na.rm = T),
+            age_sd = sd(age, na.rm = T),
+            age_min = min(age, na.rm = T),
+            age_max = max(age, na.rm = T))
+
+```
+```{r}
+qa_passes_pheno %>%
+  mutate(scan_length = size_t*2/60) %>%
+  group_by(subject_id) %>%
+  sample_n(1) %>%
+  ungroup() %>%
+  group_by(site, DX, size_t, size_x, size_y, size_z, spacing_tr, spacing_x, spacing_z, scan_length) %>%
+  count()
+
+```
+
+```{r}
+.93*60
+```
 

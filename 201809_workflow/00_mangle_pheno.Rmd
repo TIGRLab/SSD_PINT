@@ -45,8 +45,8 @@ library(readxl)
 ZHH_SZ = read.spss('../saba_pheno/Spreadsheets/ClinicalData/ZHH/Patient\ Sample\ 7-30-18.sav', to.data.frame=TRUE)
 ZHH_CRTL = read.spss('../saba_pheno/Spreadsheets/ClinicalData/ZHH/Control Sample 7-30-18.sav', to.data.frame=TRUE)
 
-qryHC_NewResting_15_40 <- read_excel("/KIMEL/tigrlab/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
-
+#qryHC_NewResting_15_40 <- read_excel("/KIMEL/tigrlab/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
+qryHC_NewResting_15_40 <- read_excel("/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
 ```
 
 
@@ -74,7 +74,8 @@ mangle_SZ_ZHH <- ZHH_SZ %>%
 ZHH_pheno <-bind_rows(mangle_SZ_ZHH, mangle_CTRL_ZHH) %>%
   rename(age = Age) %>%
   mutate(participant_id = str_c('sub-',GRID),
-         dataset = "ZHH")
+         dataset = "ZHH",
+         site = "ZHH")
 
 rm(mangle_CTRL_ZHH, mangle_SZ_ZHH)
 
@@ -90,8 +91,9 @@ cobre_participants <- read_delim("../data/ciftify_fmriprep/COBRE/COBRE/participa
                         dx == "Schizoaffective" ~ "SCZ",
                         dx == "No_Known_Disorder" ~ "CTRL"),
          dataset = "COBRE",
+         site = "COBRE",
          participant_id = str_c('sub-', participant_id)) %>%
-  select(participant_id, age, Sex, DX, dataset)
+  select(participant_id, age, Sex, DX, dataset, site)
 
 ```
 
@@ -104,8 +106,9 @@ ds00030_participants <- read_delim("../data/bids_in/ds000030/ds000030_R1.0.5/par
   rename(Sex = gender) %>%
   mutate(DX = case_when(diagnosis == "CONTROL" ~ "CTRL",
                         diagnosis == "SCHZ" ~ "SCZ"),
-         dataset = "ds000030_R1.0.5") %>%
-  select(participant_id, age, DX, Sex, ScannerSerialNumber, ghost_NoGhost, dataset)
+         dataset = "ds000030_R1.0.5",
+         site = "ds000030") %>%
+  select(participant_id, age, DX, Sex, ScannerSerialNumber, ghost_NoGhost, dataset, site)
 
 ```
 
@@ -125,8 +128,9 @@ CMH_pheno <- old_pheno %>%
                              Study == "ASDD" ~ "ASDD",
                              Study == "DTI" ~ "DTI3T",
                              Study == "PNS" ~ "PNSC"),
-         participant_id = str_c("sub-", subject_id)) %>%
-  select(participant_id, session_id, DX, age, Sex, dataset)
+         participant_id = str_c("sub-", subject_id),
+         site = "CMH") %>%
+  select(participant_id, session_id, DX, age, Sex, dataset, site)
 
 ```
 
