@@ -13,26 +13,19 @@ Try executing this chunk by clicking the *Run* button within the chunk or by pla
 
 ```{r}
 library(tidyverse)
-sub_projects = c("ZHH", "COBRE", "ASDD", "ASDD", "DTI3T" , "RTMSWM", "PNSC", "SPINS")
+
+```
+
+```{r reading_mriqc_bolds, message=FALSE, warning=FALSE}
+sub_projects = c("ZHH", "COBRE", "ASDD", "ASDD", "DTI3T" , "RTMSWM", "PNSC", "SPINS", "ds000030_R1.0.5")
 
 read_mriqc_bold <- function(studyname) {
-  bold <- read_csv(str_c("../data/ciftify_fmriprep/", studyname, "/out/mriqc/bold.csv"),
-                         col_types = c(
-                           subject_id = col_character(),
-                           session_id = col_character(),
-                           task_id = col_character(),
-                           acq_id = col_character(),
-                           run_id = col_character(),
-                           dummy_trs = col_integer(),
-                           fd_num = col_integer(),
-                           size_t = col_integer(),
-                           size_x = col_integer(),
-                           size_y = col_integer(),
-                           size_z = col_integer(),
-                           .default = col_double()
-                         )) %>%
-    mutate(subject_id = parse_character(subject_id),
-           session_id = parse_character(session_id))
+  bold <- read_csv(str_c("../data/ciftify_fmriprep/", studyname, "/out/mriqc/bold.csv")) %>%
+    mutate(subject_id = parse_character(subject_id))
+  if ("session_id" %in% names(bold)) {
+    bold <- bold %>% mutate(session_id = parse_character(session_id))
+  }
+  return(bold)
 }
 
 all_the_bolds <- tibble(studyname = sub_projects) %>% 
@@ -40,7 +33,7 @@ all_the_bolds <- tibble(studyname = sub_projects) %>%
         read_mriqc_bold(x)
     })) %>%
     unnest() %>%
-  filter(task_id == "rest")
+  filter(task_id == "rest") 
 
 ```
 ```{r}
@@ -75,28 +68,36 @@ rm(pint_summarys_nses, pint_summarys_wses, pintdf_nses, pintdf_wses)
 bolds_condensed <- all_the_bolds %>%
   select(studyname, ends_with('_id'), starts_with('fd_'), size_t, spacing_tr) %>%
   rename(dataset = studyname) %>%
-  mutate(subid = str_c("sub-", subject_id),
+  mutate(participant_id = str_c("sub-", subject_id),
          sessid = str_c("ses-",session_id)) 
 ```
 
 ```{r}
-thisdataset = "COBRE"
-inner_join(filter(bolds_condensed, dataset == thisdataset),
-          filter(pintdf, dataset == thisdataset),
-          by = c("subid", "sessid")) %>%
-  count()
+simple_pheno <- read_csv('../phenotypic/simple_pheno_201809.csv')
+```
+
+```{r}
+bolds_condensed %>%
+  anti_join(simple_pheno, by = "participant_id") 
+```
+
+
+
+```{r}
+bolds_condensed %>%
+  inner_join(simple_pheno, by = c("participant_id", "dataset")) %>%
+  select("participant_id", "dataset", "DX") %>%
+  distinct() %>%
+  count(DX)
 ```
 ```{r}
-anti_join(filter(pintdf, dataset == thisdataset),
-          filter(bolds_condensed, dataset == thisdataset),
-          by = c("subid", "sessid")) %>%
-  select(subid) %>% distinct()
+qa_passes_pheno <- bolds_condensed %>%
+  inner_join(simple_pheno, by = c("participant_id", "dataset")) %>%
+  filter(fd_mean < 0.5, fd_perc < 50) 
 ```
 ```{r}
-anti_join(filter(bolds_condensed, dataset == thisdataset),
-          filter(pintdf, dataset == thisdataset),
-          by = c("subid", "sessid")) %>%
-  select(subid) %>% distinct()
+anti_join(qa_passes_pheno, pintdf,
+          by = c("dataset", "participant_id" = "subid", "sessid"))
 ```
 
 ASDD is done!
@@ -107,43 +108,4 @@ DTI3T (H171 no PINT..)
 SPINS has one extra bold (CMHAA2102 - odd id)
 COBRE has issues..(some need to rerun..)
 
-```{r}
-funcMRIQC <- read_csv("../data/bids_in/ds000030/ds000030_R1.0.4/derivatives/mriqc/funcMRIQC.csv")
-```
-
-```{r}
-tester <- funcMRIQC %>%
-  select(ends_with('_id'), starts_with('fd_'), size_t, spacing_tr) %>%
-  rename(subid = subject_id,
-         sessid = session_id) %>%
-  mutate(studyname = "ds000030_R1.0.5",
-         DX = case_when(
-           str_sub(subid, 5,5)==1 ~ 'CTRL',
-           str_sub(subid, 5,5)==5 ~ 'SZ',
-           TRUE ~ 'other'
-         )) %>%
-  filter(run_id == "task-rest", DX != 'other')
-```
-
-```{r}
-inner_join(tester, 
-           filter(pintdf, dataset == "ds000030_R1.0.5"),
-           by = c("subid")) %>%
-  count()
-```
-```{r}
-anti_join(tester, 
-           filter(pintdf, dataset == "ds000030_R1.0.5"),
-           by = c("subid"))
-```
-
-```{r}
-anti_join(filter(pintdf, dataset == "ds000030_R1.0.5"),tester, 
-           by = c("subid"))
-```
-and..looks like I need to rerun MRIQC on CNP...wah..
-
-```{r}
-pintdf %>% select(dataset, subid) %>% distinct() %>% count()
-```
 

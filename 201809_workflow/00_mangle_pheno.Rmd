@@ -36,29 +36,23 @@ Additionally, we want to get an idea of the available:
 ```{r}
 library(foreign)
 library(tidyverse)
-
-older_data <- read_csv("../phenotypic/subjects_not_sexmatched_20180620.csv")
-
-ZHH_SZ = read.spss('~/Downloads/PatientSample7-30-18.sav', to.data.frame=TRUE)
-ZHH_CRTL = read.spss('~/Downloads/Control Sample 7-30-18.sav', to.data.frame=TRUE)
-
-qryHC_NewResting_15_40 <- read_excel("/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
-
-zhh_bold_qc <- read_csv("../data/ciftify_fmriprep/ZHH/out/mriqc/bold.csv")
-zhh_t1w_qc <- read_csv("../data/ciftify_fmriprep/ZHH/out/mriqc/T1w.csv")
-zhh_pipeline_complete <- read_csv("../data/ciftify_fmriprep/ZHH/out/ciftify/ciftify_runs_complete_2018-09-13.csv")
-
-names(ZHH_SZ)
+library(readxl)
 ```
+
 ```{r}
-names(ZHH_CRTL)
+
+
+ZHH_SZ = read.spss('../saba_pheno/Spreadsheets/ClinicalData/ZHH/Patient\ Sample\ 7-30-18.sav', to.data.frame=TRUE)
+ZHH_CRTL = read.spss('../saba_pheno/Spreadsheets/ClinicalData/ZHH/Control Sample 7-30-18.sav', to.data.frame=TRUE)
+
+qryHC_NewResting_15_40 <- read_excel("/KIMEL/tigrlab/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
+
 ```
+
 
 Putting together the simplest stuff
 
 ```{r}
-ZHH_CRTL$DX <- "CTRL"
-ZHH_SZ$DX <- "SCZ"
 
 vars_from_both <- c("GRID", "SessNo","MRI_Date", "Age", "Sex", "DX", "Edu")
 
@@ -73,16 +67,81 @@ mangle_CTRL_ZHH <- qryHC_NewResting_15_40 %>%
 mangle_SZ_ZHH <- ZHH_SZ %>%
   mutate(GRID = grid,
          Sex = factor(sex, levels = c("male", "female"), labels = c("M", "F")),
-         DX = "SZ",
+         DX = "SCZ",
          Edu = EducationPatient) %>%
   select(one_of(vars_from_both))
 
-ZHH_pheno <-bind_rows(mangle_SZ_ZHH, mangle_CTRL_ZHH)  
+ZHH_pheno <-bind_rows(mangle_SZ_ZHH, mangle_CTRL_ZHH) %>%
+  rename(age = Age) %>%
+  mutate(participant_id = str_c('sub-',GRID),
+         dataset = "ZHH")
 
 rm(mangle_CTRL_ZHH, mangle_SZ_ZHH)
 
 GRIDs_w_cerebellum_cutoff <- c(7793, 7834, 9405)
 ```
+
+```{r}
+cobre_participants <- read_delim("../data/ciftify_fmriprep/COBRE/COBRE/participants.tsv",
+"\t", escape_double = FALSE, trim_ws = TRUE) %>%
+  mutate(Sex = case_when( sex == "male" ~ "M",
+                          sex == "female" ~ "F"),
+         DX = case_when(dx == "Schizophrenia_Strict" ~ "SCZ",
+                        dx == "Schizoaffective" ~ "SCZ",
+                        dx == "No_Known_Disorder" ~ "CTRL"),
+         dataset = "COBRE",
+         participant_id = str_c('sub-', participant_id)) %>%
+  select(participant_id, age, Sex, DX, dataset)
+
+```
+
+```{r}
+
+ds00030_participants <- read_delim("../data/bids_in/ds000030/ds000030_R1.0.5/participants.tsv", 
+    "\t", escape_double = FALSE, trim_ws = TRUE) %>%
+  filter(T1w != "n/a", rest != "n/a",
+         diagnosis %in% c("CONTROL", "SCHZ")) %>%
+  rename(Sex = gender) %>%
+  mutate(DX = case_when(diagnosis == "CONTROL" ~ "CTRL",
+                        diagnosis == "SCHZ" ~ "SCZ"),
+         dataset = "ds000030_R1.0.5") %>%
+  select(participant_id, age, DX, Sex, ScannerSerialNumber, ghost_NoGhost, dataset)
+
+```
+
+```{r}
+old_pheno <- read_csv("../phenotypic/NEWallSubjects_completeData3_DM_not_sexmatched.csv")
+
+CMH_pheno <- old_pheno %>% 
+  filter(site == 1) %>%
+  separate(subid, into = c("Study", "Site", "Subject", "session_id")) %>%
+  unite(subject_id, Site, Subject, sep = "") %>%
+  mutate(DX = case_when(DX_GROUP == 2 ~ "CTRL",
+                        DX_GROUP == 1 ~ "SCZ"),
+         Sex = case_when(sex.x == 1 ~ "M",
+                         sex.x == 2 ~ "F"),
+         dataset = case_when(Study == "SPN01" ~ "SPINS",
+                             Study == "RTMSWM" ~ "RTMSWM",
+                             Study == "ASDD" ~ "ASDD",
+                             Study == "DTI" ~ "DTI3T",
+                             Study == "PNS" ~ "PNSC"),
+         participant_id = str_c("sub-", subject_id)) %>%
+  select(participant_id, session_id, DX, age, Sex, dataset)
+
+```
+
+```{r}
+simple_pheno = bind_rows(CMH_pheno,
+                         ZHH_pheno,
+                         ds00030_participants,
+                         cobre_participants)
+```
+
+
+```{r}
+write_csv(simple_pheno, "../phenotypic/simple_pheno_201809.csv")
+```
+
 
 ## Note - re picking motion cutoffs
 
