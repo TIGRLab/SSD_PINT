@@ -73,7 +73,9 @@ bolds_condensed <- all_the_bolds %>%
 ```
 
 ```{r}
-simple_pheno <- read_csv('../phenotypic/simple_pheno_201809.csv') 
+# removing session id column because it is redundant
+simple_pheno <- read_csv('../phenotypic/simple_pheno_201809.csv') %>%
+  select(-session_id)
 ```
 
 ```{r}
@@ -95,19 +97,14 @@ qa_passes_pheno <- bolds_condensed %>%
   inner_join(simple_pheno, by = c("participant_id", "dataset")) %>%
   filter(fd_mean < 0.5, fd_perc < 50) 
 ```
+
+
 ```{r}
 anti_join(qa_passes_pheno, pintdf,
           by = c("dataset", "participant_id" = "subid", "sessid"))
 ```
 
-ASDD has to rerun ciftify for 4 subs because the missing Results!
-ZHH is done!
-RTMSWM is done!
-PNSC (CMH0020 missing confounds file)
-DTI3T is done!
-SPINS has one extra bold (CMHAA2102 - from VIPR - disregard)
-COBRE has issues..(two subs refuse to run)
-ds00030 several subject need to rerun ciftify..
+
 
 ```{r}
 qa_passes_pheno %>%
@@ -135,7 +132,22 @@ qa_passes_pheno %>%
 
 ```
 
-```{r}
-.93*60
+
+
+```{r} 
+qa_passes_pheno %>%
+  select(-ends_with("_x"), -ends_with("_y")) %>%
+  left_join(pintdf,
+          by = c("dataset", "participant_id" = "subid", "sessid")) %>%
+  write_csv('../phenotypic/20180918_pheno_qapass.csv')
+           
 ```
 
++ ASDD has to rerun ciftify for 4 subs because the missing Results!
++ ZHH is done! (note that the TR for scans without a TR was set to 2s by Saba and Dayton)
++ RTMSWM is done!
++ PNSC (CMH0020 missing confounds file)
++ DTI3T is done!
++ SPINS has one extra bold (CMHAA2102 - from VIPR - disregard)
++ COBRE has issues..(two subs refuse to run)
++ ds00030 several subject need to rerun ciftify..
