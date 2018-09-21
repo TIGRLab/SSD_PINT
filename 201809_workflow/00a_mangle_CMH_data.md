@@ -1,4 +1,10 @@
-# checking completion
+---
+title: "checking completion"
+output: 
+  html_document:
+    keep_md: TRUE
+    toc : TRUE
+---
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
@@ -11,43 +17,33 @@ library(tidyverse)
 ```
 
 ```
-## ── Attaching packages ──────────────────────────────────────────────── tidyverse 1.2.1 ──
+## ── Attaching packages ─────────────────────────────────────── tidyverse 1.2.1 ──
 ```
 
 ```
 ## ✔ ggplot2 2.2.1     ✔ purrr   0.2.4
-## ✔ tibble  1.3.4     ✔ dplyr   0.7.4
+## ✔ tibble  1.4.1     ✔ dplyr   0.7.4
 ## ✔ tidyr   0.7.2     ✔ stringr 1.2.0
 ## ✔ readr   1.1.1     ✔ forcats 0.2.0
 ```
 
 ```
-## ── Conflicts ─────────────────────────────────────────────────── tidyverse_conflicts() ──
+## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
 ## ✖ dplyr::filter() masks stats::filter()
 ## ✖ dplyr::lag()    masks stats::lag()
 ```
 
+
 ```r
-sub_projects = c("ZHH", "COBRE", "ASDD", "ASDD", "DTI3T" , "RTMSWM", "PNSC", "SPINS")
+sub_projects = c("ZHH", "COBRE", "ASDD", "ASDD", "DTI3T" , "RTMSWM", "PNSC", "SPINS", "ds000030_R1.0.5")
 
 read_mriqc_bold <- function(studyname) {
-  bold <- read_csv(str_c("../data/ciftify_fmriprep/", studyname, "/out/mriqc/bold.csv"),
-                         col_types = c(
-                           subject_id = col_character(),
-                           session_id = col_character(),
-                           task_id = col_character(),
-                           acq_id = col_character(),
-                           run_id = col_character(),
-                           dummy_trs = col_integer(),
-                           fd_num = col_integer(),
-                           size_t = col_integer(),
-                           size_x = col_integer(),
-                           size_y = col_integer(),
-                           size_z = col_integer(),
-                           .default = col_double()
-                         )) %>%
-    mutate(subject_id = parse_character(subject_id),
-           session_id = parse_character(session_id))
+  bold <- read_csv(str_c("../data/ciftify_fmriprep/", studyname, "/out/mriqc/bold.csv")) %>%
+    mutate(subject_id = parse_character(subject_id))
+  if ("session_id" %in% names(bold)) {
+    bold <- bold %>% mutate(session_id = parse_character(session_id))
+  }
+  return(bold)
 }
 
 all_the_bolds <- tibble(studyname = sub_projects) %>% 
@@ -55,8 +51,10 @@ all_the_bolds <- tibble(studyname = sub_projects) %>%
         read_mriqc_bold(x)
     })) %>%
     unnest() %>%
-  filter(task_id == "rest")
+  filter(task_id == "rest") 
 ```
+
+
 
 ```r
 all_the_bolds %>%
@@ -69,7 +67,7 @@ all_the_bolds %>%
 ## # A tibble: 1 x 1
 ##       n
 ##   <int>
-## 1   464
+## 1   644
 ```
 
 ```r
@@ -79,15 +77,15 @@ pint_summarys_nses <- Sys.glob("../data/ciftify_fmriprep/*/out/ciftify_PINT/sub*
 
 pintdf_nses <- tibble(filepath = pint_summarys_nses) %>%
   separate(filepath,
-           into = c('1','2','3','dataset','4','5','subid', 'filename'),
+           into = c('1','2','3','dataset','4','5','subject', 'filename'),
            sep = .Platform$file.sep) %>%
-  select(dataset, subid, filename)
+  select(dataset, subject, filename)
 
 pintdf_wses <- tibble(filepath = pint_summarys_wses) %>%
   separate(filepath,
-           into = c('1','2','3','dataset','4','5','subid', 'sessid', 'filename'),
+           into = c('1','2','3','dataset','4','5','subject', 'session', 'filename'),
            sep = .Platform$file.sep) %>%
-  select(dataset, subid, sessid, filename)
+  select(dataset, subject, session, filename)
 
 pintdf <- bind_rows(pintdf_wses, pintdf_nses)
 
@@ -97,190 +95,212 @@ rm(pint_summarys_nses, pint_summarys_wses, pintdf_nses, pintdf_wses)
 
 ```r
 bolds_condensed <- all_the_bolds %>%
-  select(studyname, ends_with('_id'), starts_with('fd_'), size_t, spacing_tr) %>%
+  select(studyname, ends_with('_id'), starts_with('fd_'), starts_with('size'), starts_with('spacing')) %>%
   rename(dataset = studyname) %>%
-  mutate(subid = str_c("sub-", subject_id),
-         sessid = str_c("ses-",session_id)) 
+  mutate(subject = str_c("sub-", subject_id),
+         session = str_c("ses-",session_id)) 
 ```
 
 
 ```r
-thisdataset = "COBRE"
-inner_join(filter(bolds_condensed, dataset == thisdataset),
-          filter(pintdf, dataset == thisdataset),
-          by = c("subid", "sessid")) %>%
-  count()
-```
-
-```
-## # A tibble: 1 x 1
-##       n
-##   <int>
-## 1   113
-```
-
-```r
-anti_join(filter(pintdf, dataset == thisdataset),
-          filter(bolds_condensed, dataset == thisdataset),
-          by = c("subid", "sessid")) %>%
-  select(subid) %>% distinct()
-```
-
-```
-## # A tibble: 3 x 1
-##           subid
-##           <chr>
-## 1 sub-A00000541
-## 2 sub-A00014830
-## 3 sub-A00018979
-```
-
-```r
-anti_join(filter(bolds_condensed, dataset == thisdataset),
-          filter(pintdf, dataset == thisdataset),
-          by = c("subid", "sessid")) 
-```
-
-```
-## # A tibble: 12 x 13
-##    dataset subject_id session_id task_id run_id acq_id   fd_mean fd_num
-##      <chr>      <chr>      <chr>   <chr>  <chr>  <chr>     <dbl>  <int>
-##  1   COBRE  A00000909   20110101    rest     01   <NA> 0.6120177    138
-##  2   COBRE  A00000909   20110101    rest     02   <NA> 1.6746560    142
-##  3   COBRE  A00006754   20110101    rest     01   <NA> 0.4104313    114
-##  4   COBRE  A00006754   20110101    rest     02   <NA> 0.3613004     84
-##  5   COBRE  A00009280   20110101    rest     01   <NA> 0.2762584     53
-##  6   COBRE  A00009280   20110101    rest     02   <NA> 0.2151688     45
-##  7   COBRE  A00017147   20110101    rest     01   <NA> 0.4232372    118
-##  8   COBRE  A00017147   20110101    rest     02   <NA> 0.5175373    129
-##  9   COBRE  A00021598   20110101    rest     01   <NA> 0.1287690     13
-## 10   COBRE  A00021598   20110101    rest     02   <NA> 0.1173435      8
-## 11   COBRE  A00027755   20110101    rest     01   <NA> 0.6113676    135
-## 12   COBRE  A00027755   20110101    rest     02   <NA> 0.7707580    148
-## # ... with 5 more variables: fd_perc <dbl>, size_t <int>,
-## #   spacing_tr <dbl>, subid <chr>, sessid <chr>
-```
-
-ASDD is done!
-ZHH is done!
-RTMSWM is done!
-PNSC (CMH0020 no PINT)
-DTI3T (H171 no PINT..)
-SPINS has one extra bold (CMHAA2102 - odd id)
-COBRE has issues..(some need to rerun..)
-
-
-```r
-funcMRIQC <- read_csv("../data/bids_in/ds000030/ds000030_R1.0.4/derivatives/mriqc/funcMRIQC.csv")
+# removing session id column because it is redundant
+simple_pheno <- read_csv('../phenotypic/simple_pheno_201809.csv') 
 ```
 
 ```
 ## Parsed with column specification:
 ## cols(
-##   .default = col_double(),
-##   subject_id = col_character(),
-##   session_id = col_integer(),
-##   run_id = col_character(),
-##   fd_num = col_integer(),
-##   qc_type = col_character(),
-##   size_t = col_integer(),
-##   size_x = col_integer(),
-##   size_y = col_integer(),
-##   size_z = col_integer()
+##   subject = col_character(),
+##   cmh_session_id = col_character(),
+##   DX = col_character(),
+##   Age = col_double(),
+##   Sex = col_character(),
+##   dataset = col_character(),
+##   Site = col_character(),
+##   Scanner = col_character(),
+##   GRID = col_integer(),
+##   zhh_session_id = col_integer(),
+##   MRI_Date = col_double(),
+##   Edu = col_integer(),
+##   isFEP = col_character(),
+##   ghost_NoGhost = col_character()
 ## )
 ```
 
-```
-## See spec(...) for full column specifications.
-```
+#### we see that the only people we have bold info but no phenotype for is that one VIPR participant in SPINS and the 5 people from ds00030 who don't have a T1w scan
 
 
 ```r
-tester <- funcMRIQC %>%
-  select(ends_with('_id'), starts_with('fd_'), size_t, spacing_tr) %>%
-  rename(subid = subject_id,
-         sessid = session_id) %>%
-  mutate(studyname = "ds000030_R1.0.5",
-         DX = case_when(
-           str_sub(subid, 5,5)==1 ~ 'CTRL',
-           str_sub(subid, 5,5)==5 ~ 'SZ',
-           TRUE ~ 'other'
-         )) %>%
-  filter(run_id == "task-rest", DX != 'other')
+bolds_condensed %>%
+  anti_join(simple_pheno, by = "subject") 
 ```
+
+```
+## # A tibble: 6 x 19
+##   dataset       subject_id session_id task_id run_id acq_id fd_mean fd_num
+##   <chr>         <chr>      <chr>      <chr>   <chr>  <chr>    <dbl>  <int>
+## 1 SPINS         CMHAA2102  01         rest    01     CMH     0.0751      1
+## 2 ds000030_R1.… 10299      <NA>       rest    <NA>   <NA>    0.321      70
+## 3 ds000030_R1.… 10428      <NA>       rest    <NA>   <NA>    0.155      40
+## 4 ds000030_R1.… 10501      <NA>       rest    <NA>   <NA>    0.106      10
+## 5 ds000030_R1.… 10971      <NA>       rest    <NA>   <NA>    0.212      56
+## 6 ds000030_R1.… 11121      <NA>       rest    <NA>   <NA>    0.180      30
+## # ... with 11 more variables: fd_perc <dbl>, size_t <int>, size_x <int>,
+## #   size_y <int>, size_z <int>, spacing_tr <dbl>, spacing_x <dbl>,
+## #   spacing_y <dbl>, spacing_z <dbl>, subject <chr>, session <chr>
+```
+
+## Setting the motion threshold:
+
+We have set the motion threshold to:
+Mean FD < 0.5mm and
+No more than 50% of the scan with motion > 0.2mm
 
 
 ```r
-inner_join(tester, 
-           filter(pintdf, dataset == "ds000030_R1.0.5"),
-           by = c("subid")) %>%
+bolds_condensed %>%
+  inner_join(simple_pheno, by = c("subject", "dataset")) %>%
+  select(subject, dataset, DX) %>%
+  distinct() %>%
+  count(DX)
+```
+
+```
+## # A tibble: 2 x 2
+##   DX        n
+##   <chr> <int>
+## 1 CTRL    350
+## 2 SSD     288
+```
+
+```r
+qa_passes_pheno <- bolds_condensed %>%
+  inner_join(simple_pheno, by = c("subject", "dataset")) %>%
+  filter(fd_mean < 0.5, fd_perc < 50) 
+
+qa_passes_pheno %>%
+  select(subject, dataset, DX) %>%
+  distinct() %>%
+  count(DX)
+```
+
+```
+## # A tibble: 2 x 2
+##   DX        n
+##   <chr> <int>
+## 1 CTRL    286
+## 2 SSD     199
+```
+
+## who is still missing a PINT output?
+
+
+```r
+anti_join(qa_passes_pheno, pintdf,
+          by = c("dataset", "subject", "session"))
+```
+
+```
+## # A tibble: 5 x 31
+##   dataset       subject_id session_id task_id run_id acq_id fd_mean fd_num
+##   <chr>         <chr>      <chr>      <chr>   <chr>  <chr>    <dbl>  <int>
+## 1 ds000030_R1.… 10893      <NA>       rest    <NA>   <NA>     0.178     49
+## 2 ds000030_R1.… 11019      <NA>       rest    <NA>   <NA>     0.204     74
+## 3 ds000030_R1.… 11077      <NA>       rest    <NA>   <NA>     0.107      7
+## 4 ds000030_R1.… 11156      <NA>       rest    <NA>   <NA>     0.108     14
+## 5 ds000030_R1.… 50034      <NA>       rest    <NA>   <NA>     0.119     10
+## # ... with 23 more variables: fd_perc <dbl>, size_t <int>, size_x <int>,
+## #   size_y <int>, size_z <int>, spacing_tr <dbl>, spacing_x <dbl>,
+## #   spacing_y <dbl>, spacing_z <dbl>, subject <chr>, session <chr>,
+## #   cmh_session_id <chr>, DX <chr>, Age <dbl>, Sex <chr>, Site <chr>,
+## #   Scanner <chr>, GRID <int>, zhh_session_id <int>, MRI_Date <dbl>,
+## #   Edu <int>, isFEP <chr>, ghost_NoGhost <chr>
+```
+
+
+
+
+```r
+qa_passes_pheno %>%
+  group_by(subject) %>%
+  sample_n(1) %>%
+  ungroup() %>%
+  group_by(Site, DX) %>%
+  summarise(n = n(),
+            nMale = sum(Sex == "M"),
+            perc_male = nMale/n()*100,
+            age_mean = mean(Age, na.rm = T),
+            age_sd = sd(Age, na.rm = T),
+            age_min = min(Age, na.rm = T),
+            age_max = max(Age, na.rm = T)) %>%
+    mutate(age_report =sprintf("%0.1f(%0.1f) %0.0f - %0.0f", 
+                               age_mean, age_sd, age_min, age_max),
+           sex_report = str_c(nMale, '(', sprintf("%0.1f", perc_male), '%)')) %>%
+  select(Site, DX, n, age_report, sex_report)
+```
+
+```
+## # A tibble: 8 x 5
+## # Groups:   Site [4]
+##   Site     DX        n age_report         sex_report
+##   <chr>    <chr> <int> <chr>              <chr>     
+## 1 CMH      CTRL     41 26.4(6.7) 18 - 49  22(53.7%) 
+## 2 CMH      SSD      67 32.2(8.5) 18 - 50  40(59.7%) 
+## 3 COBRE    CTRL     27 31.1(8.9) 18 - 48  17(63.0%) 
+## 4 COBRE    SSD      17 29.1(12.5) 19 - 55 14(82.4%) 
+## 5 ds000030 CTRL    104 30.5(8.2) 21 - 50  54(51.9%) 
+## 6 ds000030 SSD      31 35.2(9.3) 22 - 49  24(77.4%) 
+## 7 ZHH      CTRL    111 25.1(6.6) 15 - 41  48(43.2%) 
+## 8 ZHH      SSD      84 26.2(9.4) 15 - 57  64(76.2%)
+```
+
+```r
+qa_passes_pheno %>%
+  mutate(scan_length = size_t*2/60,
+         spacing_x_round = round(spacing_x, 3),
+         spacing_z_round = round(spacing_z,3)) %>%
+  group_by(subject_id) %>%
+  sample_n(1) %>%
+  ungroup() %>%
+  group_by(Site, DX, size_t, size_x, size_y, size_z, spacing_x_round, spacing_z_round, scan_length) %>%
   count()
 ```
 
 ```
-## # A tibble: 1 x 1
-##       n
-##   <int>
-## 1   110
+## # A tibble: 33 x 10
+## # Groups:   Site, DX, size_t, size_x, size_y, size_z, spacing_x_round,
+## #   spacing_z_round, scan_length [33]
+##    Site  DX    size_t size_x size_y size_z spacing_x_round spacing_z_round
+##    <chr> <chr>  <int>  <int>  <int>  <int>           <dbl>           <dbl>
+##  1 CMH   CTRL     204     64     64     40            3.12            4.00
+##  2 CMH   CTRL     207     64     64     40            3.12            4.00
+##  3 CMH   CTRL     208     64     64     39            3.12            4.00
+##  4 CMH   CTRL     208     64     64     40            3.12            4.00
+##  5 CMH   SSD      203     64     64     40            3.12            4.00
+##  6 CMH   SSD      208     64     64     39            3.12            4.00
+##  7 CMH   SSD      208     64     64     40            3.12            4.00
+##  8 COBRE CTRL     147     64     64     33            3.75            4.55
+##  9 COBRE CTRL     148     64     64     33            3.75            4.55
+## 10 COBRE CTRL     149     64     64     33            3.75            4.55
+## # ... with 23 more rows, and 2 more variables: scan_length <dbl>, n <int>
 ```
 
-```r
-anti_join(tester, 
-           filter(pintdf, dataset == "ds000030_R1.0.5"),
-           by = c("subid"))
-```
 
-```
-## # A tibble: 11 x 10
-##        subid sessid    run_id   fd_mean fd_num   fd_perc size_t spacing_tr
-##        <chr>  <int>     <chr>     <dbl>  <int>     <dbl>  <int>      <dbl>
-##  1 sub-10299      0 task-rest 0.2961737      9 5.9210526    152          2
-##  2 sub-10501      0 task-rest 0.1049801      0 0.0000000    152          2
-##  3 sub-10565      0 task-rest 0.1161221      0 0.0000000    152          2
-##  4 sub-10624      0 task-rest 0.1713086      3 1.9736842    152          2
-##  5 sub-10686      0 task-rest 0.1093625      0 0.0000000    152          2
-##  6 sub-10877      0 task-rest 0.1149171      0 0.0000000    152          2
-##  7 sub-10893      0 task-rest 0.2008031      0 0.0000000    152          2
-##  8 sub-10971      0 task-rest 0.2301583      1 0.6578947    152          2
-##  9 sub-11019      0 task-rest 0.2297863      0 0.0000000    152          2
-## 10 sub-11077      0 task-rest 0.1254750      0 0.0000000    152          2
-## 11 sub-50067      0 task-rest 0.2829696      1 0.6578947    152          2
-## # ... with 2 more variables: studyname <chr>, DX <chr>
-```
 
 
 ```r
-anti_join(filter(pintdf, dataset == "ds000030_R1.0.5"),tester, 
-           by = c("subid"))
+qa_passes_pheno %>%
+  select(-ends_with("_x"), -ends_with("_y")) %>%
+  left_join(pintdf,
+          by = c("dataset", "subject", "session")) %>%
+  write_csv('../phenotypic/20180918_pheno_qapass.csv')
 ```
 
-```
-## # A tibble: 45 x 4
-##            dataset     subid sessid
-##              <chr>     <chr>  <chr>
-##  1 ds000030_R1.0.5 sub-10159   <NA>
-##  2 ds000030_R1.0.5 sub-10227   <NA>
-##  3 ds000030_R1.0.5 sub-10273   <NA>
-##  4 ds000030_R1.0.5 sub-10274   <NA>
-##  5 ds000030_R1.0.5 sub-10316   <NA>
-##  6 ds000030_R1.0.5 sub-10321   <NA>
-##  7 ds000030_R1.0.5 sub-10361   <NA>
-##  8 ds000030_R1.0.5 sub-10388   <NA>
-##  9 ds000030_R1.0.5 sub-10460   <NA>
-## 10 ds000030_R1.0.5 sub-10478   <NA>
-## # ... with 35 more rows, and 1 more variables: filename <chr>
-```
-and..looks like I need to rerun MRIQC on CNP...wah..
-
-
-```r
-pintdf %>% select(dataset, subid) %>% distinct() %>% count()
-```
-
-```
-## # A tibble: 1 x 1
-##       n
-##   <int>
-## 1   613
-```
-
++ ASDD is done!
++ ZHH is done! (note that the TR for scans without a TR was set to 2s by Saba and Dayton)
++ RTMSWM is done!
++ PNSC is done
++ DTI3T is done!
++ SPINS has one extra bold (CMHAA2102 - from VIPR - disregard)
++ COBRE is done (enough) - but half of it never downloaded
++ ds00030 5 subjects need to rerun ciftify..

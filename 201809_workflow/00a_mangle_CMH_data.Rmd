@@ -36,6 +36,8 @@ all_the_bolds <- tibble(studyname = sub_projects) %>%
   filter(task_id == "rest") 
 
 ```
+
+
 ```{r}
 all_the_bolds %>%
   select(subject_id, studyname) %>%
@@ -49,15 +51,15 @@ pint_summarys_nses <- Sys.glob("../data/ciftify_fmriprep/*/out/ciftify_PINT/sub*
 
 pintdf_nses <- tibble(filepath = pint_summarys_nses) %>%
   separate(filepath,
-           into = c('1','2','3','dataset','4','5','subid', 'filename'),
+           into = c('1','2','3','dataset','4','5','subject', 'filename'),
            sep = .Platform$file.sep) %>%
-  select(dataset, subid, filename)
+  select(dataset, subject, filename)
 
 pintdf_wses <- tibble(filepath = pint_summarys_wses) %>%
   separate(filepath,
-           into = c('1','2','3','dataset','4','5','subid', 'sessid', 'filename'),
+           into = c('1','2','3','dataset','4','5','subject', 'session', 'filename'),
            sep = .Platform$file.sep) %>%
-  select(dataset, subid, sessid, filename)
+  select(dataset, subject, session, filename)
 
 pintdf <- bind_rows(pintdf_wses, pintdf_nses)
 
@@ -68,86 +70,131 @@ rm(pint_summarys_nses, pint_summarys_wses, pintdf_nses, pintdf_wses)
 bolds_condensed <- all_the_bolds %>%
   select(studyname, ends_with('_id'), starts_with('fd_'), starts_with('size'), starts_with('spacing')) %>%
   rename(dataset = studyname) %>%
-  mutate(participant_id = str_c("sub-", subject_id),
-         sessid = str_c("ses-",session_id)) 
+  mutate(subject = str_c("sub-", subject_id),
+         session = str_c("ses-",session_id)) 
 ```
 
 ```{r}
 # removing session id column because it is redundant
-simple_pheno <- read_csv('../phenotypic/simple_pheno_201809.csv') %>%
-  select(-session_id)
+simple_pheno <- read_csv('../phenotypic/simple_pheno_201809.csv') 
 ```
+
+#### we see that the only people we have bold info but no phenotype for is that one VIPR participant in SPINS and the 5 people from ds00030 who don't have a T1w scan
 
 ```{r}
 bolds_condensed %>%
-  anti_join(simple_pheno, by = "participant_id") 
+  anti_join(simple_pheno, by = "subject") 
 ```
 
+## Setting the motion threshold:
 
+We have set the motion threshold to:
+Mean FD < 0.5mm and
+No more than 50% of the scan with motion > 0.2mm
 
 ```{r}
 bolds_condensed %>%
-  inner_join(simple_pheno, by = c("participant_id", "dataset")) %>%
-  select("participant_id", "dataset", "DX") %>%
+  inner_join(simple_pheno, by = c("subject", "dataset")) %>%
+  select(subject, dataset, DX) %>%
   distinct() %>%
   count(DX)
 ```
 ```{r}
 qa_passes_pheno <- bolds_condensed %>%
-  inner_join(simple_pheno, by = c("participant_id", "dataset")) %>%
+  inner_join(simple_pheno, by = c("subject", "dataset")) %>%
   filter(fd_mean < 0.5, fd_perc < 50) 
+
+qa_passes_pheno %>%
+  select(subject, dataset, DX) %>%
+  distinct() %>%
+  count(DX)
 ```
 
+## who is still missing a PINT output?
 
 ```{r}
 anti_join(qa_passes_pheno, pintdf,
-          by = c("dataset", "participant_id" = "subid", "sessid"))
+          by = c("dataset", "subject", "session"))
 ```
 
 
 
 ```{r}
 qa_passes_pheno %>%
-  group_by(subject_id) %>%
+  group_by(subject) %>%
   sample_n(1) %>%
   ungroup() %>%
-  group_by(site, DX) %>%
+  group_by(Site, DX) %>%
   summarise(n = n(),
             nMale = sum(Sex == "M"),
             perc_male = nMale/n()*100,
-            age_mean = mean(age, na.rm = T),
-            age_sd = sd(age, na.rm = T),
-            age_min = min(age, na.rm = T),
-            age_max = max(age, na.rm = T))
+            age_mean = mean(Age, na.rm = T),
+            age_sd = sd(Age, na.rm = T),
+            age_min = min(Age, na.rm = T),
+            age_max = max(Age, na.rm = T)) %>%
+    mutate(age_report =sprintf("%0.1f(%0.1f) %0.0f - %0.0f", 
+                               age_mean, age_sd, age_min, age_max),
+           sex_report = str_c(nMale, '(', sprintf("%0.1f", perc_male), '%)')) %>%
+  select(Site, DX, n, age_report, sex_report)
 
 ```
 ```{r}
 qa_passes_pheno %>%
-  mutate(scan_length = size_t*2/60) %>%
+  mutate(scan_length = size_t*2/60,
+         spacing_x_round = round(spacing_x, 3),
+         spacing_z_round = round(spacing_z,3)) %>%
   group_by(subject_id) %>%
   sample_n(1) %>%
   ungroup() %>%
-  group_by(site, DX, size_t, size_x, size_y, size_z, spacing_tr, spacing_x, spacing_z, scan_length) %>%
+  group_by(Site, DX, size_t, size_x, size_y, size_z, spacing_x_round, spacing_z_round, scan_length) %>%
   count()
 
 ```
 
+# read and mangle the phenotypic data
+
+Note we are also selecting to use scan from each subject with the least motion (fd_perc)
+We are also
+
+```{r reading-phenotypic-data}
+transform_to_normal <- function(X) {
+  # calculate the best exponent using powerTransform:
+  pT <- car::powerTransform(X)
+  # apply the power transform and save the result to a new variable
+  X_pT <- X^pT$lambda ## note ^ is exponent in r
+  return(X_pT)
+}
+
+# select the scan for each participant with the least motion
+pheno <- qa_passes_pheno %>%
+  select(-ends_with("_x"), -ends_with("_y")) %>%
+  left_join(pintdf,
+          by = c("dataset", "subject", "session")) %>%
+  filter(!is.na(filename)) %>%
+  group_by(subject) %>%
+  arrange(fd_perc) %>%
+  slice(1) %>%
+  ungroup() 
+
+# transform age and fd_mean to normality
+pheno <- pheno %>%
+  mutate(Age_pt = transform_to_normal(Age),
+         fd_mean_pt = transform_to_normal(fd_mean))
+```
 
 
 ```{r} 
-qa_passes_pheno %>%
-  select(-ends_with("_x"), -ends_with("_y")) %>%
-  left_join(pintdf,
-          by = c("dataset", "participant_id" = "subid", "sessid")) %>%
-  write_csv('../phenotypic/20180918_pheno_qapass.csv')
+
+
+write_csv(pheno, '../phenotypic/20180918_pheno_qapass.csv')
            
 ```
 
-+ ASDD has to rerun ciftify for 4 subs because the missing Results!
++ ASDD is done!
 + ZHH is done! (note that the TR for scans without a TR was set to 2s by Saba and Dayton)
 + RTMSWM is done!
-+ PNSC (CMH0020 missing confounds file)
++ PNSC is done
 + DTI3T is done!
 + SPINS has one extra bold (CMHAA2102 - from VIPR - disregard)
-+ COBRE has issues..(two subs refuse to run)
-+ ds00030 several subject need to rerun ciftify..
++ COBRE is done (enough) - but half of it never downloaded
++ ds00030 5 subjects need to rerun ciftify..

@@ -9,7 +9,7 @@ Now i will try to run PINT.
 ## rerunning PINT and cleaning for those last ZHH peeps
 
 ```sh
-ssh dev02
+ssh dev01
 
 template_out=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/ZHH/out
 
@@ -43,9 +43,64 @@ for preprocfile in `ls ${archive_pipedir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_
   subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
   session=$(basename $(dirname $(dirname ${preprocfile})))
   if [ ! -f ${outputdir}/ciftify_PINT/${subject}/${session}/${subject}_${session}_${func_base}_desc-clean_bold_summary.csv ]; then
-echo ${cleaning_script} ${subject} ${session} ${func_base} ${archive_pipedir} ${outputdir} ${sing_home} ${ciftify_container}  | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N pint_${subject}_${session} -j oe -o ${outputdir}/../../${projectname}/logs;
+echo ${cleaning_script} ${subject} ${session} ${func_base} ${archive_pipedir} ${outputdir} ${sing_home} ${ciftify_container} # | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N pint_${subject}_${session} -j oe -o ${outputdir}/../../${projectname}/logs;
 fi
 done
 ```
 
-ran section above with
+Running PINT qc locally
+
+```sh
+ssh kandel
+module load /projects/edickie/privatemodules/ciftify/201803
+
+# projectname="PNSC"
+# projectname="DTI3T"
+projectname="SPINS"
+archive_pipedir=/scratch/jjeyachandra/test_env/archive/data/${projectname}/pipelines/
+outputdir=/scratch/edickie/saba_PINT/ciftify_fmriprep/${projectname}/out
+func_base="task-rest_acq-CMH_run-01_bold"
+for preprocfile in `ls ${archive_pipedir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_${func_base}_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
+  session=$(basename $(dirname $(dirname ${preprocfile})))
+ cifti_vis_PINT subject \
+      --ciftify-work-dir ${archive_pipedir}/ciftify/ \
+      --qcdir ${outputdir}/ciftify_PINT/qc \
+      ${outputdir}/ciftify_clean_img/${subject}/${session}/${subject}_${session}_${func_base}_desc-clean_bold.dtseries.nii \
+      ${subject} \
+      ${outputdir}/ciftify_PINT/${subject}/${session}/${subject}_${session}_${func_base}_desc-clean_bold_summary.csv
+done
+cifti_vis_PINT index \
+     --ciftify-work-dir ${archive_pipedir}/ciftify/ \
+     --qcdir ${outputdir}/ciftify_PINT/qc
+```
+
+```sh
+subject="sub-CMH0003"
+session="ses-01"
+func_base="task-rest_acq-CMH_run-01_bold"
+archive_dir=/scratch/jjeyachandra/test_env/archive/data/PNSC/pipelines/
+outdir=/scratch/edickie/saba_PINT/ciftify_fmriprep/PNSC/out
+sing_home=$5
+ciftify_container=$6
+
+mkdir -p ${outdir}/ciftify_network_rois/${subject}/${session}
+
+ciftify_surface_rois --labels-col "NETWORK" \
+  --vertex-col "pvertex" \
+  --overlap-logic EXCLUDE \
+  ${outdir}/ciftify_PINT/${subject}/${session}/${subject}_${session}_${func_base}_desc-clean_bold_summary.csv \
+  6 \
+  ${archive_dir}/ciftify/${subject}/MNINonLinear/fsaverage_LR32k/${subject}.L.midthickness.32k_fs_LR.surf.gii \
+  ${archive_dir}/ciftify/${subject}/MNINonLinear/fsaverage_LR32k/${subject}.L.midthickness.32k_fs_LR.surf.gii \
+  ${outdir}/ciftify_network_rois/${subject}/${session}/${subject}_${session}_${func_base}_label-PINTnet_atlas.dscalar.nii
+
+
+for network in {2..7}; do
+  ciftify_seed_corr --roi-label $network \
+  --fisher-z \
+  --outputname ${outdir}/ciftify_network_rois/${subject}/${session}/${subject}_${session}_${func_base}_atlas-PINTnet_roi-${network}_fcmap.dscalar.nii \
+   ${outdir}/ciftify_clean_img/${subject}/${session}/${subject}_${session}_${func_base}_desc-clean_bold.dtseries.nii \
+   ${outdir}/ciftify_network_rois/${subject}/${session}/${subject}_${session}_${func_base}_label-PINTnet_atlas.dscalar.nii
+ done
+```

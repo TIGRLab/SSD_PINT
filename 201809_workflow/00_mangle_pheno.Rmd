@@ -1,6 +1,8 @@
 ---
 title: "Mangle the phenotypic data"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 and now it starts
@@ -67,15 +69,17 @@ mangle_CTRL_ZHH <- qryHC_NewResting_15_40 %>%
 mangle_SZ_ZHH <- ZHH_SZ %>%
   mutate(GRID = grid,
          Sex = factor(sex, levels = c("male", "female"), labels = c("M", "F")),
-         DX = "SCZ",
+         DX = "SSD",
          Edu = EducationPatient) %>%
-  select(one_of(vars_from_both))
+  rename(isFEP = Type) %>%
+  select(one_of(vars_from_both), isFEP)
 
 ZHH_pheno <-bind_rows(mangle_SZ_ZHH, mangle_CTRL_ZHH) %>%
-  rename(age = Age) %>%
-  mutate(participant_id = str_c('sub-',GRID),
+  rename(zhh_session_id = SessNo) %>%
+  mutate(subject = str_c('sub-',GRID),
          dataset = "ZHH",
-         site = "ZHH")
+         Site = "ZHH",
+         Scanner = "ZHH")
 
 rm(mangle_CTRL_ZHH, mangle_SZ_ZHH)
 
@@ -85,15 +89,18 @@ GRIDs_w_cerebellum_cutoff <- c(7793, 7834, 9405)
 ```{r}
 cobre_participants <- read_delim("../data/ciftify_fmriprep/COBRE/COBRE/participants.tsv",
 "\t", escape_double = FALSE, trim_ws = TRUE) %>%
+  rename(subject_id = participant_id,
+         Age = age) %>%
   mutate(Sex = case_when( sex == "male" ~ "M",
                           sex == "female" ~ "F"),
-         DX = case_when(dx == "Schizophrenia_Strict" ~ "SCZ",
-                        dx == "Schizoaffective" ~ "SCZ",
+         DX = case_when(dx == "Schizophrenia_Strict" ~ "SSD",
+                        dx == "Schizoaffective" ~ "SSD",
                         dx == "No_Known_Disorder" ~ "CTRL"),
          dataset = "COBRE",
-         site = "COBRE",
-         participant_id = str_c('sub-', participant_id)) %>%
-  select(participant_id, age, Sex, DX, dataset, site)
+         Site = "COBRE",
+         subject = str_c('sub-', subject_id),
+         Scanner = "COBRE") %>%
+  select(subject, Age, Sex, DX, dataset, Site, Scanner)
 
 ```
 
@@ -103,12 +110,15 @@ ds00030_participants <- read_delim("../data/bids_in/ds000030/ds000030_R1.0.5/par
     "\t", escape_double = FALSE, trim_ws = TRUE) %>%
   filter(T1w != "n/a", rest != "n/a",
          diagnosis %in% c("CONTROL", "SCHZ")) %>%
-  rename(Sex = gender) %>%
+  rename(Sex = gender,
+         subject = participant_id) %>%
   mutate(DX = case_when(diagnosis == "CONTROL" ~ "CTRL",
-                        diagnosis == "SCHZ" ~ "SCZ"),
+                        diagnosis == "SCHZ" ~ "SSD"),
          dataset = "ds000030_R1.0.5",
-         site = "ds000030") %>%
-  select(participant_id, age, DX, Sex, ScannerSerialNumber, ghost_NoGhost, dataset, site)
+         Site = "ds000030",
+         Scanner = str_c("ds000030", ScannerSerialNumber),
+         Age = age) %>%
+  select(subject, Age, DX, Sex, Scanner, ghost_NoGhost, dataset, Site)
 
 ```
 
@@ -117,10 +127,10 @@ old_pheno <- read_csv("../phenotypic/NEWallSubjects_completeData3_DM_not_sexmatc
 
 CMH_pheno <- old_pheno %>% 
   filter(site == 1) %>%
-  separate(subid, into = c("Study", "Site", "Subject", "session_id")) %>%
-  unite(subject_id, Site, Subject, sep = "") %>%
+  separate(subid, into = c("Study", "Site", "SUBJ", "cmh_session_id")) %>%
+  unite(subject_id, Site, SUBJ, sep = "") %>%
   mutate(DX = case_when(DX_GROUP == 2 ~ "CTRL",
-                        DX_GROUP == 1 ~ "SCZ"),
+                        DX_GROUP == 1 ~ "SSD"),
          Sex = case_when(sex.x == 1 ~ "M",
                          sex.x == 2 ~ "F"),
          dataset = case_when(Study == "SPN01" ~ "SPINS",
@@ -128,9 +138,11 @@ CMH_pheno <- old_pheno %>%
                              Study == "ASDD" ~ "ASDD",
                              Study == "DTI" ~ "DTI3T",
                              Study == "PNS" ~ "PNSC"),
-         participant_id = str_c("sub-", subject_id),
-         site = "CMH") %>%
-  select(participant_id, session_id, DX, age, Sex, dataset, site)
+         subject = str_c("sub-", subject_id),
+         Scanner = "CMH",
+         Site = "CMH", 
+         Age = age) %>%
+  select(subject, cmh_session_id, DX, Age, Sex, dataset, Site, Scanner)
 
 ```
 
@@ -146,6 +158,9 @@ simple_pheno = bind_rows(CMH_pheno,
 write_csv(simple_pheno, "../phenotypic/simple_pheno_201809.csv")
 ```
 
+```{r}
+simple_pheno
+```
 
 ## Note - re picking motion cutoffs
 
@@ -153,18 +168,6 @@ Based on our looking at the mriqc outputs, any visual QC issues are associated w
 
 ## Now looking at what we have from COBRE
 
-```{r}
-library(readr)
-cobre_participants <- read_delim("/mnt/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/COBRE/COBRE/participants.tsv", 
-    "\t", escape_double = FALSE, trim_ws = TRUE)
-
-check_cobreness <- anti_join(filter(older_data, Site == "COBRE"), cobre_participants, by = c("name" = "participant_id"))
-```
-
-
-```{r}
-cobre_mriqc <- 
-```
 
 From the COBRE data dictionary we see that:
 
@@ -182,13 +185,4 @@ From the COBRE data dictionary we see that:
 
 ## add where are is the CMH demographic info..
 
-```{r}
 
-```
-```{r}
-PNS_DATA_2018_07_16_1026 <- read_csv("/mnt/tigrlab/projects/saba/PINT_SCZ/new_analyses_20170412/Summer2018/Spreadsheets/ClinicalData/PNS/PNS_DATA_2018-07-16_1026.csv")
-
-
-PNS_DATA_2018_07_16_1026$record_id
-
-```

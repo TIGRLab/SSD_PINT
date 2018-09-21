@@ -938,6 +938,30 @@ for SID in $SIDlist; do
 done
 ```
 
+```sh
+ssh dev02
+bids_dir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+mkdir -p $sing_home
+
+
+SIDlist="A00000541 A00014830 A00018979"
+
+cd /KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep
+mkdir -p COBRE/out COBRE/work COBRE/logs
+cd $sing_home
+
+
+echo singularity run -H ${sing_home}:/myhome \
+  -B ${bids_dir}:/bids \
+  /KIMEL/tigrlab/archive/code/containers/MRIQC/poldracklab_mriqc_0.11.0-2018-06-05-1e4ac9792325.img \
+  /bids/COBRE/COBRE /bids/COBRE/out group \
+  -w /bids/COBRE/work \
+  --n_procs 2 \
+  --no-sub | \
+  qsub -V -l walltime=4:00:00,nodes=1:ppn=2 -N mriqc2_group -j oe -o ${bids_dir}/COBRE/logs
+```
+
 # COBRE to rerun PINT..
 
 sub-A00000909
@@ -961,22 +985,103 @@ cleaning_script=/KIMEL/tigrlab/projects/edickie/code/SZ_PINT/bin/participant_cif
 module load singularity/2.5.2
 export OMP_NUM_THREADS=4
 
-
-for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_run-01_bold_space-T1w_preproc.nii.gz`; do
   subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
   session=$(basename $(dirname $(dirname ${preprocfile})))
   if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
-echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${sing_home} ${ciftify_container} | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject}_${session} -j oe -o ${outputdir}/../../${dataset}/logs;
+echo ${cleaning_script} ${subject} ${session} task-rest_run-01_bold ${outputdir} ${sing_home} ${ciftify_container} # | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject}_${session}_run-01 -j oe -o ${outputdir}/../../${dataset}/logs;
+fi
+done
+
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_run-02_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
+  session=$(basename $(dirname $(dirname ${preprocfile})))
+  if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
+echo ${cleaning_script} ${subject} ${session} task-rest_run-02_bold ${outputdir} ${sing_home} ${ciftify_container} # | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject}_${session}_run-02 -j oe -o ${outputdir}/../../${dataset}/logs;
 fi
 done
 ```
 
-## rerunning PINT and cleaning for those last ZHH peeps
+
+## 2018-09-18 and some of CNP seems to have failed because it lost freesurfer..
+
+still issues:
+10565
+10624
+11077
+10290
+10686
+10877
+10891
+10893
+11019
+11122
+11156
+50029
+50067
+50034
+50036
+50038
+50056
 
 ```sh
 ssh dev02
-dataset="COBRE"
-outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/${dataset}/out
+dataset="ds000030_R1.0.5"
+bids_dir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/bids_in/ds000030/ds000030_R1.0.5
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+mkdir -p $sing_home
+
+
+SIDlist="10565
+10624
+11077
+10290
+10686
+10877
+10891
+10893
+11019
+11122
+11156
+50029
+50067
+50034
+50036
+50038
+50056"
+
+cd /KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep
+mkdir -p ${dataset}/out ${dataset}/work ${dataset}/logs
+cd $sing_home
+for SID in $SIDlist; do
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/input \
+    -B ${outputdir}:/output \
+    -B /quarantine/Freesurfer/6.0.0/freesurfer/license.txt:/license_file.txt \
+    /KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img \
+    /input /output/${dataset}/out participant \
+    --participant_label=$SID \
+    --task_label=rest \
+    --fmriprep-workdir /output/${dataset}/work \
+    --fs-license /license_file.txt \
+    --n_cpus 4 \
+    --fmriprep-args="--use-aroma" | \
+    qsub -l walltime=23:00:00,nodes=1:ppn=4 -N ciftify_$SID -j oe -o ${outputdir}/${dataset}/logs;
+done
+```
+
+## trying to run these last one's manually to debug..
+
+Note = 9280 and 21598 are the only two that pass QC
+
+## 2018-09-21 let's try rerunning the PINT for these..
+
+
+```sh
+ssh dev01
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/ds000030_R1.0.5/out
 sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
 ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img
 cleaning_script=/KIMEL/tigrlab/projects/edickie/code/bids-on-scinet/examples/participant_ciftify_clean_and_PINT.sh
@@ -984,11 +1089,33 @@ cleaning_script=/KIMEL/tigrlab/projects/edickie/code/bids-on-scinet/examples/par
 module load singularity/2.5.2
 export OMP_NUM_THREADS=4
 
-for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
-  subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
-  session=$(basename $(dirname $(dirname ${preprocfile})))
-  if [ ! -f ${outputdir}/ciftify_PINT/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-clean_bold_summary.csv ]; then
-echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${sing_home} ${ciftify_container}  | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N pint_${subject}_${session} -j oe -o ${outputdir}/../../${dataset}/logs;
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/func/sub-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname ${preprocfile})))
+  session="none"
+  if [ ! -f ${outputdir}/ciftify_PINT/${subject}/${subject}_task-rest_bold_desc-clean_bold_summary.csv ]; then
+echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${sing_home} ${ciftify_container} | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N pint_${subject}_${session} -j oe -o ${outputdir}/../../ds000030_R1.0.5/logs;
+fi
+done
+```
+
+## rerunning subcortical extraction for those last peeps
+
+```sh
+ssh dev01
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/ds000030_R1.0.5/out
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img
+cleaning_script=/KIMEL/tigrlab/projects/edickie/code/SZ_PINT/bin/participant_ciftify_clean_and_subcortical.sh
+
+module load singularity/2.5.2
+export OMP_NUM_THREADS=4
+
+
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/func/sub-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname ${preprocfile})))
+  session="none"
+  if [ ! -f ${outputdir}/ciftify_meants/${subject}/${subject}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
+echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${sing_home} ${ciftify_container}  | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject}_${session} -j oe -o ${outputdir}/../../ds000030_R1.0.5/logs;
 fi
 done
 ```
