@@ -660,7 +660,7 @@ export OMP_NUM_THREADS=4
 
 for preprocfile in `ls ${outputdir}/fmriprep/sub-*/func/sub-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
   subject=$(basename $(dirname $(dirname ${preprocfile})))
-echo ${cleaning_script} ${subject} none task-rest_bold ${outputdir} ${sing_home} ${ciftify_container} | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject} -j oe -o ${outputdir}/../../${dataset}/logs;
+echo ${cleaning_script} ${subject} none task-rest_bold ${outputdir} ${sing_home} ${ciftify_container} # | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject} -j oe -o ${outputdir}/../../${dataset}/logs;
 done
 ```
 
@@ -1115,7 +1115,29 @@ for preprocfile in `ls ${outputdir}/fmriprep/sub-*/func/sub-*_task-rest_bold_spa
   subject=$(basename $(dirname $(dirname ${preprocfile})))
   session="none"
   if [ ! -f ${outputdir}/ciftify_meants/${subject}/${subject}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
-echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${sing_home} ${ciftify_container}  | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject}_${session} -j oe -o ${outputdir}/../../ds000030_R1.0.5/logs;
+echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${sing_home} ${ciftify_container}  #| qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject}_${session} -j oe -o ${outputdir}/../../ds000030_R1.0.5/logs;
+fi
+done
+```
+
+## rerunning subcortical extraction for those last peeps
+
+```sh
+ssh dev01
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/ds000030_R1.0.5/out
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img
+cleaning_script=/KIMEL/tigrlab/projects/edickie/code/SZ_PINT/bin/participant_ciftify_clean_and_subcortical.sh
+
+module load singularity/2.5.2
+export OMP_NUM_THREADS=4
+
+
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/func/sub-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname ${preprocfile})))
+  session="none"
+  if [ ! -f ${outputdir}/ciftify_meants/${subject}/${subject}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
+echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${sing_home} ${ciftify_container}  #| qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject}_${session} -j oe -o ${outputdir}/../../ds000030_R1.0.5/logs;
 fi
 done
 ```
