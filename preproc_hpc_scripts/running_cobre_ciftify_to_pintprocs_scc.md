@@ -241,3 +241,140 @@ for SID in $SIDlist; do
     qsub -V -l walltime=23:00:00,nodes=1:ppn=6 -N ciftify_$SID -j oe -o ${bids_out}/COBRE/logs;
 done
 ```
+
+no functional run?
+sub-A00023132 - no functional data
+sub-A00023366- no functional data
+no fmriprep at all
+sub-A00024510 - no T1w data
+sub-A00027119 - no T1w data        
+
+A00009656 - no T1w image found      
+A00011107 - no T1w image found                      
+A00018598 - no T1w image found                
+
+
+## running this last bit to get QA index pages to write
+
+```sh
+ssh dev01
+bids_dir=/KIMEL/tigrlab/external/SchizConnect/COBRE/bids/
+bids_out=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.1.0-2018-10-12-dcfba6cc0add.img
+mkdir -p $sing_home
+
+
+singularity run -H ${sing_home}:/myhome \
+  -B ${bids_dir}:/bids \
+  -B ${bids_out}:/out \
+  -B /quarantine/Freesurfer/6.0.0/freesurfer/license.txt:/license_file.txt \
+  ${ciftify_container} \
+  /bids/COBRE/ /out/COBRE/out group \
+  --fs-license /license_file.txt
+
+```
+
+A00016720 - fmriprep done
+sub-A00020895
+sub-A00021081
+sub-A00021598
+sub-A00024684
+sub-A00031186
+sub-A00037007
+
+fmriprep not done?
+sub-A00018598
+sub-A00022592
+sub-A00024198
+sub-A00025969
+sub-A00027755
+sub-A00027969
+sub-A00031597
+sub-A00033812
+A00036555
+A00036897
+A00037619
+sub-A00026945 - so many anats..maybe some need to be blacklisted?
+
+
+```sh
+ssh dev02
+bids_dir=/KIMEL/tigrlab/external/SchizConnect/COBRE/bids/
+bids_out=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.1.0-2018-10-12-dcfba6cc0add.img
+mkdir -p $sing_home
+
+## rerun the ones that just failed ciftify (but are done fMRIprep)
+SIDlist="A00016720
+A00020895
+A00021081
+A00021598
+A00024684
+A00031186
+A00037007"
+
+cd ${bids_out}
+for SID in  $SIDlist; do
+  rm -r COBRE/out/ciftify/sub-${SID}
+done
+mkdir -p COBRE/work3
+
+cd $sing_home
+for SID in $SIDlist; do
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/bids \
+    -B ${bids_out}:/out \
+    -B /quarantine/Freesurfer/6.0.0/freesurfer/license.txt:/license_file.txt \
+    ${ciftify_container} \
+    /bids/COBRE/ /out/COBRE/out participant \
+    --participant_label=$SID \
+    --fmriprep-workdir /out/COBRE/work2 \
+    --fs-license /license_file.txt \
+    --n_cpus 1  | \
+    qsub -V -l walltime=6:00:00,nodes=1:ppn=1 -N ciftify_$SID -j oe -o ${bids_out}/COBRE/logs;
+done
+
+## rerun these ones from the start
+SIDlist="A00018598
+A00022592
+A00024198
+A00025969
+A00027755
+A00027969
+A00031597
+A00033812
+A00036555
+A00036897
+A00037619
+A00026945"
+
+cd ${bids_out}
+for SID in  $SIDlist; do
+  ls COBRE/out/freesurfer/sub-${SID}
+  ls COBRE/out/fmriprep/sub-${SID}/
+  ls COBRE/out/fmriprep/sub-${SID}.html
+  rm -r COBRE/out/freesurfer/sub-${SID}
+  rm -r COBRE/out/fmriprep/sub-${SID}/
+  rm COBRE/out/fmriprep/sub-${SID}.html
+  rm -r COBRE/out/ciftify/sub-${SID}
+done
+
+cd $sing_home
+for SID in $SIDlist; do
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/bids \
+    -B ${bids_out}:/out \
+    -B /quarantine/Freesurfer/6.0.0/freesurfer/license.txt:/license_file.txt \
+    ${ciftify_container} \
+    /bids/COBRE/ /out/COBRE/out participant \
+    --participant_label=$SID \
+    --fmriprep-workdir /out/COBRE/work3 \
+    --fs-license /license_file.txt \
+    --n_cpus 6  | \
+    qsub -V -l walltime=23:00:00,nodes=1:ppn=6 -N ciftify_$SID -j oe -o ${bids_out}/COBRE/logs;
+done
+```
