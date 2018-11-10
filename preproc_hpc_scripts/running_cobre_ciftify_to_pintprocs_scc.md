@@ -34,6 +34,35 @@ for SID in $SIDlist; do
 done
 ```
 
+## 2018-11-11 Running the cobre mriqc on the scc too
+
+```sh
+ssh dev02
+bids_dir=/KIMEL/tigrlab/external/SchizConnect/COBRE/bids/
+bids_out=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+mkdir -p $sing_home
+
+
+SIDlist=`cd ${bids_dir}/COBRE/; ls -1d sub* | sed 's/sub-//g'`
+cd /KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep
+mkdir -p COBRE/out COBRE/work COBRE/logs
+cd $sing_home
+for SID in $SIDlist; do
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/bids \
+    -B ${bids_out}:/out \
+    /KIMEL/tigrlab/archive/code/containers/MRIQC/poldracklab_mriqc_0.11.0-2018-06-05-1e4ac9792325.img \
+    /bids/COBRE/ /out/COBRE/out participant \
+    --participant_label=$SID \
+    -w /out/COBRE/work \
+    --n_procs 2 \
+    --no-sub | \
+    qsub -V -l walltime=4:00:00,nodes=1:ppn=2 -N mriqc_$SID -j oe -o ${bids_out}/COBRE/logs;
+done
+```
+
 # 2018-11-03
 
 Dunno why 5 subjects have failed so far.. and there's a typo in the logs so I'm not getting good info.
