@@ -63,6 +63,38 @@ for SID in $SIDlist; do
 done
 ```
 
+```sh
+ssh dev01
+dataset="COBRE"
+outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/${dataset}/out
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img
+cleaning_script=/KIMEL/tigrlab/projects/edickie/code/SZ_PINT/bin/participant_ciftify_clean_and_subcortical.sh
+
+module load singularity/2.5.2
+export OMP_NUM_THREADS=4
+
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_run-01_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
+  session=$(basename $(dirname $(dirname ${preprocfile})))
+  if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
+echo ${cleaning_script} ${subject} ${session} task-rest_run-01_bold ${outputdir} ${sing_home} ${ciftify_container} # | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject}_${session}_run-01 -j oe -o ${outputdir}/../../${dataset}/logs;
+fi
+done
+
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_run-02_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
+  session=$(basename $(dirname $(dirname ${preprocfile})))
+  if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
+echo ${cleaning_script} ${subject} ${session} task-rest_run-02_bold ${outputdir} ${sing_home} ${ciftify_container} # | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject}_${session}_run-02 -j oe -o ${outputdir}/../../${dataset}/logs;
+fi
+done
+```
+
+----------
+
+# The ugly - stuff that needed to be rerun..
+
 # 2018-11-03
 
 Dunno why 5 subjects have failed so far.. and there's a typo in the logs so I'm not getting good info.
@@ -405,5 +437,42 @@ for SID in $SIDlist; do
     --fs-license /license_file.txt \
     --n_cpus 6  | \
     qsub -V -l walltime=23:00:00,nodes=1:ppn=6 -N ciftify_$SID -j oe -o ${bids_out}/COBRE/logs;
+done
+```
+
+# 2018-11-11 Three participants seem to have timed out for mriqc..will try to restart them..
+
+edickie@dev01 logs]$ grep Resources mriqc_* | grep e=04
+mriqc_A00000909.o220742: Resources:           cput=07:38:01,mem=3363512kb,vmem=9039244kb,walltime=04:00:17
+mriqc_A00009280.o220755: Resources:           cput=07:50:25,mem=3172820kb,vmem=9267484kb,walltime=04:00:13
+mriqc_A00018979.o220799: Resources:           cput=07:50:14,mem=2990788kb,vmem=10049652kb,walltime=04:00:09
+
+```sh
+ssh dev02
+bids_dir=/KIMEL/tigrlab/external/SchizConnect/COBRE/bids/
+bids_out=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+mkdir -p $sing_home
+
+
+SIDlist="A00000909
+A00009280
+A00018979"
+
+cd /KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep
+mkdir -p COBRE/out COBRE/work COBRE/logs
+cd $sing_home
+for SID in $SIDlist; do
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/bids \
+    -B ${bids_out}:/out \
+    /KIMEL/tigrlab/archive/code/containers/MRIQC/poldracklab_mriqc_0.11.0-2018-06-05-1e4ac9792325.img \
+    /bids/COBRE/ /out/COBRE/out participant \
+    --participant_label=$SID \
+    -w /out/COBRE/work \
+    --n_procs 2 \
+    --no-sub | \
+    qsub -V -l walltime=4:00:00,nodes=1:ppn=2 -N mriqc2_$SID -j oe -o ${bids_out}/COBRE/logs;
 done
 ```
