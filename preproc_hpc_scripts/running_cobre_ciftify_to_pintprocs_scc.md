@@ -63,22 +63,34 @@ for SID in $SIDlist; do
 done
 ```
 
+## Note these are the things you need to set up in the output folder before this scripts will work
+
+1. cleaning configs need to be in the ciftify_clean_img output dir
+2. PINT template csvs and the color look up table should be in the ciftify_PINT output folder
+3. the subcortical ROI templates need to be in the output folders
+
 ```sh
-ssh dev01
+ssh dev02
 dataset="COBRE"
 outputdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/${dataset}/out
+logsdir=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/${dataset}/logs
 sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
-ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.0.9-2018-07-31-d0ccd31e74c5.img
-cleaning_script=/KIMEL/tigrlab/projects/edickie/code/SZ_PINT/bin/participant_ciftify_clean_and_subcortical.sh
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.1.0-2018-10-12-dcfba6cc0add.img
+cleaning_script=/KIMEL/tigrlab/projects/edickie/code/SZ_PINT/bin/participant_ciftify_clean_PINT_subcortts_dlabels.sh
 
 module load singularity/2.5.2
 export OMP_NUM_THREADS=4
+
+mkdir -p ${outputdir}/ciftify_meants/templates ${outputdir}/ciftify_PINT ${outputdir}/ciftify_clean_img
+cp ${outputdir}/../../ZHH/out/ciftify_clean_img/*.json ${outputdir}/ciftify_clean_img/
+cp ${outputdir}/../../ZHH/out/ciftify_PINT/Yeo* ${outputdir}/ciftify_PINT/
+cp ${outputdir}/../../ZHH/out/ciftify_meants/templates/*..nii ${outputdir}/ciftify_meants/templates/
 
 for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_run-01_bold_space-T1w_preproc.nii.gz`; do
   subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
   session=$(basename $(dirname $(dirname ${preprocfile})))
   if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
-echo ${cleaning_script} ${subject} ${session} task-rest_run-01_bold ${outputdir} ${sing_home} ${ciftify_container} # | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject}_${session}_run-01 -j oe -o ${outputdir}/../../${dataset}/logs;
+echo ${cleaning_script} ${subject} ${session} task-rest_run-01_bold ${outputdir} ${outputdir} ${sing_home} ${ciftify_container}  | qsub -V -l walltime=00:40:00,nodes=1:ppn=4 -N subts_${subject}_${session}_run-01 -j oe -o ${logsdir};
 fi
 done
 
@@ -86,10 +98,19 @@ for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-r
   subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
   session=$(basename $(dirname $(dirname ${preprocfile})))
   if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
-echo ${cleaning_script} ${subject} ${session} task-rest_run-02_bold ${outputdir} ${sing_home} ${ciftify_container} # | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N subts_${subject}_${session}_run-02 -j oe -o ${outputdir}/../../${dataset}/logs;
+echo ${cleaning_script} ${subject} ${session} task-rest_run-02_bold ${outputdir} ${outputdir} ${sing_home} ${ciftify_container}  | qsub -V -l walltime=00:40:00,nodes=1:ppn=4 -N subts_${subject}_${session}_run-02 -j oe -o ${logsdir};
+fi
+done
+
+for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_bold_space-T1w_preproc.nii.gz`; do
+  subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
+  session=$(basename $(dirname $(dirname ${preprocfile})))
+  if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
+echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${outputdir} ${sing_home} ${ciftify_container}  | qsub -V -l walltime=00:40:00,nodes=1:ppn=4 -N subts_${subject}_${session} -j oe -o ${logsdir};
 fi
 done
 ```
+
 
 ----------
 
