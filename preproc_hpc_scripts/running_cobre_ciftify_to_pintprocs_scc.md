@@ -63,6 +63,26 @@ for SID in $SIDlist; do
 done
 ```
 
+```sh
+ssh dev02
+bids_dir=/KIMEL/tigrlab/external/SchizConnect/COBRE/bids/
+bids_out=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+mkdir -p $sing_home
+
+cd $sing_home
+
+echo singularity run -H ${sing_home}:/myhome \
+  -B ${bids_dir}:/bids \
+  -B ${bids_out}:/out \
+  /KIMEL/tigrlab/archive/code/containers/MRIQC/poldracklab_mriqc_0.11.0-2018-06-05-1e4ac9792325.img \
+  /bids/COBRE/ /out/COBRE/out group \
+  --n_procs 4 \
+  --no-sub | \
+  qsub -V -l walltime=4:00:00,nodes=1:ppn=4 -N mriqc_group -j oe -o ${bids_out}/COBRE/logs
+
+```
+
 ## Note these are the things you need to set up in the output folder before this scripts will work
 
 1. cleaning configs need to be in the ciftify_clean_img output dir
@@ -89,7 +109,7 @@ cp ${outputdir}/../../ZHH/out/ciftify_meants/templates/*..nii ${outputdir}/cifti
 for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_run-01_bold_space-T1w_preproc.nii.gz`; do
   subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
   session=$(basename $(dirname $(dirname ${preprocfile})))
-  if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
+  if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_task-rest_run-01_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
 echo ${cleaning_script} ${subject} ${session} task-rest_run-01_bold ${outputdir} ${outputdir} ${sing_home} ${ciftify_container}  | qsub -V -l walltime=00:40:00,nodes=1:ppn=4 -N subts_${subject}_${session}_run-01 -j oe -o ${logsdir};
 fi
 done
@@ -97,8 +117,8 @@ done
 for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-rest_run-02_bold_space-T1w_preproc.nii.gz`; do
   subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
   session=$(basename $(dirname $(dirname ${preprocfile})))
-  if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
-echo ${cleaning_script} ${subject} ${session} task-rest_run-02_bold ${outputdir} ${outputdir} ${sing_home} ${ciftify_container}  | qsub -V -l walltime=00:40:00,nodes=1:ppn=4 -N subts_${subject}_${session}_run-02 -j oe -o ${logsdir};
+  if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_task-rest_run-02_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
+echo ${cleaning_script} ${subject} ${session} task-rest_run-02_bold ${outputdir} ${outputdir} ${sing_home} ${ciftify_container} # | qsub -V -l walltime=00:40:00,nodes=1:ppn=4 -N subts_${subject}_${session}_run-02 -j oe -o ${logsdir};
 fi
 done
 
@@ -106,7 +126,7 @@ for preprocfile in `ls ${outputdir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_task-r
   subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
   session=$(basename $(dirname $(dirname ${preprocfile})))
   if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_task-rest_bold_desc-cleansm0_atlas-7RSN_roi-Rthalamus_timeseries.csv ]; then
-echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${outputdir} ${sing_home} ${ciftify_container}  | qsub -V -l walltime=00:40:00,nodes=1:ppn=4 -N subts_${subject}_${session} -j oe -o ${logsdir};
+echo ${cleaning_script} ${subject} ${session} task-rest_bold ${outputdir} ${outputdir} ${sing_home} ${ciftify_container}   | qsub -V -l walltime=00:40:00,nodes=1:ppn=4 -N subts_${subject}_${session} -j oe -o ${logsdir};
 fi
 done
 ```
@@ -495,5 +515,178 @@ for SID in $SIDlist; do
     --n_procs 2 \
     --no-sub | \
     qsub -V -l walltime=4:00:00,nodes=1:ppn=2 -N mriqc2_$SID -j oe -o ${bids_out}/COBRE/logs;
+done
+```
+
+edickie@dev01 logs]$ grep Resources subts* | grep e=00:00
+subts_sub-A00016720_ses-20100101.o221551: Resources:           cput=00:00:22,mem=32076kb,vmem=527508kb,walltime=00:00:24
+subts_sub-A00016720_ses-20110101.o221552: Resources:           cput=00:00:22,mem=0kb,vmem=0kb,walltime=00:00:25
+subts_sub-A00021598_ses-20110101_run-01.o221498: Resources:           cput=00:00:15,mem=95960kb,vmem=833064kb,walltime=00:00:36
+subts_sub-A00021598_ses-20110101_run-02.o221505: Resources:           cput=00:00:19,mem=0kb,vmem=0kb,walltime=00:00:25
+subts_sub-A00031186_ses-20120101.o221651: Resources:           cput=00:00:18,mem=79944kb,vmem=806008kb,walltime=00:00:39
+[edickie@dev01 logs]$
+
+A00031186 - looks like ciftify needs to be rerun
+A00016720
+A00021598 - anat looks done..but timed out on more fmriprep runs.
+
+```sh
+ssh dev02
+bids_dir=/KIMEL/tigrlab/external/SchizConnect/COBRE/bids/
+bids_out=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.1.0-2018-10-12-dcfba6cc0add.img
+mkdir -p $sing_home
+
+## rerun the ones that just failed ciftify (but are done fMRIprep)
+SIDlist="A00031186
+A00016720
+A00021598"
+
+cd ${bids_out}
+rm -r COBRE/out/ciftify/sub-A00031186
+rm -r COBRE/out/ciftify/sub-A00016720
+
+cd $sing_home
+for SID in $SIDlist; do
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/bids \
+    -B ${bids_out}:/out \
+    -B /quarantine/Freesurfer/6.0.0/freesurfer/license.txt:/license_file.txt \
+    ${ciftify_container} \
+    /bids/COBRE/ /out/COBRE/out participant \
+    --participant_label=$SID \
+    --fmriprep-workdir /out/COBRE/work2 \
+    --fs-license /license_file.txt \
+    --n_cpus 1  | \
+    qsub -V -l walltime=8:00:00,nodes=1:ppn=1 -N ciftify_$SID -j oe -o ${bids_out}/COBRE/logs
+
+```
+A00027119
+
+
+extra missing ids:
+sub-A00002337     
+sub-A00002405     
+sub-A00009207     
+sub-A00009656     
+sub-A00009946     
+sub-A00011107     
+sub-A00016199     
+sub-A00018598     
+sub-A00021145     
+sub-A00023131
+sub-A00023132     
+sub-A00023337     
+sub-A00023366     
+sub-A00024535     
+sub-A00027119     
+sub-A00027616     
+sub-A00028410     
+sub-A00035469     
+sub-A00035537
+
+A00027119
+
+```sh
+ssh dev01
+bids_dir=/KIMEL/tigrlab/external/SchizConnect/COBRE/bids/
+bids_out=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_1.1.2-2.1.0-2018-10-12-dcfba6cc0add.img
+mkdir -p $sing_home
+
+SIDlist="A00027119"
+
+cd $sing_home
+for SID in $SIDlist; do
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/bids \
+    -B ${bids_out}:/out \
+    -B /quarantine/Freesurfer/6.0.0/freesurfer/license.txt:/license_file.txt \
+    ${ciftify_container} \
+    /bids/COBRE/ /out/COBRE/out participant \
+    --participant_label=$SID \
+    --fmriprep-workdir /out/COBRE/work \
+    --fs-license /license_file.txt \
+    --n_cpus 6  | \
+    qsub -V -l walltime=23:00:00,nodes=1:ppn=6 -N ciftify_$SID -j oe -o ${bids_out}/COBRE/logs;
+done
+```
+
+sub-A00023131     
+sub-A00023337
+
+```sh
+ssh dev02
+bids_dir=/KIMEL/tigrlab/external/SchizConnect/COBRE/bids/
+bids_out=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+mkdir -p $sing_home
+
+SIDlist="A00023131
+A00023337"
+
+cd /KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep
+mkdir -p COBRE/out COBRE/work COBRE/logs
+cd $sing_home
+for SID in $SIDlist; do
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/bids \
+    -B ${bids_out}:/out \
+    /KIMEL/tigrlab/archive/code/containers/MRIQC/poldracklab_mriqc_0.11.0-2018-06-05-1e4ac9792325.img \
+    /bids/COBRE/ /out/COBRE/out participant \
+    --participant_label=$SID \
+    -w /out/COBRE/work \
+    --n_procs 2 \
+    --no-sub | \
+    qsub -V -l walltime=4:00:00,nodes=1:ppn=2 -N mriqc_$SID -j oe -o ${bids_out}/COBRE/logs;
+done
+```
+missing pheno
+
+COBRE A00002198 rest 1 4 5 sub-A00002198 A00002198	35	male	No_Known_Disorder
+COBRE A00012767 rest 1 4 5 sub-A00012767 A00012767	33	male	Schizophrenia_Strict
+COBRE A00013216 rest 1 4 5 sub-A00013216 A00013216	65	male	Schizophrenia_Strict
+COBRE A00014839 rest 1 2 3 sub-A00014839 A00014839	32	female	No_Known_Disorder
+COBRE A00018434 rest 1 2 3 sub-A00018434 A00018434	63	male	Schizophrenia_Strict
+COBRE A00018716 rest 1 4 5 sub-A00018716 A00018716	31	male	No_Known_Disorder
+COBRE A00022619 rest 1 4 5 sub-A00022619 A00022619	52	male	No_Known_Disorder
+COBRE A00023143 rest 1 4 5 sub-A00023143 A00023143	27	female	No_Known_Disorder
+COBRE A00024820 rest 1 2 3 sub-A00024820 A00024820	34	male	No_Known_Disorder
+COBRE A00028406 rest 1 2 3 sub-A00028406 A00028406	31	female	No_Known_Disorder
+COBRE A00031186 rest 1 2 3 sub-A00031186 A00031186	19	male	Schizophrenia_Strict
+COBRE A00034273 rest 1 2 3 sub-A00034273 A00034273	24	female	Schizophrenia_Strict
+
+
+jkl;'\\'
+
+```sh
+ssh dev02
+bids_dir=/KIMEL/tigrlab/external/SchizConnect/COBRE/bids/
+bids_out=/KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep/
+sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
+mkdir -p $sing_home
+
+
+SIDlist=""
+cd /KIMEL/tigrlab/scratch/edickie/saba_PINT/ciftify_fmriprep
+mkdir -p COBRE/out COBRE/work COBRE/logs
+cd $sing_home
+for SID in $SIDlist; do
+  subject=$SID
+  echo singularity run -H ${sing_home}:/myhome \
+    -B ${bids_dir}:/bids \
+    -B ${bids_out}:/out \
+    /KIMEL/tigrlab/archive/code/containers/MRIQC/poldracklab_mriqc_0.11.0-2018-06-05-1e4ac9792325.img \
+    /bids/COBRE/ /out/COBRE/out participant \
+    --participant_label=$SID \
+    -w /out/COBRE/work \
+    --n_procs 2 \
+    --no-sub | \
+    qsub -V -l walltime=4:00:00,nodes=1:ppn=2 -N mriqc_$SID -j oe -o ${bids_out}/COBRE/logs;
 done
 ```
