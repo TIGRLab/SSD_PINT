@@ -158,22 +158,15 @@ No more than 50% of the scan with motion > 0.2mm
 
 
 ```r
-bolds_condensed %>%
+mean_fd_thres <- 0.5
+perc_fd_thres <- 50
+
+pre_qa_counts <- bolds_condensed %>%
   inner_join(simple_pheno, by = c("subject", "dataset")) %>%
   select(subject, dataset, DX) %>%
   distinct() %>%
   count(DX)
-```
 
-```
-## # A tibble: 2 x 2
-##   DX        n
-##   <chr> <int>
-## 1 CTRL    350
-## 2 SSD     288
-```
-
-```r
 qa_passes_pheno <- bolds_condensed %>%
   inner_join(simple_pheno, by = c("subject", "dataset")) %>%
   filter(fd_mean < 0.5, fd_perc < 50) 
@@ -181,15 +174,16 @@ qa_passes_pheno <- bolds_condensed %>%
 qa_passes_pheno %>%
   select(subject, dataset, DX) %>%
   distinct() %>%
-  count(DX)
+  count(DX) %>%
+  inner_join(pre_qa_counts, by = "DX", suffix = c("_after_qa", "_before_qa"))
 ```
 
 ```
-## # A tibble: 2 x 2
-##   DX        n
-##   <chr> <int>
-## 1 CTRL    286
-## 2 SSD     199
+## # A tibble: 2 x 3
+##   DX    n_after_qa n_before_qa
+##   <chr>      <int>       <int>
+## 1 CTRL         286         350
+## 2 SSD          199         288
 ```
 
 ## who is still missing a PINT output?
@@ -197,24 +191,19 @@ qa_passes_pheno %>%
 
 ```r
 anti_join(qa_passes_pheno, pintdf,
-          by = c("dataset", "subject", "session"))
+          by = c("dataset", "subject", "session")) 
 ```
 
 ```
-## # A tibble: 5 x 31
-##   dataset       subject_id session_id task_id run_id acq_id fd_mean fd_num
-##   <chr>         <chr>      <chr>      <chr>   <chr>  <chr>    <dbl>  <int>
-## 1 ds000030_R1.… 10893      <NA>       rest    <NA>   <NA>     0.178     49
-## 2 ds000030_R1.… 11019      <NA>       rest    <NA>   <NA>     0.204     74
-## 3 ds000030_R1.… 11077      <NA>       rest    <NA>   <NA>     0.107      7
-## 4 ds000030_R1.… 11156      <NA>       rest    <NA>   <NA>     0.108     14
-## 5 ds000030_R1.… 50034      <NA>       rest    <NA>   <NA>     0.119     10
-## # ... with 23 more variables: fd_perc <dbl>, size_t <int>, size_x <int>,
-## #   size_y <int>, size_z <int>, spacing_tr <dbl>, spacing_x <dbl>,
-## #   spacing_y <dbl>, spacing_z <dbl>, subject <chr>, session <chr>,
-## #   cmh_session_id <chr>, DX <chr>, Age <dbl>, Sex <chr>, Site <chr>,
-## #   Scanner <chr>, GRID <int>, zhh_session_id <int>, MRI_Date <dbl>,
-## #   Edu <int>, isFEP <chr>, ghost_NoGhost <chr>
+## # A tibble: 0 x 31
+## # ... with 31 variables: dataset <chr>, subject_id <chr>,
+## #   session_id <chr>, task_id <chr>, run_id <chr>, acq_id <chr>,
+## #   fd_mean <dbl>, fd_num <int>, fd_perc <dbl>, size_t <int>,
+## #   size_x <int>, size_y <int>, size_z <int>, spacing_tr <dbl>,
+## #   spacing_x <dbl>, spacing_y <dbl>, spacing_z <dbl>, subject <chr>,
+## #   session <chr>, cmh_session_id <chr>, DX <chr>, Age <dbl>, Sex <chr>,
+## #   Site <chr>, Scanner <chr>, GRID <int>, zhh_session_id <int>,
+## #   MRI_Date <dbl>, Edu <int>, isFEP <chr>, ghost_NoGhost <chr>
 ```
 
 
@@ -248,10 +237,10 @@ qa_passes_pheno %>%
 ## 2 CMH      SSD      67 32.2(8.5) 18 - 50  40(59.7%) 
 ## 3 COBRE    CTRL     27 31.1(8.9) 18 - 48  17(63.0%) 
 ## 4 COBRE    SSD      17 29.1(12.5) 19 - 55 14(82.4%) 
-## 5 ds000030 CTRL    104 30.5(8.2) 21 - 50  54(51.9%) 
+## 5 ds000030 CTRL    107 30.4(8.1) 21 - 50  55(51.4%) 
 ## 6 ds000030 SSD      31 35.2(9.3) 22 - 49  24(77.4%) 
-## 7 ZHH      CTRL    111 25.1(6.6) 15 - 41  48(43.2%) 
-## 8 ZHH      SSD      84 26.2(9.4) 15 - 57  64(76.2%)
+## 7 ZHH      CTRL    109 25.1(6.6) 15 - 41  48(44.0%) 
+## 8 ZHH      SSD      83 26.2(9.4) 15 - 57  64(77.1%)
 ```
 
 ```r
@@ -285,15 +274,42 @@ qa_passes_pheno %>%
 ## # ... with 23 more rows, and 2 more variables: scan_length <dbl>, n <int>
 ```
 
+# read and mangle the phenotypic data
+
+Note we are also selecting to use scan from each subject with the least motion (fd_perc)
+We are also
+
+
+```r
+transform_to_normal <- function(X) {
+  # calculate the best exponent using powerTransform:
+  pT <- car::powerTransform(X)
+  # apply the power transform and save the result to a new variable
+  X_pT <- X^pT$lambda ## note ^ is exponent in r
+  return(X_pT)
+}
+
+# select the scan for each participant with the least motion
+pheno <- qa_passes_pheno %>%
+  select(-ends_with("_x"), -ends_with("_y")) %>%
+  left_join(pintdf,
+          by = c("dataset", "subject", "session")) %>%
+  filter(!is.na(filename)) %>%
+  group_by(subject) %>%
+  arrange(fd_perc) %>%
+  slice(1) %>%
+  ungroup() 
+
+# transform age and fd_mean to normality
+pheno <- pheno %>%
+  mutate(Age_pt = transform_to_normal(Age),
+         fd_mean_pt = transform_to_normal(fd_mean))
+```
 
 
 
 ```r
-qa_passes_pheno %>%
-  select(-ends_with("_x"), -ends_with("_y")) %>%
-  left_join(pintdf,
-          by = c("dataset", "subject", "session")) %>%
-  write_csv('../phenotypic/20180918_pheno_qapass.csv')
+write_csv(pheno, '../phenotypic/20180918_pheno_qapass.csv')
 ```
 
 + ASDD is done!
