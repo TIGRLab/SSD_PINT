@@ -57,7 +57,7 @@ func_base="task-rest_acq-CMH_run-01_bold"
 for preprocfile in `ls ${archive_pipedir}/fmriprep/sub-*/ses-*/func/sub-*_ses-*_${func_base}_space-T1w_preproc.nii.gz`; do
   subject=$(basename $(dirname $(dirname $(dirname ${preprocfile}))))
   session=$(basename $(dirname $(dirname ${preprocfile})))
-  if [ ! -f ${outputdir}/ciftify_PINT/${subject}/${subject}_${func_base}_atlas-pvertexNET_roi-7_fcmap.dscalar.nii ]; then
+  if [ ! -f ${outputdir}/ciftify_PINT/${subject}/${session}/${subject}_${session}_${func_base}_atlas-pvertexNET_roi-7_fcmap.dscalar.nii ]; then
 echo ${cleaning_script} ${subject} ${session} ${func_base} ${archive_pipedir} ${outputdir} ${sing_home} ${ciftify_container}   | qsub -V -l walltime=00:20:00,nodes=1:ppn=4 -N dlabels_${subject}_${session} -j oe -o ${logsdir};
 fi
 done
