@@ -11,6 +11,7 @@ library(broom)
 library(knitr)
 library(tableone)
 library(cowplot)
+library(igraph)
 ```
 
 ## The paths to data
@@ -81,7 +82,7 @@ read_pint_meants <- function(outputprefix, vertex_type, projectname, output_dir)
   expected_filepath <- file.path(output_dir, projectname, "out",'ciftify_PINT', 
                            str_c(outputprefix, '_desc-clean_bold_', 
                                  vertex_type, '_meants.csv'))
-  meants = read_meants_csv(expected_filepath) %>% t()
+  meants = read_meants_csv(expected_filepath) %>% t() %>% as.data.frame()
   names(meants) = Yeo7_2011_80verts$SHORTNAME
   return(meants)
 }
@@ -155,7 +156,8 @@ the_subcortical_guide <- tribble(
  "R", "striatum", c('VI','SM','DA','VA', 'LI','FP','DM'),
  "R", "cerebellum", c('VI','SM','DA','VA', 'LI','FP','DM')) %>%
   unnest() %>%
-  unite(combined_name, remove = FALSE)
+  unite(combined_name, subcort_hemi:subcort_NET, remove = FALSE)
+
 
 
 #' read all fMRI timeseries data for one subject and correlates PINT ROIs with subcortex
@@ -166,78 +168,74 @@ the_subcortical_guide <- tribble(
 #' @param Yeo7_2011_80verts as data frame describing the PINT ROIs 
 #'
 #' @return a dataframe (graph style) of PINT ROI to subcortical correlations
-read_concat_subject_subcort <- function(out_prefix, projectname, 
-                                  outputbase, Yeo7_2011_80verts) {
-  
-  # read the pint meants files
-  pvertex_meants <- read_pint_meants(out_prefix, 'pvertex', 
-                                     projectname, outputbase)
-  tvertex_meants <- read_pint_meants(out_prefix, 'tvertex',
-                                     projectname, outputbase)
+read_concat_subject_subcort <- function(out_prefix, projectname) {
   
   # read the subcortical meants files
   thalamus_L_meants <- read_subcortical_hemi_meants(out_prefix,
                                                     "L","thalamus", 
-                                                    projectname, outputbase)
+                                                    projectname, output_base)
   striatum_L_meants <- read_subcortical_hemi_meants(out_prefix,
                                                     "L","striatum",
-                                                    projectname, outputbase)
+                                                    projectname, output_base)
   cerebellum_L_meants <- read_subcortical_hemi_meants(out_prefix,
                                                       "L", "cerebellum",
-                                                      projectname, outputbase)
+                                                      projectname, output_base)
   thalamus_R_meants <- read_subcortical_hemi_meants(out_prefix,
                                                     "R","thalamus",
-                                                    projectname, outputbase)
+                                                    projectname, output_base)
   striatum_R_meants <- read_subcortical_hemi_meants(out_prefix,
                                                     "R","striatum", 
-                                                    projectname, outputbase)
+                                                    projectname, output_base)
   cerebellum_R_meants <- read_subcortical_hemi_meants(out_prefix,
                                                       "R", "cerebellum", 
-                                                      projectname, outputbase)
+                                                      projectname, output_base)
   
   # prepare to bind
   subcort_meants <- bind_rows(thalamus_L_meants, striatum_L_meants, cerebellum_L_meants,
                               thalamus_R_meants, striatum_R_meants, cerebellum_R_meants)
   
   # create file names
-  subcort_meants_t <- t(subcort_meants)
+  subcort_meants_t <- t(subcort_meants) %>% as.data.frame()
+  # note that the_subcortical_guide is in the global env
   names(subcort_meants_t) <- the_subcortical_guide$combined_name
   
   return(subcort_meants_t)
-  
+}  
 
-
-  # correlate the pvertex timeseries with the subcortical data
-      g<-graph_from_adjacency_matrix(cormat,mode="upper", 
-                                   weighted=T, diag=F)
-      
-  pvertex_corr <- bind_rows(pvertex_meants, subcort_meants) %>%
-    t() %>% cor %>% as.data.frame()
-  names(pvertex_corr) <- c(Yeo7_2011_80verts$SHORTNAME, the_subcortical_guide$combined_name)
-  pvertex_result <- the_subcortical_guide %>% 
-    bind_cols(pvertex_subcortcorr) %>%
-    gather(PINT_ROI, pvertex_corr, -subcort_ROI, -subcort_NET, -subcort_hemi)
-  
-  # correlated the tvertex timeseries with the subcortical data
-  tvertex_corr <- bind_rows(tvertex_meants, subcort_meants) %>%
-    t() %>% cor %>% as.data.frame()
-  names(tvertex_corr) <- c(Yeo7_2011_80verts$SHORTNAME, the_subcortical_guide$combined_name)
-  tvertex_result <- data.frame("to" = c(Yeo7_2011_80verts$SHORTNAME, the_subcortical_guide$combined_name)) %>%
-    bind_cols(tvertex_subcortcorr) %>%
-    gather(PINT_ROI, tvertex_corr, -subcort_ROI, -subcort_NET, -subcort_hemi)
-  
-  # combine pvertex and tvertex and return
-  subresult <- pvertex_result %>%
-    inner_join(tvertex_result, by = c("PINT_ROI", "subcort_ROI", "subcort_NET", "subcort_hemi"))
-  return(subresult)
+#' binds subcortical to cortical timeseries and calculates graph
+#'
+#' @param subcort_meants 
+#' @param pint_meants 
+#'
+#' @return a dataframe with to and from edgenames as well as Z transformed correlation
+calc_PINT_plus_subcort_cor_df <- function(subcort_meants, pint_meants) {
+  result <- bind_cols(pint_meants, subcort_meants) %>%
+    cor() %>%
+    atanh() %>%
+    graph_from_adjacency_matrix(mode="upper", 
+                                   weighted=T, diag=F) %>%
+    as_data_frame()
+  return(result)
 }
+
 
 #' reads in all the timeseries files for one participant
 #' note that Yeo&_2011_80verts and output_base are pulled from the global env
-run_read_subject_subcort_corrs <- function(out_prefix, projectname) {
-  df <-subject_subcort_corrs(out_prefix, projectname,
-                             output_base, Yeo7_2011_80verts)
-  return(df)
+run_read_all_subject_timeseries_and_corZ <- function(out_prefix, projectname) {
+  # read the pint meants files
+  pvertex_meants <- read_pint_meants(out_prefix, 'pvertex', 
+                                     projectname, output_base)
+  tvertex_meants <- read_pint_meants(out_prefix, 'tvertex',
+                                     projectname, output_base)
+  # read the subcortical ROIs
+  subcort_meants <-read_concat_subject_subcort(out_prefix, projectname)
+  
+  # calc edgewise correlations
+  result <- bind_rows("pvertex" = calc_PINT_plus_subcort_cor_df(subcort_meants, pvertex_meants),
+                      "tvertex" = calc_PINT_plus_subcort_cor_df(subcort_meants, tvertex_meants),
+                      .id = "vertex_type") %>%
+    rename(corZ = weight)
+  return(result)
 }
 
 # run_read_subject_subcort_corrs(subcort_outputlist$subid[1])
@@ -255,33 +253,139 @@ pheno <- pheno %>%
          outputprefix = construct_output_prefix(subject, session, func_base)) 
 ```
 
+```{r}
+safely(map2(pheno$outputprefix, pheno$dataset,
+                              ~run_read_all_subject_timeseries_and_corZ(.x, .y)))
+```
 
 
 ```{r read all the data}
 
-all_subcort_results <- pheno %>%
+all_corZ_results <- pheno %>%
   select(subject, outputprefix, dataset) %>%
-  mutate(subcort_corrs = map2(outputprefix, dataset,
-                              ~run_read_subject_subcort_corrs(.x, .y)))
+  mutate(the_corrs = map2(.$outputprefix, .$dataset,
+                              ~run_read_all_subject_timeseries_and_corZ(.x, .y)))
 ```
 
 ### merge with the phenotypic data
 
 ```{r merge with pheno and clean}
-results_pheno <- all_subcort_results %>%
+results_pheno <- all_corZ_results %>%
   inner_join(pheno, by = "subject") %>%
-  unnest() %>%
-  mutate(YeoNet = str_sub(PINT_ROI, 1,2),
-         hemisphere = str_sub(PINT_ROI, 5,5)) %>%
-  mutate(conn_type = if_else(YeoNet == subcort_NET, "same_net", "diff_net"),
-         YeoNet = factor(YeoNet, levels = c("VI", "SM", "DA", "VA", "FP", "DM")),
-         subcort_NET = factor(subcort_NET, levels = c("VI", "SM", "DA", "VA", "FP", "DM", "LI"))) %>%
-  select(subject, PINT_ROI, subcort_ROI, subcort_NET,subcort_hemi, 
-         pvertex_corr, tvertex_corr, 
-         DX, Sex, fd_mean, Age, Site, Scanner, Age_pt, fd_mean_pt,  
-         YeoNet, hemisphere, conn_type) 
+  unnest() # %>%
+  # mutate(YeoNet = str_sub(PINT_ROI, 1,2),
+  #        hemisphere = str_sub(PINT_ROI, 5,5)) %>%
+  # mutate(conn_type = if_else(YeoNet == subcort_NET, "same_net", "diff_net"),
+  #        YeoNet = factor(YeoNet, levels = c("VI", "SM", "DA", "VA", "FP", "DM")),
+  #        subcort_NET = factor(subcort_NET, levels = c("VI", "SM", "DA", "VA", "FP", "DM", "LI"))) %>%
+  # select(subject, PINT_ROI, subcort_ROI, subcort_NET,subcort_hemi, 
+  #        pvertex_corr, tvertex_corr, 
+  #        DX, Sex, fd_mean, Age, Site, Scanner, Age_pt, fd_mean_pt,  
+  #        YeoNet, hemisphere, conn_type) 
 
 ```
 
 
+```{r}
+results_pheno
+```
+
+```{r}
+DX_lm_model <- results_pheno %>%
+  group_by(vertex_type, to, from) %>%
+  do(tidy(lm(corZ ~ DX + Sex + fd_mean_pt + poly(Age_pt,2) + Scanner,.))) %>%
+  select(vertex_type, to, from, term, statistic, p.value) %>%
+  ungroup() %>%
+  group_by(term) %>%
+  mutate(p_FDR = p.adjust(p.value, method = "fdr")) %>%
+  arrange(p.value)
+```
+
+```{r}
+DX_lm_model %>% filter(term == "DXSSD", p_FDR < 0.05, vertex_type == "pvertex")
+```
+
+```{r}
+DX_lm_model %>% filter(term == "DXSSD", p_FDR < 0.05, vertex_type == "tvertex")
+```
+
+```{r}
+annotated_graph_edges <- DX_lm_model %>%
+  ungroup() %>%
+  select(to, from) %>%
+  distinct() %>%
+  mutate(row_number = row_number()) %>%
+  gather(edge_type, edgename, to, from) %>%
+  left_join(the_subcortical_guide, by = c("edgename" = "combined_name")) %>%
+  mutate_if(is.character, funs(replace(., is.na(.), ''))) %>%
+  mutate(etype = if_else(str_sub(edgename,2,2)=="_","SubCort", "Cort")) %>%
+  mutate(cort_NET = if_else(etype == "Cort", str_sub(.$edgename, 1,2), ""),
+         cort_hemi = if_else(etype == "Cort", str_sub(.$edgename, 5,5), ""),
+         cort_lobe = if_else(etype == "Cort", str_sub(.$edgename, 3,3), "")) %>%
+  gather(e_col, e_val, edgename, subcort_hemi:cort_lobe) %>%
+  unite(e_tcol, edge_type, e_col) %>%
+  spread(e_tcol, e_val) %>%
+  unite(from_to_type, from_etype, to_etype) %>%
+  unite(hemis, from_subcort_hemi, from_cort_hemi, to_subcort_hemi, to_cort_hemi, sep = "") %>%
+  unite(networks, from_subcort_NET, from_cort_NET, to_subcort_NET, to_cort_NET, sep = "", remove = FALSE) %>%
+  mutate(from_to_type = recode(from_to_type, "Cort_SubCort" = "SubCort_Cort")) %>%
+  mutate(hemis = recode(hemis, "RL" = "LR")) %>%
+  rename(to = to_edgename, from = from_edgename)
+  
+annotated_graph_edges %>% count(networks)
+```
+
+
+```{r}
+DX_lm_model %>%
+  inner_join(annotated_graph_edges, by = c("to", "from")) %>%
+  filter(term == "DXSSD", p_FDR < 0.05) %>% count(vertex_type, from_to_type)
+
+```
+```{r}
+DX_lm_model %>%
+  inner_join(annotated_graph_edges, by = c("to", "from")) %>%
+  filter(term == "DXSSD", p_FDR < 0.05) %>% count(vertex_type, from_to_type, networks) %>%
+  spread(vertex_type, n, fill = 0) %>%
+  mutate(vert_diff = pvertex - tvertex) %>%
+  arrange(-abs(vert_diff))
+```
+```{r}
+DX_lm_model %>% count(term)
+```
+
+
+```{r fig.width=20, fig.height=36}
+DX_lm_model %>%
+  filter(term == "DXSSD") %>%
+  ungroup() %>%
+  mutate(sig = if_else(p_FDR < 0.05, '*', NA_character_),
+         to_names = factor(to, levels = c(Yeo7_2011_80verts$SHORTNAME, 
+                                          the_subcortical_guide$combined_name)),
+         from_names = factor(from, levels = c(Yeo7_2011_80verts$SHORTNAME, 
+                                              the_subcortical_guide$combined_name))) %>%
+ggplot(aes(x = from_names, y = to_names, fill = statistic)) + 
+  geom_tile(na.rm = TRUE) +
+  geom_point(aes(shape = sig), na.rm = TRUE) +
+  scale_fill_gradient2(midpoint = 0) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_wrap(~vertex_type, ncol = 1)
+```
+
+```{r fig.width=20, fig.height=36}
+DX_lm_model %>%
+  filter(term == "") %>%
+  ungroup() %>%
+  mutate(sig = if_else(p_FDR < 0.05, '*', NA_character_),
+         to_names = factor(to, levels = c(Yeo7_2011_80verts$SHORTNAME, 
+                                          the_subcortical_guide$combined_name)),
+         from_names = factor(from, levels = c(Yeo7_2011_80verts$SHORTNAME, 
+                                              the_subcortical_guide$combined_name))) %>%
+ggplot(aes(x = from_names, y = to_names, fill = statistic)) + 
+  geom_tile(na.rm = TRUE) +
+  geom_point(aes(shape = sig), na.rm = TRUE) +
+  scale_fill_gradient2(midpoint = 0) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_wrap(~vertex_type, ncol = 1)
+```
 
