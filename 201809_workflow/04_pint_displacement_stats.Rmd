@@ -1,0 +1,133 @@
+---
+title: "04 PINT displacement stats"
+output:
+  html_document:
+    keep_md: TRUE
+---
+
+# Stats on the PINT summary displacement values
+
+```{r}
+library(tidyverse)
+library(broom)
+```
+
+
+## The paths to data
+
+```{r setting paths}
+output_base <- '../data/ciftify_fmriprep/'
+
+Yeo7_2011_80verts <- read_csv("../templates/Yeo7_2011_80verts.csv",
+                              col_types = c(
+                                hemi = col_character(),
+                                tvertex = col_integer(),
+                                LRpairs = col_integer(),
+                                roiidx = col_integer(),
+                                NETWORK = col_integer(),
+                                LOBE = col_character(),
+                                SHORTNAME = col_character(),
+                                x = col_integer(),
+                                y = col_integer(),
+                                z = col_integer()
+                              ))
+
+YeoNet_colours = list("VI" = "#781286",
+                      "SM" = "#4682B4",
+                      "DA" = "#00760E", 
+                      "VA" = "#C43AFA",
+                      "DM" = "#CD3E3A", 
+                      "FP" = "#E69422")
+
+## adding a subid that matches what the concatenation script adds..
+pheno <- read_csv('../phenotypic/20181118_pheno_qapass.csv') %>%
+  mutate(subid = str_replace(filename, '_summary.csv','')) %>%
+  drop_na(DX)
+
+pint_concat <- read_csv('../data/ciftify_fmriprep/postPINT1_concat_all_qa_passes.csv')
+```
+```{r}
+pheno %>%  
+  select(subject) %>%
+  distinct() %>%
+  count()
+```
+```{r}
+ana_data <- pheno %>%
+  inner_join(pint_concat, by = "subid") %>%
+  inner_join(Yeo7_2011_80verts, by = "roiidx") %>%
+  mutate(network = str_sub(SHORTNAME, 1,2))
+
+```
+
+## run for the whole head
+
+```{r}
+dist_by_total <- pint_concat %>%
+  group_by(subid) %>%
+  summarise(MeanDistance = mean(std_distance)) %>%
+  ungroup() %>%
+  inner_join(pheno, by = "subid")  
+
+dist_by_total %>%
+  ungroup() %>%
+  do(tidy(lm(MeanDistance ~ DX+ Age_pt + Sex + fd_mean_pt + Scanner,.))) %>%
+  mutate(p_bonf = p.value*6) %>%
+  knitr::kable()
+```
+
+```{r age-location-plot, fig.height=4, fig.width=7}
+dist_by_total %>%
+  ggplot(aes(y = MeanDistance, x = Age)) +
+  geom_point(aes(color = Site)) + 
+  geom_smooth(method = "lm")+
+  facet_wrap(~DX) +
+  theme_bw()
+```
+
+
+
+```{r}
+dist_by_network <- pint_concat %>%
+  inner_join(Yeo7_2011_80verts, by = "roiidx") %>%
+  mutate(network = str_sub(SHORTNAME, 1,2)) %>%
+  group_by(subid, network) %>%
+  summarise(MeanDistance = mean(std_distance)) %>%
+  ungroup() %>%
+  inner_join(pheno, by = "subid")  
+
+dist_by_network %>%
+  ungroup() %>% group_by(network) %>%
+  do(tidy(aov(lm(MeanDistance ~ DX + Age_pt + Sex + fd_mean_pt + Scanner,.)))) %>%
+  mutate(p_bonf = p.value*6) %>%
+  filter(!(term %in% c('Intercept', 'ScannerCOBRE', 'Scannerds00003035343', 'ScannerZHH', 'Scannerds00003035426'))) %>%
+  select(network, term, df, statistic, p.value, p_bonf) %>%
+  knitr::kable()
+```
+
+
+
+
+
+```{r age-loc_dx-plot, fig.height=6, fig.width = 7.5}
+dist_by_network %>%
+  ggplot(aes(y = MeanDistance, x = Age)) +
+  geom_point(alpha = 0.5) + 
+  geom_smooth(aes(color = DX), method = "lm") +
+  facet_wrap(~network, scales = "free")
+```
+
+
+## run linear model per edge
+
+```{r}
+roi_dx_lm <- ana_data %>%
+  ungroup() %>% group_by(SHORTNAME) %>%
+  do(tidy(lm(std_distance ~ DX + Sex + fd_mean_pt + Age_pt + Scanner,.))) %>%
+  ungroup() %>% group_by(term) %>%
+  mutate(p_fdr  = p.adjust(p.value, method = 'fdr'))
+
+roi_dx_lm %>%
+  filter(term != "(Intercept)") %>%
+  filter(p_fdr < 0.1)
+```

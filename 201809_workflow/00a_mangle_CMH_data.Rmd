@@ -37,10 +37,39 @@ all_the_bolds <- tibble(studyname = sub_projects) %>%
 
 ```
 
+```{r message=FALSE, warning=FALSE}
+read_mriqc_t1w <- function(studyname) {
+  bold <- read_csv(str_c("../data/ciftify_fmriprep/", studyname, "/out/mriqc/T1w.csv")) %>%
+    mutate(subject_id = parse_character(subject_id))
+  if ("session_id" %in% names(bold)) {
+    bold <- bold %>% mutate(session_id = parse_character(session_id))
+  }
+  return(bold)
+}
+
+all_the_T1w <- tibble(studyname = sub_projects) %>% 
+    mutate(t1wqc = map(studyname, function(x) {
+        read_mriqc_t1w(x)
+    })) %>%
+    unnest() %>%
+  group_by(studyname, subject_id) %>%
+  summarise(num_t1w = n())
+```
 
 ```{r}
-all_the_bolds %>%
-  select(subject_id, studyname) %>%
+usable_scans <- all_the_bolds %>%
+  group_by(studyname, subject_id, task_id) %>%
+  summarise(num_rest = n()) %>%
+  full_join(all_the_T1w, by = c("subject_id", "studyname")) %>%
+  mutate(num_scans = num_rest + num_t1w)
+```
+
+
+```{r}
+usable_scans %>%
+  ungroup() %>%
+  select(subject_id, studyname, num_scans) %>%
+  drop_na(num_scans) %>%
   distinct() %>%
   count()
 ```
@@ -76,15 +105,22 @@ bolds_condensed <- all_the_bolds %>%
 
 ```{r}
 # removing session id column because it is redundant
-simple_pheno <- read_csv('../phenotypic/simple_pheno_201809.csv') 
+simple_pheno <- read_csv('../phenotypic/simple_pheno_201811.csv') 
 ```
 
 #### we see that the only people we have bold info but no phenotype for is that one VIPR participant in SPINS and the 5 people from ds00030 who don't have a T1w scan
 
 ```{r}
-bolds_condensed %>%
-  anti_join(simple_pheno, by = "subject") 
+usable_scans %>%
+  mutate(subject = str_c("sub-", subject_id)) %>%
+  anti_join(simple_pheno, by = "subject") %>%
+  drop_na(num_scans)
 ```
+```{r}
+simple_pheno %>%
+  anti_join(usable_scans %>% mutate(subject = str_c("sub-", subject_id)), by = "subject") 
+```
+
 
 ## Setting the motion threshold:
 
@@ -93,62 +129,34 @@ Mean FD < 0.5mm and
 No more than 50% of the scan with motion > 0.2mm
 
 ```{r}
-bolds_condensed %>%
-  inner_join(simple_pheno, by = c("subject", "dataset")) %>%
+mean_fd_thres <- 0.5
+perc_fd_thres <- 50
+
+pre_qa <- bolds_condensed %>%
+  inner_join(usable_scans %>% mutate(subject = str_c("sub-", subject_id)), by = "subject") %>%
+  drop_na(num_scans) %>%
+  inner_join(simple_pheno, by = c("subject", "dataset"))
+
+pre_qa_counts <- pre_qa %>%
   select(subject, dataset, DX) %>%
   distinct() %>%
   count(DX)
-```
-```{r}
-qa_passes_pheno <- bolds_condensed %>%
-  inner_join(simple_pheno, by = c("subject", "dataset")) %>%
-  filter(fd_mean < 0.5, fd_perc < 50) 
+
+qa_passes_pheno <- pre_qa %>%
+  filter(fd_mean < 0.5, fd_perc < 50, size_t > 100) 
 
 qa_passes_pheno %>%
   select(subject, dataset, DX) %>%
   distinct() %>%
-  count(DX)
+  count(DX) %>%
+  inner_join(pre_qa_counts, by = "DX", suffix = c("_after_qa", "_before_qa"))
 ```
 
 ## who is still missing a PINT output?
 
 ```{r}
 anti_join(qa_passes_pheno, pintdf,
-          by = c("dataset", "subject", "session"))
-```
-
-
-
-```{r}
-qa_passes_pheno %>%
-  group_by(subject) %>%
-  sample_n(1) %>%
-  ungroup() %>%
-  group_by(Site, DX) %>%
-  summarise(n = n(),
-            nMale = sum(Sex == "M"),
-            perc_male = nMale/n()*100,
-            age_mean = mean(Age, na.rm = T),
-            age_sd = sd(Age, na.rm = T),
-            age_min = min(Age, na.rm = T),
-            age_max = max(Age, na.rm = T)) %>%
-    mutate(age_report =sprintf("%0.1f(%0.1f) %0.0f - %0.0f", 
-                               age_mean, age_sd, age_min, age_max),
-           sex_report = str_c(nMale, '(', sprintf("%0.1f", perc_male), '%)')) %>%
-  select(Site, DX, n, age_report, sex_report)
-
-```
-```{r}
-qa_passes_pheno %>%
-  mutate(scan_length = size_t*2/60,
-         spacing_x_round = round(spacing_x, 3),
-         spacing_z_round = round(spacing_z,3)) %>%
-  group_by(subject_id) %>%
-  sample_n(1) %>%
-  ungroup() %>%
-  group_by(Site, DX, size_t, size_x, size_y, size_z, spacing_x_round, spacing_z_round, scan_length) %>%
-  count()
-
+          by = c("dataset", "subject", "session")) 
 ```
 
 # read and mangle the phenotypic data
@@ -183,11 +191,50 @@ pheno <- pheno %>%
 ```
 
 
+
+```{r}
+pheno %>%
+  select(subject, dataset, DX) %>%
+  distinct() %>%
+  count(DX) %>%
+  inner_join(pre_qa_counts, by = "DX", suffix = c("_after_qa", "_before_qa"))
+```
+
+
+```{r}
+pheno %>%
+  group_by(Site, DX) %>%
+  summarise(n = n(),
+            nMale = sum(Sex == "M"),
+            perc_male = nMale/n()*100,
+            age_mean = mean(Age, na.rm = T),
+            age_sd = sd(Age, na.rm = T),
+            age_min = min(Age, na.rm = T),
+            age_max = max(Age, na.rm = T)) %>%
+    mutate(age_report =sprintf("%0.1f(%0.1f) %0.0f - %0.0f", 
+                               age_mean, age_sd, age_min, age_max),
+           sex_report = str_c(nMale, '(', sprintf("%0.1f", perc_male), '%)')) %>%
+  select(Site, DX, n, age_report, sex_report)
+
+```
+```{r}
+qa_passes_pheno %>%
+  mutate(scan_length = size_t*2/60,
+         spacing_x_round = round(spacing_x, 3),
+         spacing_z_round = round(spacing_z,3)) %>%
+  group_by(subject) %>%
+  sample_n(1) %>%
+  ungroup() %>%
+  group_by(Site, DX, size_t, size_x, size_y, size_z, spacing_x_round, spacing_z_round, scan_length) %>%
+  count()
+
+```
+
+
+
+
 ```{r} 
-
-
-write_csv(pheno, '../phenotypic/20180918_pheno_qapass.csv')
-           
+write_csv(pheno, '../phenotypic/20181118_pheno_qapass.csv')
 ```
 
 + ASDD is done!
@@ -198,3 +245,7 @@ write_csv(pheno, '../phenotypic/20180918_pheno_qapass.csv')
 + SPINS has one extra bold (CMHAA2102 - from VIPR - disregard)
 + COBRE is done (enough) - but half of it never downloaded
 + ds00030 5 subjects need to rerun ciftify..
+
+
+
+

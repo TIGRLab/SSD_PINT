@@ -47,8 +47,8 @@ library(readxl)
 ZHH_SZ = read.spss('../saba_pheno/Spreadsheets/ClinicalData/ZHH/Patient\ Sample\ 7-30-18.sav', to.data.frame=TRUE)
 ZHH_CRTL = read.spss('../saba_pheno/Spreadsheets/ClinicalData/ZHH/Control Sample 7-30-18.sav', to.data.frame=TRUE)
 
-#qryHC_NewResting_15_40 <- read_excel("/KIMEL/tigrlab/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
-qryHC_NewResting_15_40 <- read_excel("/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
+qryHC_NewResting_15_40 <- read_excel("/KIMEL/tigrlab/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
+#qryHC_NewResting_15_40 <- read_excel("/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
 ```
 
 
@@ -87,22 +87,22 @@ GRIDs_w_cerebellum_cutoff <- c(7793, 7834, 9405)
 ```
 
 ```{r}
-cobre_participants <- read_delim("../data/ciftify_fmriprep/COBRE/COBRE/participants.tsv",
+cobre_participants <- read_delim("../phenotypic/cobre_participants.tsv",
 "\t", escape_double = FALSE, trim_ws = TRUE) %>%
-  rename(subject_id = participant_id,
-         Age = age) %>%
-  mutate(Sex = case_when( sex == "male" ~ "M",
-                          sex == "female" ~ "F"),
-         DX = case_when(dx == "Schizophrenia_Strict" ~ "SSD",
-                        dx == "Schizoaffective" ~ "SSD",
-                        dx == "No_Known_Disorder" ~ "CTRL"),
+  rename(Age = age) %>%
+  mutate(Sex = case_when( gender == "male" ~ "M",
+                          gender == "female" ~ "F"),
+         DX = case_when(diagnosis == "Schizophrenia_Strict" ~ "SSD",
+                        diagnosis == "Schizoaffective" ~ "SSD",
+                        diagnosis == "No_Known_Disorder" ~ "CTRL"),
          dataset = "COBRE",
          Site = "COBRE",
-         subject = str_c('sub-', subject_id),
+         subject = str_c('sub-', subjectid),
          Scanner = "COBRE") %>%
   select(subject, Age, Sex, DX, dataset, Site, Scanner)
-
 ```
+
+
 
 ```{r}
 
@@ -155,7 +155,7 @@ simple_pheno = bind_rows(CMH_pheno,
 
 
 ```{r}
-write_csv(simple_pheno, "../phenotypic/simple_pheno_201809.csv")
+write_csv(simple_pheno, "../phenotypic/simple_pheno_201811.csv")
 ```
 
 ```{r}
@@ -184,5 +184,61 @@ From the COBRE data dictionary we see that:
 + wais, sans, medication, bprs, education, smoking status. cpt
 
 ## add where are is the CMH demographic info..
+
+----
+
+## extra little bit for traking down "missing" COBRE
+
+```{r include=FALSE}
+cobre_test <- cobre_participants %>%
+  mutate(name = str_replace(subject, 'sub-',''))
+old_pheno %>% 
+  filter(site==3) %>%
+  anti_join(cobre_test, by = "name") #%>%
+  #write_csv('/scratch/edickie/COBRE_participant_not_in_recent_download.csv')
+```
+
+```{r include=FALSE}
+library(readxl)
+COBRE_Data_Dictionary <- read_excel("/external/rprshnas01/tigrlab/external/SchizConnect/COBRE/COBRE_Data_Dictionary.xlsx", sheet = "COBRE Data Dictionary") 
+
+COBRE_Data_Dictionary %>%
+  slice(2000:3000)
+```
+
+```{r include=FALSE}
+library(readr)
+
+schizconnect_COBRE_assessmentData_2963 <- read_csv("/external/rprshnas01/tigrlab/external/SchizConnect/COBRE/schizconnect_COBRE_assessmentData_2963.csv",
+col_types = cols(question_value = col_character()))
+
+
+schizconnect_COBRE_assessmentData_2963
+```
+```{r include=FALSE}
+cobre_participants <- read_csv("/external/rprshnas01/tigrlab/external/SchizConnect/COBRE/schizconnect_COBRE_assessmentData_2963.csv",
+col_types = cols(question_value = col_character())) %>%
+  filter(str_detect(question_id, "CODEM") | question_id == "SCIDII_01") %>%
+  select(subjectid, site, question_id, question_value) %>%
+  distinct() %>%
+  spread(question_id, question_value) %>%
+  select(subjectid, site, starts_with('CODEM'), SCIDII_01) %>%
+  mutate(Age = parse_number(CODEM_1),
+         Sex = case_when(CODEM_2 == "Male" ~ "M",
+                         CODEM_2 == "Female" ~"F"),
+         dataset = "COBRE",
+         Site = site,
+         Scanner = site,
+         subject = str_c("sub-", subjectid),
+         DX = case_when(str_detect(SCIDII_01, "29") ~ "SSD",
+                        CODEM_16 == "19" ~ "SSD",
+                        str_detect(SCIDII_01, "NONE") ~ "CTRL",
+                        str_detect(SCIDII_01, "none") ~ "CTRL",
+                        str_detect(SCIDII_01, "None") ~ "CTRL",
+                        TRUE ~ "CTRL")) %>%
+ select(subject, Age, Sex, DX, dataset, Site, Scanner) 
+                        
+```
+
 
 

@@ -51,7 +51,8 @@ YeoNet_colours = list("VI" = "#781286",
                       "DM" = "#CD3E3A", 
                       "FP" = "#E69422")
 
-pheno <- read_csv('../phenotypic/20180918_pheno_qapass.csv')
+pheno <- read_csv('../phenotypic/20181118_pheno_qapass.csv') %>%
+  drop_na(DX)
 ```
 
 
@@ -664,8 +665,9 @@ library(knitr)
 DX_lm_model <- results_pheno %>%
   gather(vertex_type, corZ, pvertex_corr, tvertex_corr) %>%
   filter(Age > 17, Age < 51) %>%
+  filter(subcort_ROI %in% c("cerebellum", "striatum")) %>%
   group_by(vertex_type, subcort_ROI, subcort_NET, PINT_ROI) %>%
-  do(tidy(lm(corZ ~ DX + Sex + fd_mean_pt + poly(Age_pt,2) + Scanner,.))) %>%
+  do(tidy(lm(corZ ~ DX + Sex + fd_mean_pt + Age_pt + Scanner,.))) %>%
   select(vertex_type, subcort_ROI, subcort_NET, PINT_ROI, term, statistic, p.value) %>%
   ungroup() %>%
   group_by(term) %>%
@@ -693,9 +695,16 @@ ggplot(pheno, aes(x = fd_mean, fill = Site)) + geom_density(alpha = 0.2) + facet
 
 ```{r}
 DX_lm_model %>% 
-  group_by(vertex_type) %>%
+  mutate(pos_neg = if_else(statistic > 0, "pos", "neg")) %>%
+  group_by(vertex_type, pos_neg) %>%
   filter(term %in% c("DXSSD")) %>%
   filter(p_FDR < 0.05) %>%
+  count()
+```
+```{r}
+DX_lm_model %>% 
+  group_by(vertex_type) %>%
+  filter(term %in% c("DXSSD")) %>%
   count()
 ```
 
@@ -758,7 +767,7 @@ DX_lm_model %>%
   geom_smooth(method = "lm", color = "blue") +
   geom_abline(slope = 1, intercept = 0) +
 #  scale_color_manual(values = YeoNet_colours) +
-  facet_wrap(~YeoNet)
+  facet_grid(subcort_NET~YeoNet)
 ```
 
 
@@ -784,6 +793,7 @@ DX_lm_net_model <- results_pheno %>%
             netmean_tvertex = mean(tvertex_corr)) %>%
   gather(vertex_type, netmean_corZ, netmean_pvertex, netmean_tvertex) %>%
   filter(Age > 17, Age < 51) %>%
+  
   group_by(vertex_type, subcort_ROI, subcort_NET, YeoNet) %>%
   do(tidy(lm(netmean_corZ ~ DX + Sex + fd_mean_pt + poly(Age_pt,2) + Scanner,.))) %>%
   select(vertex_type, subcort_ROI, YeoNet, term, statistic, p.value) %>%

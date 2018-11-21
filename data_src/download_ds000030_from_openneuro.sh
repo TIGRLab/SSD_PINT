@@ -13,6 +13,8 @@ sub50010-50038
 sub50043-50059
 sub50060-50085'
 
+
+
 for chunck_name in ${chuncks}; do
 if [ ! -f ds000030_R1.0.5_${chunck_name}.zip ]; then
   wget https://s3.amazonaws.com/openneuro/ds000030/ds000030_R1.0.5/compressed/ds000030_R1.0.5_${chunck_name}.zip
