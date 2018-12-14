@@ -293,7 +293,7 @@ results_pheno
 ```{r}
 DX_lm_model <- results_pheno %>%
   group_by(vertex_type, to, from) %>%
-  do(tidy(lm(corZ ~ DX + Sex + fd_mean_pt + poly(Age_pt,2) + Scanner,.))) %>%
+  do(tidy(lm(corZ ~ DX*poly(Age_pt,2) + Sex + fd_mean_pt + Scanner,.))) %>%
   select(vertex_type, to, from, term, statistic, p.value) %>%
   ungroup() %>%
   group_by(term) %>%
@@ -301,13 +301,9 @@ DX_lm_model <- results_pheno %>%
   arrange(p.value)
 ```
 
-```{r}
-DX_lm_model %>% filter(term == "DXSSD", p_FDR < 0.05, vertex_type == "pvertex")
-```
 
-```{r}
-DX_lm_model %>% filter(term == "DXSSD", p_FDR < 0.05, vertex_type == "tvertex")
-```
+
+
 
 ```{r}
 annotated_graph_edges <- DX_lm_model %>%
@@ -371,10 +367,105 @@ ggplot(aes(x = from_names, y = to_names, fill = statistic)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   facet_wrap(~vertex_type, ncol = 1)
 ```
+```{r}
+#' convert from three col graph df to adjacency matrix
+uppertri_df_to_agjmat <- function(graph_df) {
+  
+names(graph_df) <- c('to', 'from', 'myattr')
+matrix_out <- graph_df %>%
+  graph_from_data_frame(.,directed = F) %>%
+  get.adjacency(., type = "both", attr = "myattr") %>%
+  as.matrix() 
+return(matrix_out)
+}
+
+#' go uppertri data to full dataframe for geom_tile
+uppertri_df_to_full <- function(graph_df) {
+result <- graph_df %>%
+  uppertri_df_to_agjmat() %>%
+  as.data.frame() %>%
+  mutate(to = row.names(.)) %>%
+  gather(from, value, -to) 
+return(result)
+}
+```
+
+```{r}
+node_annotations <- tibble( node_name = c(Yeo7_2011_80verts$SHORTNAME, the_subcortical_guide$combined_name)) %>%
+  left_join(the_subcortical_guide, by = c("node_name" = "combined_name")) %>%
+  mutate_if(is.character, funs(replace(., is.na(.), ''))) %>%
+  mutate(etype = if_else(str_sub(node_name,2,2)=="_","SubCort", "Cort")) %>%
+  mutate(cort_NET = if_else(etype == "Cort", str_sub(.$node_name, 1,2), ""),
+         cort_hemi = if_else(etype == "Cort", str_sub(.$node_name, 5,5), ""),
+         cort_lobe = if_else(etype == "Cort", str_sub(.$node_name, 3,3), ""),
+         network = if_else(etype == "Cort", cort_NET, subcort_NET),
+         network = factor(network, levels = c("LI", "DM", "FP", "VA", "DA", "SM", "VI")))
+  
+
+
+```
+
+
+```{r fig.height=20, fig.width= 12}
+DX_lm_model %>%
+  filter(term == "DXSSD") %>%
+  ungroup() %>%
+  select(vertex_type, to, from, statistic) %>%
+  group_by(vertex_type) %>%
+  nest() %>%
+  mutate(uptri = map(data, uppertri_df_to_full)) %>%
+  unnest(uptri) %>%
+  mutate(to_lab = factor(to, levels = (node_annotations %>% arrange(subcort_ROI, network))$node_name),
+         from_lab = factor(from, levels = (node_annotations %>% arrange(subcort_ROI, network))$node_name)) %>%
+  ggplot(aes(x=to_lab, y=from_lab, fill=value)) + 
+  geom_tile(color = "white") +
+  scale_fill_gradient2(high = "#b2182b", mid = "white", low = "#2166ac") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_wrap(~vertex_type, ncol = 1) +
+  labs(title = "Mean (Z - transformed correlation), by Diagnosis and Cohort",
+       x = NULL, y = NULL, fill = "T statistic for DX")
+```
+
+```{r include = FALSE}
+  mutate(sig = if_else(p_FDR < 0.05, '*', NA_character_),
+         to_names = factor(to, levels = c(Yeo7_2011_80verts$SHORTNAME, 
+                                          the_subcortical_guide$combined_name)),
+         from_names = factor(from, levels = c(Yeo7_2011_80verts$SHORTNAME, 
+                                              the_subcortical_guide$combined_name))) %>%
+ggplot(aes(x = from_names, y = to_names, fill = statistic)) + 
+  geom_tile(na.rm = TRUE) +
+  geom_point(aes(shape = sig), na.rm = TRUE) +
+  scale_fill_gradient2(midpoint = 0) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_wrap(~vertex_type, ncol = 1)
+
+
+trying <- Cohort_DX_means %>%
+  ungroup %>% group_by(DX, Cohort) %>%
+  nest() %>%
+  mutate(uptri = map(data, uppertri_df_to_full)) %>%
+  unnest(uptri) %>%
+  mutate(lround = specify_decimal(value, 2),
+         to_lab = factor(to, levels = roi_info$roi_label, labels=roi_info$row_label),
+         from_lab = factor(from, levels = roi_info$roi_label, labels=roi_info$row_label))
+
+ggplot(trying, aes(x=to_lab, y=from_lab, fill=value)) + 
+  geom_tile(color = "white") +
+  scale_fill_gradient2(high = "#b2182b", mid = "white", low = "#2166ac") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_grid(Cohort ~ DX) +
+  labs(title = "Mean (Z - transformed correlation), by Diagnosis and Cohort",
+       x = NULL, y = NULL, fill = "Correlation (Z)") 
+
+#ggsave(filename = '../pics/ROIcorrmats_byDXandCohort.pdf',width = 10, height = 8)
+```
+```{r}
+DX_lm_model %>% count(term)
+```
 
 ```{r fig.width=20, fig.height=36}
 DX_lm_model %>%
-  filter(term == "") %>%
+  filter(term == "poly(Age_pt, 2)1") %>%
   ungroup() %>%
   mutate(sig = if_else(p_FDR < 0.05, '*', NA_character_),
          to_names = factor(to, levels = c(Yeo7_2011_80verts$SHORTNAME, 

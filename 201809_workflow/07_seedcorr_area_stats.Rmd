@@ -1,0 +1,131 @@
+---
+title: "Seedcorr Area Stats"
+output: html_notebook
+---
+
+# Seedcorr Area Stats
+
+```{r}
+library(tidyverse)
+library(broom)
+```
+
+## The paths to data
+
+```{r setting paths}
+output_base <- '../data/ciftify_fmriprep/'
+
+Yeo7_2011_80verts <- read_csv("../templates/Yeo7_2011_80verts.csv",
+                              col_types = c(
+                                hemi = col_character(),
+                                tvertex = col_integer(),
+                                LRpairs = col_integer(),
+                                roiidx = col_integer(),
+                                NETWORK = col_integer(),
+                                LOBE = col_character(),
+                                SHORTNAME = col_character(),
+                                x = col_integer(),
+                                y = col_integer(),
+                                z = col_integer()
+                              ))
+
+YeoNet_colours = list("VI" = "#781286",
+                      "SM" = "#4682B4",
+                      "DA" = "#00760E", 
+                      "VA" = "#C43AFA",
+                      "DM" = "#CD3E3A", 
+                      "FP" = "#E69422")
+
+pheno <- read_csv('../phenotypic/20181118_pheno_qapass.csv') %>% drop_na(DX) 
+
+pint_sc <- read_csv('../data/ciftify_fmriprep/qa_passes_seedcor_counts_20181116.csv')
+```
+
+
+Write a func_base and outputprefix cols into the pheno file for the file reading step
+
+```{r}
+combined_df <- pheno %>%
+  inner_join(pint_sc, by = c("dataset", "subject", "session")) %>%
+  gather(gt_name, num_sc_vx_gt, starts_with('gt_')) %>%
+  mutate(vx_gt_thres = gt_name %>% str_replace('gt_','') %>% parse_double()) %>%
+  drop_na(num_sc_vx_gt)
+
+combined_df %>% count(subject) %>% nrow()
+```
+
+## Known issues
+
+Looks like two people might need to be reprocessed if this works out.
+
+
+
+```{r}
+combined_df %>%
+  drop_na(DX) %>%
+  group_by(NETWORK, vx_gt_thres) %>%
+  filter(Age > 17, Age < 51) %>%
+  do(tidy(aov(lm(num_sc_vx_gt ~ DX*poly(Age_pt,2) + Sex + fd_mean_pt + Scanner,.)))) %>%
+  ungroup() %>% group_by(term) %>%
+  mutate(p_FDR = p.adjust(p.value, method = "fdr")) %>%
+  filter(term != "(Intercept)", term != "Scanner", p_FDR < 0.1) %>%
+  arrange(p.value) 
+       
+```
+```{r fig.height=4, fig.width=7.5}
+combined_df %>%
+  drop_na(DX) %>%
+ggplot(aes(y = num_sc_vx_gt, x = vx_gt_thres, color = as.factor(NETWORK))) +
+  # geom_line(aes(group = subject), alpha = 0.1) + 
+  geom_smooth() +
+  facet_wrap(~Site, ncol = 4)
+```
+
+```{r fig.height=11.5, fig.width=7.5}
+combined_df %>%
+  drop_na(DX) %>%
+ggplot(aes(y = num_sc_vx_gt, x = vx_gt_thres, color = as.factor(DX))) +
+  # geom_line(aes(group = subject), alpha = 0.1) + 
+  geom_smooth() +
+  facet_wrap(~NETWORK*Site, ncol = 4)
+```
+
+```{r fig.height=3.5, fig.width=7.5}
+combined_df %>%
+  drop_na(DX) %>%
+  filter(NETWORK == 5) %>%
+ggplot(aes(y = num_sc_vx_gt, x = vx_gt_thres, color = Sex)) +
+  geom_line(aes(group = subject), alpha = 0.1) + 
+  geom_smooth() +
+  facet_wrap(~NETWORK*Site, ncol = 4)
+```
+```{r fig.height = 11.5, fig.width = 7.5}
+combined_df %>% 
+  filter(Age > 17, Age < 51) %>%
+  mutate(Age_decade = case_when(Age < 20 ~ '17-20',
+                               Age >= 20 & Age < 30 ~ '20-30',
+                               Age >= 30 & Age < 40 ~ '30-40',
+                               Age >= 40 & Age < 50 ~ '40-50',
+                               Age > 50 ~ "50 above")) %>%
+  mutate(Age_coarse = case_when(Age < 30 ~ "young adult",
+                                Age > 35 ~ "middle age")) %>%
+  drop_na(DX, Age_coarse) %>%
+ggplot(aes(y = num_sc_vx_gt, x = vx_gt_thres, color = DX)) +
+  #geom_line(aes(group = subject), alpha = 0.1) + 
+  geom_smooth(aes(linetype = Age_coarse)) +
+  facet_wrap(~NETWORK*Site, ncol = 4)  
+```
+```{r}
+combined_df %>% 
+  filter(Age > 17, Age < 51) %>%
+  mutate(Age_decade = case_when(Age < 20 ~ '17-20',
+                               Age >= 20 & Age < 30 ~ '20-30',
+                               Age >= 30 & Age < 40 ~ '30-40',
+                               Age >= 40 & Age < 50 ~ '40-50',
+                               Age > 50 ~ "50 above")) %>%
+  mutate(Age_coarse = case_when(Age < 30 ~ "young adult",
+                                Age > 35 ~ "middle age")) %>%
+  filter(NETWORK == 5, vx_gt_thres ==0.5) %>%
+  count(DX, Site, Age_coarse)
+```
+

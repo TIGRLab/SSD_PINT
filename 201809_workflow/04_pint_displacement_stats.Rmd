@@ -71,7 +71,7 @@ dist_by_total <- pint_concat %>%
 
 dist_by_total %>%
   ungroup() %>%
-  do(tidy(lm(MeanDistance ~ DX+ Age_pt + Sex + fd_mean_pt + Scanner,.))) %>%
+  do(tidy(lm(MeanDistance ~ DX + Age_pt + Sex + fd_mean_pt + Site,.))) %>%
   mutate(p_bonf = p.value*6) %>%
   knitr::kable()
 ```
@@ -98,7 +98,7 @@ dist_by_network <- pint_concat %>%
 
 dist_by_network %>%
   ungroup() %>% group_by(network) %>%
-  do(tidy(aov(lm(MeanDistance ~ DX + Age_pt + Sex + fd_mean_pt + Scanner,.)))) %>%
+  do(tidy(aov(lm(MeanDistance ~ DX+ Age_pt + Sex + fd_mean_pt + Scanner,.)))) %>%
   mutate(p_bonf = p.value*6) %>%
   filter(!(term %in% c('Intercept', 'ScannerCOBRE', 'Scannerds00003035343', 'ScannerZHH', 'Scannerds00003035426'))) %>%
   select(network, term, df, statistic, p.value, p_bonf) %>%

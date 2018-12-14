@@ -47,8 +47,8 @@ library(readxl)
 ZHH_SZ = read.spss('../saba_pheno/Spreadsheets/ClinicalData/ZHH/Patient\ Sample\ 7-30-18.sav', to.data.frame=TRUE)
 ZHH_CRTL = read.spss('../saba_pheno/Spreadsheets/ClinicalData/ZHH/Control Sample 7-30-18.sav', to.data.frame=TRUE)
 
-qryHC_NewResting_15_40 <- read_excel("/KIMEL/tigrlab/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
-#qryHC_NewResting_15_40 <- read_excel("/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
+#qryHC_NewResting_15_40 <- read_excel("/KIMEL/tigrlab/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
+qryHC_NewResting_15_40 <- read_excel("/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
 ```
 
 
@@ -85,6 +85,34 @@ rm(mangle_CTRL_ZHH, mangle_SZ_ZHH)
 
 GRIDs_w_cerebellum_cutoff <- c(7793, 7834, 9405)
 ```
+
+## Coding ZHH data by session
+
+When the ZHH data was converted to BIDS, we renamed the session ids in order. But the phenotypic data we have is coded by the original session ids. So lets map the original session ids to the ZHH data.
+
+Note: looking at Dayton's scripts - he first joined the participants demographics witha list of what scans we have available.. then he sorted , within participant, by GRID session id and labeled those in orders (i.e 01, 02, 03 etc.)
+
+```{r}
+orig_rest_HC <- tibble(files = list.files('/external/miklos/raw/HC/rsfmri/')) %>% 
+  separate(files, into = c('SessNo', 'therest') , sep = '_', extra = "merge")
+orig_T1w_HC <- tibble(files = list.files('/external/miklos/raw/HC/struct/'))  %>% 
+  separate(files, into = c('SessNo', 'therest') , sep = '_', extra = "merge")
+orig_rest_SZ <- tibble(files = list.files('/external/miklos/raw/SCZ/rsfmri/'))  %>% 
+  separate(files, into = c('SessNo', 'therest') , sep = '_', extra = "merge")
+orig_T1w_SZ <- tibble(files = list.files('/external/miklos/raw/SCZ/struct/'))  %>% 
+  separate(files, into = c('SessNo', 'therest') , sep = '_', extra = "merge")
+
+orig_rest_both = bind_rows(orig_rest_HC, orig_rest_SZ)
+orig_T1w_both = bind_rows(orig_T1w_HC, orig_T1w_SZ)
+
+orig_both = inner_join(orig_rest_both, orig_T1w_both, by = "SessNo")
+```
+
+```{r}
+
+```
+
+
 
 ```{r}
 cobre_participants <- read_delim("../phenotypic/cobre_participants.tsv",

@@ -1,0 +1,69 @@
+---
+title: "MDS stats"
+output: html_notebook
+---
+
+# MDS statistics
+
+```{r}
+library(tidyverse)
+library(broom)
+library(igraph)
+```
+
+```{r setting paths}
+output_base <- '../data/ciftify_fmriprep/'
+
+Yeo7_2011_80verts <- read_csv("../templates/Yeo7_2011_80verts.csv",
+                              col_types = c(
+                                hemi = col_character(),
+                                tvertex = col_integer(),
+                                LRpairs = col_integer(),
+                                roiidx = col_integer(),
+                                NETWORK = col_integer(),
+                                LOBE = col_character(),
+                                SHORTNAME = col_character(),
+                                x = col_integer(),
+                                y = col_integer(),
+                                z = col_integer()
+                              ))
+
+YeoNet_colours = list("VI" = "#781286",
+                      "SM" = "#4682B4",
+                      "DA" = "#00760E", 
+                      "VA" = "#C43AFA",
+                      "DM" = "#CD3E3A", 
+                      "FP" = "#E69422")
+
+pheno <- read_csv('../phenotypic/20181118_pheno_qapass.csv') %>% drop_na(DX) 
+
+subsub <- read_csv('../data/ciftify_fmriprep/postPINT2_sub2sub_all_qa_passes.csv')
+```
+
+```{r}
+mds_sub2sub <- function(data) {
+  ## filter allsub2sub distances to only include the qced subids
+  ## then run multidimensional scaling to resolve the sub2sub distances to a 2D plane
+  distout <- data %>%
+  graph_from_data_frame() %>%
+  get.adjacency(attr = "distance") %>%
+  as.matrix() %>%
+  cmdscale(k=2)
+  
+  return(distout)
+}
+```
+```{r}
+mds_results <- subsub %>%
+  group_by(roiidx) %>%
+  nest() %>%
+  mutate(sdist = map(data, ~mds_sub2sub(.x))) %>%
+  select(roiidx, sdist) %>%
+  unnest()
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
