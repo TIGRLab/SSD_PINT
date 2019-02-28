@@ -6,6 +6,7 @@ output: html_notebook
 We are now going to see if there is anything in cortical-cortical connectivity by running the matrix of all possible connections instead of just subcortical-cortical stats. 
 
 ```{r message=FALSE, warning=FALSE}
+library(tidygraph)
 library(tidyverse)
 library(broom)
 library(knitr)
@@ -233,8 +234,7 @@ run_read_all_subject_timeseries_and_corZ <- function(out_prefix, projectname) {
   # calc edgewise correlations
   result <- bind_rows("pvertex" = calc_PINT_plus_subcort_cor_df(subcort_meants, pvertex_meants),
                       "tvertex" = calc_PINT_plus_subcort_cor_df(subcort_meants, tvertex_meants),
-                      .id = "vertex_type") %>%
-    rename(corZ = weight)
+                      .id = "vertex_type")
   return(result)
 }
 
@@ -292,6 +292,7 @@ results_pheno
 
 ```{r}
 DX_lm_model <- results_pheno %>%
+  mutate(corZ = weight) %>%
   group_by(vertex_type, to, from) %>%
   do(tidy(lm(corZ ~ DX*poly(Age_pt,2) + Sex + fd_mean_pt + Scanner,.))) %>%
   select(vertex_type, to, from, term, statistic, p.value) %>%
@@ -326,16 +327,18 @@ annotated_graph_edges <- DX_lm_model %>%
   unite(networks, from_subcort_NET, from_cort_NET, to_subcort_NET, to_cort_NET, sep = "", remove = FALSE) %>%
   mutate(from_to_type = recode(from_to_type, "Cort_SubCort" = "SubCort_Cort")) %>%
   mutate(hemis = recode(hemis, "RL" = "LR")) %>%
-  rename(to = to_edgename, from = from_edgename)
+  mutate(to = to_edgename, from = from_edgename)
   
-annotated_graph_edges %>% count(networks)
 ```
 
 
 ```{r}
 DX_lm_model %>%
   inner_join(annotated_graph_edges, by = c("to", "from")) %>%
-  filter(term == "DXSSD", p_FDR < 0.05) %>% count(vertex_type, from_to_type)
+  mutate(sig_edge = if_else(p_FDR < 0.05, "sig", "ns")) %>%
+  filter(term == "DXSSD") %>% count(vertex_type, from_to_type, sig_edge) %>%
+  spread(sig_edge, n) %>%
+  mutate(perc_sig = sig/(ns + sig)*100)
 
 ```
 ```{r}
@@ -349,6 +352,11 @@ DX_lm_model %>%
 ```{r}
 DX_lm_model %>% count(term)
 ```
+```{r}
+subcort_rn <- the_subcortical_guide %>%
+  arrange(subcort_ROI, subcort_NET) %>%
+  select(combined_name)
+```
 
 
 ```{r fig.width=20, fig.height=36}
@@ -357,10 +365,10 @@ DX_lm_model %>%
   ungroup() %>%
   mutate(sig = if_else(p_FDR < 0.05, '*', NA_character_),
          to_names = factor(to, levels = c(Yeo7_2011_80verts$SHORTNAME, 
-                                          the_subcortical_guide$combined_name)),
+                                          subcort_rn$combined_name)),
          from_names = factor(from, levels = c(Yeo7_2011_80verts$SHORTNAME, 
-                                              the_subcortical_guide$combined_name))) %>%
-ggplot(aes(x = from_names, y = to_names, fill = statistic)) + 
+                                              subcort_rn$combined_name))) %>%
+ggplot(aes(x = from_names, y = to_names, fill = -statistic)) + 
   geom_tile(na.rm = TRUE) +
   geom_point(aes(shape = sig), na.rm = TRUE) +
   scale_fill_gradient2(midpoint = 0) +
@@ -422,8 +430,39 @@ DX_lm_model %>%
   scale_fill_gradient2(high = "#b2182b", mid = "white", low = "#2166ac") +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   facet_wrap(~vertex_type, ncol = 1) +
-  labs(title = "Mean (Z - transformed correlation), by Diagnosis and Cohort",
+  labs(title = "T statistic for effect of DX",
        x = NULL, y = NULL, fill = "T statistic for DX")
+```
+```{r fig.height=20, fig.width= 12}
+DX_lm_model %>%
+  filter(term == "DXSSD") %>%
+  mutate(t_filtered = if_else(p_FDR < 0.1, statistic, 0)) %>%
+  ungroup() %>%
+  select(vertex_type, to, from, t_filtered) %>%
+  group_by(vertex_type) %>%
+  nest() %>%
+  mutate(uptri = map(data, uppertri_df_to_full)) %>%
+  unnest(uptri) %>%
+  mutate(to_lab = factor(to, levels = (node_annotations %>% arrange(subcort_ROI, network))$node_name),
+         from_lab = factor(from, levels = (node_annotations %>% arrange(subcort_ROI, network))$node_name)) %>%
+  ggplot(aes(x=to_lab, y=from_lab, fill=value)) + 
+  geom_tile(color = "white") +
+  scale_fill_gradient2(high = "#b2182b", mid = "white", low = "#2166ac") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_wrap(~vertex_type, ncol = 1) +
+  labs(title = "T statistic for effect of DX (thesholded)",
+       x = NULL, y = NULL, fill = "T statistic for DX")
+```
+
+```{r}
+tg_DXlm <- as_tbl_graph(DX_lm_model) %>%
+  activate(nodes) %>%
+  left_join(the_subcortical_guide, by = c("name" = "combined_name")) %>%
+  rename()
+  left_join(Yeo7_2011_80verts, by = c("name" = "SHORTNAME")) %>%
+  left_join(the_subcortical_guide, by = c("name" = "combined_name"))
+
+tg_DXlm
 ```
 
 ```{r include = FALSE}
@@ -462,6 +501,28 @@ ggplot(trying, aes(x=to_lab, y=from_lab, fill=value)) +
 ```{r}
 DX_lm_model %>% count(term)
 ```
+## cray cray newer stuff starts here
+
+```{r, fig.height=12}
+sig_edges <- DX_lm_model %>%
+  filter(term %in% c("DXSSD"), p_FDR < 0.05, vertex_type == "pvertex") %>%
+  select(to, from) %>% 
+  unite(edgename, to, from)
+
+thing_cluster <- results_pheno %>%
+  filter(vertex_type == "pvertex") %>%
+  select(subject, to, from, weight) %>%
+  unite(edgename, to, from) %>%
+  filter(edgename %in% sig_edges$edgename) %>%
+  spread(edgename, weight) 
+
+thing_cluster_pca <- prcomp(thing_cluster %>% select( -subject), center = TRUE) 
+```
+
+```{r}
+summary(thing_cluster_pca)
+```
+
 
 ```{r fig.width=20, fig.height=36}
 DX_lm_model %>%
@@ -478,5 +539,13 @@ ggplot(aes(x = from_names, y = to_names, fill = statistic)) +
   scale_fill_gradient2(midpoint = 0) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   facet_wrap(~vertex_type, ncol = 1)
+```
+```{r}
+library(tidyverse)
+library(tidygraph)
+
+tg_lm <- as_tbl_graph(DX_lm_model)
+
+tg_lm
 ```
 

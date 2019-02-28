@@ -68,8 +68,8 @@ combined_df %>%
   do(tidy(aov(lm(num_sc_vx_gt ~ DX*poly(Age_pt,2) + Sex + fd_mean_pt + Scanner,.)))) %>%
   ungroup() %>% group_by(term) %>%
   mutate(p_FDR = p.adjust(p.value, method = "fdr")) %>%
-  filter(term != "(Intercept)", term != "Scanner", p_FDR < 0.1) %>%
-  arrange(p.value) 
+  filter(term != "(Intercept)", term != "Scanner", p_FDR < 0.06) %>%
+  arrange(NETWORK, term) 
        
 ```
 ```{r fig.height=4, fig.width=7.5}
@@ -115,6 +115,41 @@ ggplot(aes(y = num_sc_vx_gt, x = vx_gt_thres, color = DX)) +
   geom_smooth(aes(linetype = Age_coarse)) +
   facet_wrap(~NETWORK*Site, ncol = 4)  
 ```
+```{r fig.height = 4.5, fig.width = 7.5}
+combined_df %>% 
+  filter(Age > 17, Age < 51) %>%
+  mutate(Age_decade = case_when(Age < 20 ~ '17-20',
+                               Age >= 20 & Age < 30 ~ '20-30',
+                               Age >= 30 & Age < 40 ~ '30-40',
+                               Age >= 40 & Age < 50 ~ '40-50',
+                               Age > 50 ~ "50 above")) %>%
+  mutate(Age_coarse = case_when(Age < 30 ~ "young adult",
+                                Age > 35 ~ "middle age")) %>%
+  drop_na(DX, Age_coarse) %>%
+ggplot(aes(y = num_sc_vx_gt, x = vx_gt_thres)) +
+  geom_line(aes(group = subject, color = Age), alpha = 0.15) + 
+  geom_smooth(aes(linetype = Age_coarse), color = "black") +
+  scale_color_viridis_c(option = "D") +
+  facet_grid(DX~NETWORK)  
+```
+
+```{r}
+combined_df %>% 
+  filter(vx_gt_thres == "0.68") %>%
+  mutate(Age_decade = case_when(Age < 20 ~ '17-20',
+                               Age >= 20 & Age < 30 ~ '20-30',
+                               Age >= 30 & Age < 40 ~ '30-40',
+                               Age >= 40 & Age < 50 ~ '40-50',
+                               Age > 50 ~ "50 above")) %>%
+  mutate(Age_coarse = case_when(Age < 30 ~ "young adult",
+                                Age > 35 ~ "middle age")) %>%
+  drop_na(DX) %>%
+ggplot(aes(y = num_sc_vx_gt, x = Age, color = DX)) +
+  geom_point(alpha = 0.15) + 
+  geom_smooth(method = "lm") +
+  facet_grid(~NETWORK) 
+```
+
 ```{r}
 combined_df %>% 
   filter(Age > 17, Age < 51) %>%
