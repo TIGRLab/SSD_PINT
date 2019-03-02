@@ -966,10 +966,10 @@ edgewise_cors_wide <- results_pheno %>%
   unite(edgename, YeoNet, subcort_ROI, subcort_NET) %>%
   spread(edgename, netmean_pvertex) 
 
-plot_DX_scatter_elipse <- function(x, y, facet_by_site = FALSE) {
+plot_DX_scatter_elipse <- function(df, x, y, facet_by_site = FALSE) {
   xvar <- enquo(x)
   yvar <- enquo(y)
- plt <- ggplot(edgewise_cors_wide, 
+ plt <- ggplot(data = df, 
                aes(x = !!xvar, y = !!yvar, color = DX)) +
   geom_point() +
   stat_ellipse() +
@@ -979,176 +979,78 @@ plot_DX_scatter_elipse <- function(x, y, facet_by_site = FALSE) {
  }
  return(plt)
 }
+
+# Marginal densities along x axis
+plot_DX_scatter_elipsed <- function(df, x, y) {
+  #the tidy eval ness
+  xvar <- enquo(x)
+  yvar <- enquo(y)
+  # make the main scatte bit using above
+  main_scatter <-  ggplot(data = df, 
+               aes(x = !!xvar, y = !!yvar, color = DX)) +
+  geom_point(alpha = 0.7, size = 0.7) +
+  stat_ellipse() +
+  scale_color_manual(values = c("grey20","red"))
+
+  xdens <- axis_canvas(main_scatter, axis = "x")+
+    geom_density(data = df, aes(x = !!xvar, fill = DX),
+              alpha = 0.5, size = 0.2) +
+    scale_fill_manual(values = c("grey20","red"))
+
+  ydens <- axis_canvas(main_scatter, axis = "y", coord_flip = TRUE)+
+    geom_density(data = df, aes(x = !!yvar, fill = DX),
+                alpha = 0.5, size = 0.2) +
+  scale_fill_manual(values = c("grey20","red")) +
+  coord_flip()
+  
+  #putting the peices together
+  p1 <- insert_xaxis_grob(main_scatter, xdens, grid::unit(.2, "null"), position = "top")
+  p2<- insert_yaxis_grob(p1, ydens, grid::unit(.2, "null"), position = "right")
+  return(p2)
+}
 ```
 
 ```{r , fig.height=3, fig.width = 8}
-plot_DX_scatter_elipse(x = FP_cerebellum_DM, y = FP_thalamus_DM, facet_by_site = TRUE)
+plot_DX_scatter_elipse(edgewise_cors_wide, x = FP_cerebellum_DM, y = FP_thalamus_DM, facet_by_site = TRUE)
 ```
 
 ```{r , fig.height=3, fig.width = 4}
-plot_DX_scatter_elipse(x = FP_cerebellum_DM, y = FP_thalamus_DM, facet_by_site = FALSE)
+ggdraw(plot_DX_scatter_elipsed(edgewise_cors_wide, x = FP_cerebellum_DM, y = FP_thalamus_DM))
 ```
 
 
 ```{r fig.height = 3, fig.width = 4}
-plot_DX_scatter_elipse(x = VI_thalamus_DM, y = FP_thalamus_DM, facet_by_site = FALSE)
+ggdraw(plot_DX_scatter_elipsed(edgewise_cors_wide, x = VI_thalamus_DM, y = FP_thalamus_DM))
 ```
 ```{r fig.height = 3, fig.width = 4}
-
-plot_DX_scatter_elipse(x = VI_striatum_FP, y = FP_striatum_FP, facet_by_site = FALSE)
+ggdraw(plot_DX_scatter_elipsed(edgewise_cors_wide, x = VI_striatum_FP, y = FP_striatum_FP))
 
 ```
 
 ```{r fig.height = 3, fig.width = 4}
 
-plot_DX_scatter_elipse(x = DM_striatum_FP, y = FP_striatum_FP, facet_by_site = FALSE)
+ggdraw(plot_DX_scatter_elipsed(edgewise_cors_wide, x = DM_striatum_FP, y = FP_striatum_FP))
+
  
 ```
 ```{r fig.height = 3, fig.width = 10}
 
-plot_DX_scatter_elipse(x = DM_striatum_FP, y = FP_striatum_FP, facet_by_site = TRUE)
+
+plot_DX_scatter_elipse(edgewise_cors_wide, x = DM_striatum_FP, y = FP_striatum_FP, facet_by_site = TRUE)
  
 ```
 ```{r fig.height = 3, fig.width = 4}
+ggdraw(plot_DX_scatter_elipsed(edgewise_cors_wide, x = DM_striatum_FP, y = VA_striatum_SM))
 
-plot_DX_scatter_elipse(x = DM_striatum_FP, y = VA_striatum_FP, facet_by_site = FALSE)
- 
-```
-
-```{r}
-library(cowplot) 
-# Main plot
-pmain <- ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width, color = Species))+
-  geom_point()+
-  ggpubr::color_palette("jco")
-# Marginal densities along x axis
-xdens <- axis_canvas(pmain, axis = "x")+
-  geom_density(data = iris, aes(x = Sepal.Length, fill = Species),
-              alpha = 0.7, size = 0.2)+
-  ggpubr::fill_palette("jco")
-# Marginal densities along y axis
-# Need to set coord_flip = TRUE, if you plan to use coord_flip()
-ydens <- axis_canvas(pmain, axis = "y", coord_flip = TRUE)+
-  geom_density(data = iris, aes(x = Sepal.Width, fill = Species),
-                alpha = 0.7, size = 0.2)+
-  coord_flip()+
-  ggpubr::fill_palette("jco")
-p1 <- insert_xaxis_grob(pmain, xdens, grid::unit(.2, "null"), position = "top")
-p2<- insert_yaxis_grob(p1, ydens, grid::unit(.2, "null"), position = "right")
-ggdraw(p2)
 ```
 
 
 
-```{r}
-results_pheno %>%
-  select(subject, DX, Site, YeoNet, subcort_ROI, subcort_NET, pvertex_corr) %>%
-  group_by(subject, DX, Site, YeoNet, subcort_ROI, subcort_NET) %>%
-  summarise(netmean_pvertex = mean(pvertex_corr)) %>%
-  ungroup() %>%
-  filter(YeoNet %in% c('VI','FP')) %>%
-  filter(subcort_NET %in% c("DM", "SM")) %>%
-  unite(edgename, YeoNet, subcort_ROI, subcort_NET) %>%
-  spread(edgename, netmean_pvertex) %>%
-  ggplot(aes(x = VI_thalamus_DM, y = VI_cerebellum_DM)) +
-  geom_point(aes(color = DX)) +
-  geom_smooth(method = "lm") +
-  facet_wrap(~Site, ncol = 4)
-```
-
-```{r , fig.width = 8, fig.height=3}
-results_pheno %>%
-  select(subject, DX, Site, YeoNet, subcort_ROI, subcort_NET, pvertex_corr) %>%
-  group_by(subject, DX, Site, YeoNet, subcort_ROI, subcort_NET) %>%
-  summarise(netmean_pvertex = mean(pvertex_corr)) %>%
-  ungroup() %>%
-  filter(YeoNet %in% c('VI','FP')) %>%
-  filter(subcort_NET %in% c("DM", "SM")) %>%
-  unite(edgename, YeoNet, subcort_ROI, subcort_NET) %>%
-  spread(edgename, netmean_pvertex) %>%
-  ggplot(aes(x = VI_striatum_DM, y = FP_cerebellum_DM)) +
-  geom_point(aes(color = DX)) +
-  geom_smooth(method = "lm") +
-  facet_wrap(~Site, ncol = 4)
-```
-```{r , fig.width = 8, fig.height=3}
-results_pheno %>%
-  select(subject, DX, Site, YeoNet, subcort_ROI, subcort_NET, pvertex_corr) %>%
-  group_by(subject, DX, Site, YeoNet, subcort_ROI, subcort_NET) %>%
-  summarise(netmean_pvertex = mean(pvertex_corr)) %>%
-  ungroup() %>%
-  filter(YeoNet %in% c('DM','FP')) %>%
-  filter(subcort_NET %in% c("DM", "FP")) %>%
-  unite(edgename, YeoNet, subcort_ROI, subcort_NET) %>%
-  spread(edgename, netmean_pvertex) %>%
-  ggplot(aes(x = DM_striatum_FP, y = DM_thalamus_FP, color = DX)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  facet_wrap(~Site, ncol = 4)
-```
-```{r , fig.width = 8, fig.height=3}
-results_pheno %>%
-  select(subject, DX, Site, YeoNet, subcort_ROI, subcort_NET, pvertex_corr) %>%
-  group_by(subject, DX, Site, YeoNet, subcort_ROI, subcort_NET) %>%
-  summarise(netmean_pvertex = mean(pvertex_corr)) %>%
-  ungroup() %>%
-  filter(YeoNet %in% c('DM','VI')) %>%
-  filter(subcort_NET %in% c("DM", "FP")) %>%
-  unite(edgename, YeoNet, subcort_ROI, subcort_NET) %>%
-  spread(edgename, netmean_pvertex) %>%
-  ggplot(aes(x = DM_striatum_FP, y = VI_thalamus_FP, color = DX)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  facet_wrap(~Site, ncol = 4)
-```
 
 
-```{r , fig.width = 8, fig.height=3}
-results_pheno %>%
-  select(subject, DX, Site, YeoNet, subcort_ROI, subcort_NET, pvertex_corr) %>%
-  group_by(subject, DX, Site, YeoNet, subcort_ROI, subcort_NET) %>%
-  summarise(netmean_pvertex = mean(pvertex_corr)) %>%
-  ungroup() %>%
-  filter(YeoNet %in% c('DM','FP')) %>%
-  filter(subcort_NET %in% c("DM", "FP")) %>%
-  unite(edgename, YeoNet, subcort_ROI, subcort_NET) %>%
-  spread(edgename, netmean_pvertex) %>%
-  ggplot(aes(x = DM_striatum_FP, y = FP_thalamus_DM)) +
-  geom_point(aes(color = DX)) +
-  geom_smooth(method = "lm") +
-  facet_wrap(~Site, ncol = 4)
-```
 
-```{r , fig.width = 8, fig.height=3}
-results_pheno %>%
-  select(subject, DX, Site, YeoNet, subcort_ROI, subcort_NET, pvertex_corr) %>%
-  group_by(subject, DX, Site, YeoNet, subcort_ROI, subcort_NET) %>%
-  summarise(netmean_pvertex = mean(pvertex_corr)) %>%
-  ungroup() %>%
-  filter(YeoNet %in% c('DM','FP')) %>%
-  filter(subcort_NET %in% c("DM", "FP")) %>%
-  unite(edgename, YeoNet, subcort_ROI, subcort_NET) %>%
-  spread(edgename, netmean_pvertex) %>%
-  ggplot(aes(x = DM_striatum_FP, y = DM_cerebellum_FP, color = DX)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  facet_wrap(~Site, ncol = 4)
-```
-```{r , fig.width = 8, fig.height=3}
-results_pheno %>%
-  select(subject, DX, Site, YeoNet, subcort_ROI, subcort_NET, pvertex_corr) %>%
-  group_by(subject, DX, Site, YeoNet, subcort_ROI, subcort_NET) %>%
-  summarise(netmean_pvertex = mean(pvertex_corr)) %>%
-  ungroup() %>%
-  filter(YeoNet %in% c('DM','FP')) %>%
-  filter(subcort_NET %in% c("DM", "FP")) %>%
-  unite(edgename, YeoNet, subcort_ROI, subcort_NET) %>%
-  spread(edgename, netmean_pvertex) %>%
-  ggplot(aes(x = DM_striatum_FP, y = DM_cerebellum_FP, color = DX)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  facet_wrap(~Site, ncol = 4)
-```
+
+
 
 
 ```{r, fig.height=12}

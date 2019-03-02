@@ -242,6 +242,48 @@ run_read_all_subject_timeseries_and_corZ <- function(out_prefix, projectname) {
 
 ```
 
+```{r}
+read_vx_count <- function(filepath) {
+  read_csv(filepath, col_names = FALSE) %>%
+    mutate(network = c('VI','SM','DA','VA', 'LI','FP','DM')) 
+}
+
+vx_counts <- the_subcortical_guide %>%
+  select(subcort_hemi, subcort_ROI) %>%
+  distinct() %>%
+  mutate(vx_count = str_c('../data/ciftify_fmriprep/ZHH/out/ciftify_meants/templates/7RSN_roi-',subcort_hemi, subcort_ROI,'_vxcount.txt')) %>%
+mutate(vxnum = map(vx_count, ~read_vx_count(.x))) %>%
+  unnest() %>%
+  select(subcort_hemi, subcort_ROI, X1, network) %>%
+  rename(numvx = X1)
+
+write_csv(vx_counts, '../templates/subcort_vxcounts.csv')
+```
+```{r}
+vx_counts %>% arrange(numvx)
+```
+
+
+```{r}
+node_annotations <- tibble(node_name = c(Yeo7_2011_80verts$SHORTNAME,
+                                         the_subcortical_guide$combined_name)) %>%
+  left_join(the_subcortical_guide, by = c("node_name" = "combined_name")) %>%
+  mutate_if(is.character, funs(replace(., is.na(.), ''))) %>%
+  mutate(etype = if_else(str_sub(node_name,2,2)=="_","SubCort", "Cort")) %>%
+  mutate(cort_NET = if_else(etype == "Cort", str_sub(.$node_name, 1,2), ""),
+         cort_hemi = if_else(etype == "Cort", str_sub(.$node_name, 5,5), ""),
+         cort_lobe = if_else(etype == "Cort", str_sub(.$node_name, 3,3), ""),
+         network = if_else(etype == "Cort", cort_NET, subcort_NET),
+         network = factor(network, levels = c("LI", "DM", "FP", "VA", "DA", "SM", "VI")),
+         hemi = if_else(etype == "Cort", cort_hemi, subcort_hemi),
+         subregion = if_else(etype == "Cort", cort_lobe, subcort_ROI),
+         subregion = recode(subregion,
+                            F = "Fron", P = "Pari", I = "Insul", T = "Tempo", O = "Occip",
+                            thalamus = "Thal", cerebellum = "Cblm", striatum = "Stria")) 
+
+node_annotations
+```
+
 
 ### This reads all the subcortical files it can find
 
@@ -398,20 +440,7 @@ return(result)
 }
 ```
 
-```{r}
-node_annotations <- tibble( node_name = c(Yeo7_2011_80verts$SHORTNAME, the_subcortical_guide$combined_name)) %>%
-  left_join(the_subcortical_guide, by = c("node_name" = "combined_name")) %>%
-  mutate_if(is.character, funs(replace(., is.na(.), ''))) %>%
-  mutate(etype = if_else(str_sub(node_name,2,2)=="_","SubCort", "Cort")) %>%
-  mutate(cort_NET = if_else(etype == "Cort", str_sub(.$node_name, 1,2), ""),
-         cort_hemi = if_else(etype == "Cort", str_sub(.$node_name, 5,5), ""),
-         cort_lobe = if_else(etype == "Cort", str_sub(.$node_name, 3,3), ""),
-         network = if_else(etype == "Cort", cort_NET, subcort_NET),
-         network = factor(network, levels = c("LI", "DM", "FP", "VA", "DA", "SM", "VI")))
-  
 
-
-```
 
 
 ```{r fig.height=20, fig.width= 12}
@@ -457,12 +486,16 @@ DX_lm_model %>%
 ```{r}
 tg_DXlm <- as_tbl_graph(DX_lm_model) %>%
   activate(nodes) %>%
-  left_join(the_subcortical_guide, by = c("name" = "combined_name")) %>%
-  rename()
-  left_join(Yeo7_2011_80verts, by = c("name" = "SHORTNAME")) %>%
-  left_join(the_subcortical_guide, by = c("name" = "combined_name"))
+  left_join(node_annotations, by = c("name" = "node_name"))
 
-tg_DXlm
+```
+
+```{r}
+library(ggraph)
+ggraph(tg_DXlm, 'matrix', sort.by = name) +
+  geom_edge_point() + 
+  theme_graph() + 
+  coord_fixed()
 ```
 
 ```{r include = FALSE}

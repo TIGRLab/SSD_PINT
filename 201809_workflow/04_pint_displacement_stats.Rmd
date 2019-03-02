@@ -40,12 +40,14 @@ YeoNet_colours = list("VI" = "#781286",
                       "FP" = "#E69422")
 
 ## adding a subid that matches what the concatenation script adds..
-pheno <- read_csv('../phenotypic/20181118_pheno_qapass.csv') %>%
+pheno <- read_csv('../phenotypic/20190301_pheno_qapass.csv') %>%
   mutate(subid = str_replace(filename, '_summary.csv','')) %>%
   drop_na(DX)
 
 pint_concat <- read_csv('../data/ciftify_fmriprep/postPINT1_concat_all_qa_passes.csv')
 ```
+
+
 ```{r}
 pheno %>%  
   select(subject) %>%
@@ -60,6 +62,7 @@ ana_data <- pheno %>%
 
 ```
 
+
 ## run for the whole head
 
 ```{r}
@@ -71,7 +74,7 @@ dist_by_total <- pint_concat %>%
 
 dist_by_total %>%
   ungroup() %>%
-  do(tidy(lm(MeanDistance ~ DX + Age_pt + Sex + fd_mean_pt + Site,.))) %>%
+  do(tidy(lm(MeanDistance ~ DX + Age_pt + Sex + fd_mean_pt + Site + SurfArea_pt,.))) %>%
   mutate(p_bonf = p.value*6) %>%
   knitr::kable()
 ```
@@ -98,7 +101,7 @@ dist_by_network <- pint_concat %>%
 
 dist_by_network %>%
   ungroup() %>% group_by(network) %>%
-  do(tidy(aov(lm(MeanDistance ~ DX+ Age_pt + Sex + fd_mean_pt + Scanner,.)))) %>%
+  do(tidy(aov(lm(MeanDistance ~ DX + Age_pt + Sex + fd_mean_pt + Scanner + SurfArea_pt,.)))) %>%
   mutate(p_bonf = p.value*6) %>%
   filter(!(term %in% c('Intercept', 'ScannerCOBRE', 'Scannerds00003035343', 'ScannerZHH', 'Scannerds00003035426'))) %>%
   select(network, term, df, statistic, p.value, p_bonf) %>%
@@ -109,12 +112,14 @@ dist_by_network %>%
 
 
 
-```{r age-loc_dx-plot, fig.height=6, fig.width = 7.5}
+```{r age-loc_dx-plot, fig.height=3, fig.width = 10}
 dist_by_network %>%
   ggplot(aes(y = MeanDistance, x = Age)) +
-  geom_point(alpha = 0.5) + 
+  geom_point(alpha = 0.2, size = 0.5) + 
   geom_smooth(aes(color = DX), method = "lm") +
-  facet_wrap(~network, scales = "free")
+  facet_wrap(~network, scales = "free", nrow = 1) +
+  scale_color_manual(values = c("grey20","red"))
+  
 ```
 
 
@@ -128,6 +133,6 @@ roi_dx_lm <- ana_data %>%
   mutate(p_fdr  = p.adjust(p.value, method = 'fdr'))
 
 roi_dx_lm %>%
-  filter(term != "(Intercept)") %>%
+  filter(term == "Age_pt") %>%
   filter(p_fdr < 0.1)
 ```

@@ -90,3 +90,10 @@ rm rsn_ACCUMBENS_*
 rm rsn_CAUDATE_*
 rm rsn_PUTAMEN_*
 ```
+
+## calculating subcortical roi size
+
+```sh
+
+
+```

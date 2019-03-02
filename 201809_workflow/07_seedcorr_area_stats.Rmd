@@ -36,7 +36,7 @@ YeoNet_colours = list("VI" = "#781286",
                       "DM" = "#CD3E3A", 
                       "FP" = "#E69422")
 
-pheno <- read_csv('../phenotypic/20181118_pheno_qapass.csv') %>% drop_na(DX) 
+pheno <- read_csv('../phenotypic/20190301_pheno_qapass.csv') %>% drop_na(DX) 
 
 pint_sc <- read_csv('../data/ciftify_fmriprep/qa_passes_seedcor_counts_20181116.csv')
 ```
@@ -65,7 +65,8 @@ combined_df %>%
   drop_na(DX) %>%
   group_by(NETWORK, vx_gt_thres) %>%
   filter(Age > 17, Age < 51) %>%
-  do(tidy(aov(lm(num_sc_vx_gt ~ DX*poly(Age_pt,2) + Sex + fd_mean_pt + Scanner,.)))) %>%
+  filter(vx_gt_thres < 0.6) %>%
+  do(tidy(aov(lm(num_sc_vx_gt ~ DX*Age_pt + Sex + fd_mean_pt + Scanner + SurfArea_pt,.)))) %>%
   ungroup() %>% group_by(term) %>%
   mutate(p_FDR = p.adjust(p.value, method = "fdr")) %>%
   filter(term != "(Intercept)", term != "Scanner", p_FDR < 0.06) %>%
@@ -135,7 +136,7 @@ ggplot(aes(y = num_sc_vx_gt, x = vx_gt_thres)) +
 
 ```{r}
 combined_df %>% 
-  filter(vx_gt_thres == "0.68") %>%
+  filter(vx_gt_thres == "0.5") %>%
   mutate(Age_decade = case_when(Age < 20 ~ '17-20',
                                Age >= 20 & Age < 30 ~ '20-30',
                                Age >= 30 & Age < 40 ~ '30-40',
@@ -146,7 +147,7 @@ combined_df %>%
   drop_na(DX) %>%
 ggplot(aes(y = num_sc_vx_gt, x = Age, color = DX)) +
   geom_point(alpha = 0.15) + 
-  geom_smooth(method = "lm") +
+  geom_smooth(method = lm) +
   facet_grid(~NETWORK) 
 ```
 

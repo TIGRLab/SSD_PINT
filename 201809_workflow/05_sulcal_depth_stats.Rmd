@@ -36,7 +36,7 @@ YeoNet_colours = list("VI" = "#781286",
                       "DM" = "#CD3E3A", 
                       "FP" = "#E69422")
 
-pheno <- read_csv('../phenotypic/20181118_pheno_qapass.csv') 
+pheno <- read_csv('../phenotypic/20190301_pheno_qapass.csv') 
 
 pint_concat <- read_csv('../data/ciftify_fmriprep/postPINT1_concat_all_qa_passes.csv')
 ```

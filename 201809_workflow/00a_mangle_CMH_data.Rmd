@@ -21,9 +21,9 @@ sub_projects = c("ZHH", "COBRE", "ASDD", "ASDD", "DTI3T" , "RTMSWM", "PNSC", "SP
 
 read_mriqc_bold <- function(studyname) {
   bold <- read_csv(str_c("../data/ciftify_fmriprep/", studyname, "/out/mriqc/bold.csv")) %>%
-    mutate(subject_id = parse_character(subject_id))
+    mutate(subject_id = as.character(subject_id))
   if ("session_id" %in% names(bold)) {
-    bold <- bold %>% mutate(session_id = parse_character(session_id))
+    bold <- bold %>% mutate(session_id = as.character(session_id))
   }
   return(bold)
 }
@@ -37,12 +37,14 @@ all_the_bolds <- tibble(studyname = sub_projects) %>%
 
 ```
 
+
+
 ```{r message=FALSE, warning=FALSE}
 read_mriqc_t1w <- function(studyname) {
   bold <- read_csv(str_c("../data/ciftify_fmriprep/", studyname, "/out/mriqc/T1w.csv")) %>%
-    mutate(subject_id = parse_character(subject_id))
+    mutate(subject_id = as.character(subject_id))
   if ("session_id" %in% names(bold)) {
-    bold <- bold %>% mutate(session_id = parse_character(session_id))
+    bold <- bold %>% mutate(session_id = as.character(session_id))
   }
   return(bold)
 }
@@ -111,6 +113,19 @@ simple_pheno <- read_csv('../phenotypic/simple_pheno_201811.csv')
 #### we see that the only people we have bold info but no phenotype for is that one VIPR participant in SPINS and the 5 people from ds00030 who don't have a T1w scan
 
 ```{r}
+all_surfs <- Sys.glob('../data/ciftify_fmriprep/*/out/freesurfer/CorticalMeasuresENIGMA_SurfAvg.csv') %>%
+  map_df(read_csv, col_types = cols(
+  .default = col_double(),
+  SubjID = col_character()
+)) %>%
+  select(SubjID, LSurfArea, RSurfArea) %>%
+  mutate(SurfArea = LSurfArea + RSurfArea)
+
+```
+
+
+
+```{r}
 usable_scans %>%
   mutate(subject = str_c("sub-", subject_id)) %>%
   anti_join(simple_pheno, by = "subject") %>%
@@ -135,7 +150,8 @@ perc_fd_thres <- 50
 pre_qa <- bolds_condensed %>%
   inner_join(usable_scans %>% mutate(subject = str_c("sub-", subject_id)), by = "subject") %>%
   drop_na(num_scans) %>%
-  inner_join(simple_pheno, by = c("subject", "dataset"))
+  inner_join(simple_pheno, by = c("subject", "dataset")) %>%
+  inner_join(all_surfs, by = c("subject"="SubjID"))
 
 pre_qa_counts <- pre_qa %>%
   select(subject, dataset, DX) %>%
@@ -170,6 +186,7 @@ transform_to_normal <- function(X) {
   pT <- car::powerTransform(X)
   # apply the power transform and save the result to a new variable
   X_pT <- X^pT$lambda ## note ^ is exponent in r
+  xout = scales::rescale(X_pT)
   return(X_pT)
 }
 
@@ -183,11 +200,23 @@ pheno <- qa_passes_pheno %>%
   arrange(fd_perc) %>%
   slice(1) %>%
   ungroup() 
+```
 
+
+```{r}
+pheno %>%
+  ggplot(aes(x = Age, y = SurfArea)) + 
+  geom_point(aes(color = studyname)) + geom_smooth(method = "lm") 
+```
+
+
+
+```{r}
 # transform age and fd_mean to normality
 pheno <- pheno %>%
   mutate(Age_pt = transform_to_normal(Age),
-         fd_mean_pt = transform_to_normal(fd_mean))
+         fd_mean_pt = transform_to_normal(fd_mean),
+         SurfArea_pt = transform_to_normal(SurfArea))
 ```
 
 
@@ -234,7 +263,7 @@ qa_passes_pheno %>%
 
 
 ```{r} 
-write_csv(pheno, '../phenotypic/20181118_pheno_qapass.csv')
+write_csv(pheno, '../phenotypic/20190301_pheno_qapass.csv')
 ```
 
 + ASDD is done!
