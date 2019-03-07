@@ -1,0 +1,547 @@
+---
+title: Cools tidygraph plot
+output:
+  html_document:
+    keep_md: TRUE
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r message=FALSE, warning=FALSE}
+library(tidygraph)
+library(tidyverse)
+library(broom)
+library(knitr)
+library(igraph)
+library(ggraph)
+```
+
+```{r}
+load("../intermediate/06_intermediatedata.Rdata.RData")
+```
+
+```{r}
+YeoNet7 <- tribble(
+  ~network, ~hexcode,
+  "VI", "#781286",
+  "SM", "#4682B4",
+  "DA", "#00760E",
+  "VA", "#C43AFA",
+  "FP", "#E69422",
+  "DM", "#CD3E3A",
+  "LI", "#dcf8a4")
+
+```
+
+```{r}
+the_subcortical_guide
+```
+```{r}
+subcort_vxcounts <- read_csv("../templates/subcort_vxcounts.csv") %>%
+  unite(combined_name, subcort_hemi, subcort_ROI, network, sep = "_") %>%
+  mutate(size_is_ok  = if_else(numvx > 34, "yes", "no"))
+
+the_subcortical_guide <- the_subcortical_guide %>%
+  inner_join(subcort_vxcounts, by = "combined_name")
+```
+
+```{r}
+node_annotations <- tibble(node_name = c(Yeo7_2011_80verts$SHORTNAME,
+                                         the_subcortical_guide$combined_name)) %>%
+  left_join(the_subcortical_guide, by = c("node_name" = "combined_name")) %>%
+  mutate_if(is.character, funs(replace(., is.na(.), ''))) %>%
+  mutate(etype = if_else(str_sub(node_name,2,2)=="_","SubCort", "Cort")) %>%
+  mutate(cort_NET = if_else(etype == "Cort", str_sub(.$node_name, 1,2), ""),
+         cort_hemi = if_else(etype == "Cort", str_sub(.$node_name, 5,5), ""),
+         cort_lobe = if_else(etype == "Cort", str_sub(.$node_name, 3,3), ""),
+         network = if_else(etype == "Cort", cort_NET, subcort_NET),
+         network = factor(network, levels = rev(YeoNet7$network)),
+         hemi = if_else(etype == "Cort", cort_hemi, subcort_hemi),
+         size_is_ok = if_else(etype == "Cort", "yes", size_is_ok),
+         subregion = if_else(etype == "Cort", cort_lobe, subcort_ROI),
+         subregion = recode(subregion,
+                            F = "Fron", P = "Pari", I = "Insul", T = "Tempo", O = "Occip",
+                            thalamus = "Thal", cerebellum = "Cblm", striatum = "Stria"),
+         subcort_ROI = factor(subcort_ROI, levels = c("striatum", "thalamus", "cerebellum"))) 
+
+node_annotations
+```
+
+
+
+```{r}
+node_annotations <- node_annotations %>%
+  filter(size_is_ok == "yes") %>%
+  arrange(etype, subcort_ROI, network, subregion, hemi) %>%
+  mutate(basic_rank = c(1:n()),
+         etype_rank = (dense_rank(etype) - 1),
+         subcort_rank =  dense_rank(subcort_ROI) %>% replace_na(0),
+         custom_order = basic_rank  + etype_rank*10 + subcort_rank*5,
+         custom_order = max(custom_order) - custom_order) %>%
+  select(-basic_rank, -etype_rank, -subcort_rank)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r fig.height=10, fig.width=10}
+DX_forgraph <- DX_lm_model %>%
+  filter(term == "DXSSD") %>%
+  filter(vertex_type == "pvertex")
+  
+
+make_super_cools_plot <- function(lm_df, pos_label, neg_label, plot_title) {
+  lm_df <- lm_df %>%
+    mutate(effect_cat = case_when(p_FDR < 0.05 & statistic < 0 ~ "neg",
+                              p_FDR < 0.05 & statistic > 0 ~ "pos",
+                              p_FDR > 0.05 ~ "ns")) 
+
+tg_lm <- as_tbl_graph(lm_df) %>%
+  activate(nodes) %>%
+  left_join(node_annotations, by = c("name" = "node_name")) %>%
+  filter(size_is_ok == "yes") %>%
+  activate(edges) %>%
+  filter(effect_cat != "ns") %>%
+  mutate(effect_cat = factor(effect_cat, 
+                               levels = c("pos","neg"),
+                               labels = c(pos_label, neg_label)))
+
+plt <- ggraph(tg_lm, layout = 'linear', circular = FALSE, 
+       sort.by = "custom_order", use.numeric = TRUE,
+       offset = pi) +
+  geom_edge_arc(aes(color = effect_cat, 
+                    width = abs(statistic), 
+                    alpha = abs(statistic))) +
+  geom_node_point(aes(color = network), size = 2) +
+  scale_color_manual(values = rev(YeoNet7$hexcode)) +
+  coord_flip() +
+  theme_minimal() +
+  theme(panel.border = element_blank(), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        axis.line = element_blank(),
+        axis.text.x  = element_blank(),
+        axis.text.y  = element_blank()) +
+  labs(title = plot_title, x = NULL, y = NULL, 
+       color = "RSN Network", edge_color = "p < 0.05")
+  return(plt)
+}
+
+
+
+```
+
+```{r fig.height=10, fig.width=10}
+DX_lm_model %>%
+  filter(term == "DXSSD") %>%
+  filter(vertex_type == "pvertex") %>%
+  make_super_cools_plot(pos_label = "SSD > HC", 
+                      neg_label = "HC > SSD",
+                      plot_title = "Personalized")
+```
+
+```{r fig.height=10, fig.width=10}
+DX_lm_model %>%
+  filter(term == "DXSSD") %>%
+  filter(vertex_type == "tvertex") %>%
+  make_super_cools_plot(pos_label = "SSD > HC", 
+                      neg_label = "HC > SSD",
+                      plot_title = "Template")
+```
+
+```{r}
+#' convert from three col graph df to adjacency matrix
+uppertri_df_to_agjmat <- function(graph_df) {
+  
+names(graph_df) <- c('to', 'from', 'myattr')
+matrix_out <- graph_df %>%
+  graph_from_data_frame(.,directed = F) %>%
+  get.adjacency(., type = "both", attr = "myattr") %>%
+  as.matrix() 
+return(matrix_out)
+}
+
+#' go uppertri data to full dataframe for geom_tile
+uppertri_df_to_full <- function(graph_df) {
+result <- graph_df %>%
+  uppertri_df_to_agjmat() %>%
+  as.data.frame() %>%
+  mutate(to = row.names(.)) %>%
+  gather(from, value, -to) 
+return(result)
+}
+```
+
+```{r}
+current_cortcort <- DX_lm_model %>%
+  ungroup() %>%
+  select(to, from) %>%
+  inner_join(node_annotations, by = c("to"="node_name")) %>%
+  inner_join(node_annotations, by = c("from"="node_name")) %>%
+  filter(etype.x == "Cort", etype.y == "Cort") %>%
+  select(network.x, network.y) %>%
+  distinct() 
+
+new_mat <- current_cortcort %>%
+  mutate(val = 1) %>%
+  uppertri_df_to_agjmat() 
+
+ym <- YeoNet7$network[2:7]
+new_mat <- new_mat[order(ym),order(ym)]
+gm<- graph_from_adjacency_matrix(new_mat, mode = "upper") 
+new_order <- as_data_frame(gm)
+
+flipping_guide <- left_join(current_cortcort, mutate(new_order, thing = 1), by = c("network.x" = "from", "network.y" = "to")) %>%
+  mutate(flip_order = if_else(is.na(thing), "yes", "no"),
+         etype.x = "Cort",
+         etype.y = "Cort") %>%
+  select(-thing)
+
+flipping_guide
+
+```
+
+
+```{r}
+flipping_guide$flip_order[flipping_guide$network.x=="VA" & flipping_guide$network.y == "DA"] <- "no"
+flipping_guide$flip_order[flipping_guide$network.x=="VI" & flipping_guide$network.y == "SM"] <- "yes"
+flipping_guide$flip_order[flipping_guide$network.x=="SM" & flipping_guide$network.y == "VA"] <- "yes"
+flipping_guide$flip_order[flipping_guide$network.x=="VI" & flipping_guide$network.y == "VA"] <- "yes"
+flipping_guide
+```
+
+
+
+```{r}
+flip_subcort <- DX_lm_model %>%
+  ungroup() %>%
+  select(to, from) %>%
+  inner_join(node_annotations, by = c("to"="node_name")) %>%
+  inner_join(node_annotations, by = c("from"="node_name")) %>%
+  filter(etype.x == "SubCort", etype.y == "SubCort") %>%
+  select(hemi.x, hemi.y, subcort_ROI.x, subcort_ROI.y) %>%
+  distinct() %>%
+  mutate(drop_rows = if_else(subcort_ROI.x == subcort_ROI.y, "drop", "keep"),
+         flip_order2 = if_else(subcort_ROI.x == "thalamus" & subcort_ROI.y == "cerebullum", "yes", "no"))
+```
+
+```{r}
+flip_subcort %>% filter(drop_rows == "keep")
+```
+
+
+```{r}
+flip_DX_model <- DX_lm_model %>%
+  ungroup() %>%
+  inner_join(node_annotations, by = c("to"="node_name")) %>%
+  inner_join(node_annotations, by = c("from"="node_name")) %>%
+  mutate(network.x = as.character(network.x),
+         network.y = as.character(network.y)) %>%
+  left_join(flipping_guide, by = c("network.x", "network.y", 'etype.x', 'etype.y')) %>%
+  mutate(flip_order = replace_na(flip_order, "no")) %>%
+  left_join(flip_subcort, by = c('hemi.x', 'hemi.y','subcort_ROI.x','subcort_ROI.y')) %>%
+  mutate(flip_order2 = replace_na(flip_order2, "no"),
+         drop_rows = replace_na(drop_rows, "no"),
+         flip_order = if_else(flip_order2 == "yes", "yes", flip_order)) %>%
+  mutate(nto = if_else(flip_order == "yes", from, to),
+         nfrom = if_else(flip_order == "yes", to, from)) %>%
+  select(-to, -from) %>%
+  rename(to = nto, from = nfrom) %>%
+  filter(drop_rows != "drop") %>%
+  select(to, from, term, vertex_type, statistic, p_FDR)
+```
+
+
+```{r fig.height=10, fig.width=10}
+flip_DX_model %>%
+  filter(term == "DXSSD") %>%
+  filter(vertex_type == "pvertex") %>%
+  make_super_cools_plot(pos_label = "SSD > HC", 
+                      neg_label = "HC > SSD",
+                      plot_title = "Personalized")
+```
+```{r fig.height=10, fig.width=10}
+flip_DX_model %>%
+  filter(term == "DXSSD") %>%
+  filter(vertex_type == "tvertex") %>%
+  make_super_cools_plot(pos_label = "SSD > HC", 
+                      neg_label = "HC > SSD",
+                      plot_title = "Template")
+```
+# so the interesting edges are:
+
+subcortical with itself
+allsubcortical with VI/SM (hyper)
+subcortical with DM
+subcortical with hypo cortical
+DM with cortical ()
+hyper cortico
+
+```{r fig.height=12, fig.width= 12}
+full_DX_mat <- DX_lm_model %>%
+  filter(term == "DXSSD", vertex_type == "pvertex") %>%
+  ungroup() %>%
+  select(to, from, statistic) %>%
+  uppertri_df_to_full() 
+
+full_DX_mat %>%
+  mutate(to_lab = factor(to, levels = node_annotations$node_name), 
+         from_lab = factor(from, levels = node_annotations$node_name)) %>%
+  ggplot(aes(x=to_lab, y=from_lab, fill=value)) + 
+  geom_tile(color = "white") +
+  scale_fill_gradient2(high = "#b2182b", mid = "white", low = "#2166ac") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "T statistic for effect of DX",
+       x = NULL, y = NULL, fill = "T statistic for DX")
+```
+subcortical with itself
+allsubcortical with VI/SM (hyper)
+subcortical with DM
+subcortical with hypo cortical
+DM with cortical ()
+hyper cortico
+
+```{r}
+hypo_cerebullum_to_striatum <- full_DX_mat %>%
+    inner_join(node_annotations, by = c("to"="node_name")) %>%
+    inner_join(node_annotations, by = c("from"="node_name")) %>%
+    filter(subcort_ROI.x == "cerebellum") %>%
+    filter(subcort_ROI.y == "striatum") %>%
+    filter(value < -2) %>%
+    select(to, from, value)
+
+hyper_subcort_to_SMVI <- full_DX_mat %>%
+    inner_join(node_annotations, by = c("to"="node_name")) %>%
+    inner_join(node_annotations, by = c("from"="node_name")) %>%
+    filter(etype.x == "SubCort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.y) %in% c("VI", "SM")) %>%
+    filter(value > 2) %>%
+    select(to, from, value)
+
+hyper_subcort_to_DM <- full_DX_mat %>%
+    inner_join(node_annotations, by = c("to"="node_name")) %>%
+    inner_join(node_annotations, by = c("from"="node_name")) %>%
+    filter(etype.x == "SubCort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.y) %in% c("DM")) %>%
+    filter(value > 2) %>%
+    select(to, from, value)
+
+hypo_subcort_to_FPVA <- full_DX_mat %>%
+    inner_join(node_annotations, by = c("to"="node_name")) %>%
+    inner_join(node_annotations, by = c("from"="node_name")) %>%
+    filter(etype.x == "SubCort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.y) %in% c("FP","VA")) %>%
+    filter(value < -2) %>%
+    select(to, from, value)
+
+hyper_cortSM_to_FPDA <- full_DX_mat %>%
+    inner_join(node_annotations, by = c("to"="node_name")) %>%
+    inner_join(node_annotations, by = c("from"="node_name")) %>%
+    filter(etype.x == "Cort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.x) %in% c("SM")) %>%
+    filter(as.character(network.y) %in% c("FP","DA")) %>%
+    filter(value > 2) %>%
+    select(to, from, value)
+
+hyper_cortVA_to_DAVI <- full_DX_mat %>%
+    inner_join(node_annotations, by = c("to"="node_name")) %>%
+    inner_join(node_annotations, by = c("from"="node_name")) %>%
+    filter(etype.x == "Cort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.x) %in% c("SM")) %>%
+    filter(as.character(network.y) %in% c("FP","VA")) %>%
+    filter(value > 2) %>%
+    select(to, from, value)
+
+hyper_cortVADA_to_SMVI <- bind_rows(hyper_cortSM_to_FPDA,
+                                    hyper_cortVA_to_DAVI)
+
+hypo_cortDM_to_DAVA <- full_DX_mat %>%
+    inner_join(node_annotations, by = c("to"="node_name")) %>%
+    inner_join(node_annotations, by = c("from"="node_name")) %>%
+    filter(etype.x == "Cort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.x) %in% c("DM")) %>%
+    filter(as.character(network.y) %in% c("DA","VA")) %>%
+    filter(value < -2) %>%
+    select(to, from, value)
+
+hypo_cortDM_to_SM <- full_DX_mat %>%
+    inner_join(node_annotations, by = c("to"="node_name")) %>%
+    inner_join(node_annotations, by = c("from"="node_name")) %>%
+    filter(etype.x == "Cort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.x) %in% c("SM")) %>%
+    filter(as.character(network.y) %in% c("DM")) %>%
+    filter(value < -2) %>%
+    select(to, from, value)
+
+hypo_cortDM_to_DAVASM <- bind_rows(hypo_cortDM_to_DAVA, hypo_cortDM_to_SM)
+
+Fz_weigths <-bind_rows(hypo_cortDM_to_DAVASM = hypo_cortDM_to_DAVASM,
+                       hyper_cortVADA_to_SMVI = hyper_cortVADA_to_SMVI,
+                       hyper_subcort_to_DM = hyper_subcort_to_DM,
+                       hypo_subcort_to_FPVA = hypo_subcort_to_FPVA,
+                       hyper_subcort_to_SMVI = hyper_subcort_to_SMVI,
+                       hypo_cerebullum_to_striatum = hypo_cerebullum_to_striatum,
+                       .id = "weigthFc") %>%
+  rename(DX_weight = value)
+  
+```
+
+```{r}
+Fz_weigths %>%
+  group_by(weigthFc) %>%
+  summarize(n = n(),
+           mean_DX = mean(DX_weight))
+```
+```{r}
+FC_weighted <- Fz_weigths %>%
+  inner_join(results_pheno, by = c("to", "from"))  %>%
+  filter(vertex_type == "pvertex") %>%
+  group_by(subject, Age, Sex, Site, DX, Age_pt, fd_mean_pt, weigthFc) %>%
+  mutate(wcorZ = abs(DX_weight) * weight) %>%
+  summarise(mwcorZ = sum(wcorZ)/sum(abs(DX_weight))) %>%
+  ungroup()
+```
+
+```{r}
+FC_weighted %>%
+  ungroup() %>%
+  group_by(weigthFc) %>%
+  do(tidy(lm(mwcorZ ~ DX + Age_pt + Sex + fd_mean_pt + Site,.))) %>%
+  select(weigthFc, term, statistic, p.value) %>%
+  knitr::kable()
+```
+```{r}
+SSD_cors <- FC_weighted %>%
+  filter(DX == "SSD") %>%
+  select(subject, weigthFc, mwcorZ) %>%
+  spread(weigthFc, mwcorZ) %>%
+  select(-subject) %>%
+  cor(.) 
+```
+
+```{r}
+HC_cors <- FC_weighted %>%
+  filter(DX == "CTRL") %>%
+  select(subject, weigthFc, mwcorZ) %>%
+  spread(weigthFc, mwcorZ) %>%
+  select(-subject) %>%
+  cor(.) 
+
+HC_cors %>%
+  as.data.frame() %>%
+  mutate(from = row.names(.)) %>%
+  gather(to, hc_cor, -from) %>%
+  ggplot(aes(x = to, y = from, fill = hc_cor)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf('%3.2f',hc_cor))) +
+  scale_fill_distiller(breaks = c(-0.5,0.5), type = "div", palette = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+  
+```
+```{r}
+SSD_cors %>%
+  as.data.frame() %>%
+  mutate(from = row.names(.)) %>%
+  gather(to, hc_cor, -from) %>%
+  ggplot(aes(x = to, y = from, fill = hc_cor)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf('%3.2f',hc_cor))) +
+  scale_fill_distiller(breaks = c(-0.5,0.5), type = "div", palette = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+```
+```{r}
+library(corrplot)
+
+corrplot(abs(SSD_cors), order = "hclust")
+```
+
+```{r}
+corrplot(abs(HC_cors), order = "FPC")
+```
+```{r}
+# Marginal densities along x axis
+plot_DX_scatter_elipsed <- function(df, x, y) {
+  #the tidy eval ness
+  xvar <- enquo(x)
+  yvar <- enquo(y)
+  # make the main scatte bit using above
+  main_scatter <-  ggplot(data = df, 
+               aes(x = !!xvar, y = !!yvar, color = DX)) +
+  geom_point(alpha = 0.7, size = 0.7) +
+  stat_ellipse() +
+  scale_color_manual(values = c("grey20","red"))
+
+  xdens <- axis_canvas(main_scatter, axis = "x")+
+    geom_density(data = df, aes(x = !!xvar, fill = DX),
+              alpha = 0.5, size = 0.2) +
+    scale_fill_manual(values = c("grey20","red"))
+
+  ydens <- axis_canvas(main_scatter, axis = "y", coord_flip = TRUE)+
+    geom_density(data = df, aes(x = !!yvar, fill = DX),
+                alpha = 0.5, size = 0.2) +
+  scale_fill_manual(values = c("grey20","red")) +
+  coord_flip()
+  
+  #putting the peices together
+  p1 <- insert_xaxis_grob(main_scatter, xdens, grid::unit(.2, "null"), position = "top")
+  p2<- insert_yaxis_grob(p1, ydens, grid::unit(.2, "null"), position = "right")
+  return(p2)
+}
+```
+
+```{r}
+
+```
+
+
+```{r , fig.height=4, fig.width = 5}
+library(cowplot)
+fplot <- FC_weighted %>%
+  spread(weigthFc, mwcorZ) 
+
+ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_subcort_to_DM, y = hypo_cerebullum_to_striatum))
+```
+
+```{r, fig.width=5, fig.height = 4}
+ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_subcort_to_SMVI, y = hypo_cerebullum_to_striatum))
+```
+```{r, fig.width=5, fig.height = 4}
+ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_subcort_to_SMVI, y = hypo_subcort_to_FPVA))
+```
+
+```{r, fig.width=5, fig.height = 4}
+ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_cortVADA_to_SMVI, y = hypo_cortDM_to_DAVASM))
+```
+```{r, fig.width=5, fig.height = 4}
+ggdraw(plot_DX_scatter_elipsed(fplot, 
+                               x = hypo_cerebullum_to_striatum, 
+                               y = hypo_cortDM_to_DAVASM))
+```
+```{r, fig.width=5, fig.height = 4}
+ggdraw(plot_DX_scatter_elipsed(fplot, 
+                               x = hyper_subcort_to_SMVI, 
+                               y = hypo_cortDM_to_DAVASM))
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
