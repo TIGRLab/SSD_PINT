@@ -19,7 +19,7 @@ library(ggraph)
 ```
 
 ```{r}
-load("../intermediate/06_intermediatedata.Rdata.RData")
+load("../intermediate/06_intermediate_201903.RData")
 ```
 
 ```{r}
@@ -38,7 +38,7 @@ YeoNet7 <- tribble(
 ```{r}
 the_subcortical_guide
 ```
-```{r}
+```{r eval = FALSE}
 subcort_vxcounts <- read_csv("../templates/subcort_vxcounts.csv") %>%
   unite(combined_name, subcort_hemi, subcort_ROI, network, sep = "_") %>%
   mutate(size_is_ok  = if_else(numvx > 34, "yes", "no"))
@@ -47,7 +47,7 @@ the_subcortical_guide <- the_subcortical_guide %>%
   inner_join(subcort_vxcounts, by = "combined_name")
 ```
 
-```{r}
+```{r eval = FALSE}
 node_annotations <- tibble(node_name = c(Yeo7_2011_80verts$SHORTNAME,
                                          the_subcortical_guide$combined_name)) %>%
   left_join(the_subcortical_guide, by = c("node_name" = "combined_name")) %>%
@@ -85,7 +85,19 @@ node_annotations <- node_annotations %>%
 ```
 
 
-
+```{r eval = FALSE}
+DX_lm_model <- results_pheno %>%
+  semi_join(node_annotations, by = c("to"="node_name")) %>%
+  semi_join(node_annotations, by = c("from"="node_name")) %>%
+  mutate(corZ = weight) %>%
+  group_by(vertex_type, to, from) %>%
+  do(tidy(lm(corZ ~ DX + Age_pt + Sex + fd_mean_pt + Scanner,.))) %>%
+  select(vertex_type, to, from, term, statistic, p.value) %>%
+  ungroup() %>%
+  group_by(term) %>%
+  mutate(p_FDR = p.adjust(p.value, method = "fdr")) %>%
+  arrange(p.value)
+```
 
 
 
@@ -141,23 +153,9 @@ plt <- ggraph(tg_lm, layout = 'linear', circular = FALSE,
 
 ```
 
-```{r fig.height=10, fig.width=10}
-DX_lm_model %>%
-  filter(term == "DXSSD") %>%
-  filter(vertex_type == "pvertex") %>%
-  make_super_cools_plot(pos_label = "SSD > HC", 
-                      neg_label = "HC > SSD",
-                      plot_title = "Personalized")
-```
 
-```{r fig.height=10, fig.width=10}
-DX_lm_model %>%
-  filter(term == "DXSSD") %>%
-  filter(vertex_type == "tvertex") %>%
-  make_super_cools_plot(pos_label = "SSD > HC", 
-                      neg_label = "HC > SSD",
-                      plot_title = "Template")
-```
+
+
 
 ```{r}
 #' convert from three col graph df to adjacency matrix
@@ -217,6 +215,12 @@ flipping_guide$flip_order[flipping_guide$network.x=="VA" & flipping_guide$networ
 flipping_guide$flip_order[flipping_guide$network.x=="VI" & flipping_guide$network.y == "SM"] <- "yes"
 flipping_guide$flip_order[flipping_guide$network.x=="SM" & flipping_guide$network.y == "VA"] <- "yes"
 flipping_guide$flip_order[flipping_guide$network.x=="VI" & flipping_guide$network.y == "VA"] <- "yes"
+flipping_guide$flip_order[flipping_guide$network.x=="DM" & flipping_guide$network.y == "DA"] <- "no"
+flipping_guide$flip_order[flipping_guide$network.x=="SM" & flipping_guide$network.y == "DM"] <- "yes"
+flipping_guide$flip_order[flipping_guide$network.x=="SM" & flipping_guide$network.y == "DA"] <- "yes"
+flipping_guide$flip_order[flipping_guide$network.x=="VI" & flipping_guide$network.y == "FP"] <- "yes"
+flipping_guide$flip_order[flipping_guide$network.x=="SM" & flipping_guide$network.y == "FP"] <- "yes"
+flipping_guide$flip_order[flipping_guide$network.x=="FP" & flipping_guide$network.y == "DM"] <- "yes"
 flipping_guide
 ```
 
@@ -232,7 +236,9 @@ flip_subcort <- DX_lm_model %>%
   select(hemi.x, hemi.y, subcort_ROI.x, subcort_ROI.y) %>%
   distinct() %>%
   mutate(drop_rows = if_else(subcort_ROI.x == subcort_ROI.y, "drop", "keep"),
-         flip_order2 = if_else(subcort_ROI.x == "thalamus" & subcort_ROI.y == "cerebullum", "yes", "no"))
+         flip_order2 = if_else(subcort_ROI.x == "cerebellum" & subcort_ROI.y == "thalamus", "yes", "no"),
+         flip_order2 = if_else(subcort_ROI.x == "cerebellum" & subcort_ROI.y == "striatum", "yes", flip_order2),
+         flip_order2 = if_else(subcort_ROI.x == "thalamus" & subcort_ROI.y == "striatum", "yes", flip_order2))
 ```
 
 ```{r}
@@ -506,9 +512,9 @@ plot_DX_scatter_elipsed <- function(df, x, y) {
 }
 ```
 
-```{r}
 
-```
+
+
 
 
 ```{r , fig.height=4, fig.width = 5}
@@ -539,7 +545,47 @@ ggdraw(plot_DX_scatter_elipsed(fplot,
                                x = hyper_subcort_to_SMVI, 
                                y = hypo_cortDM_to_DAVASM))
 ```
+```{r, fig.height=4, fig.width=6}
+fig1 <- fplot %>%
+  ggplot(aes(y = hypo_cortDM_to_DAVASM, x = DX, color = DX)) + 
+  geom_boxplot(outlier.shape = NA) + 
+  geom_dotplot(binaxis = 'y', stackdir = 'center', binwidth = 0.01, alpha = 0.5) +
+  scale_color_manual(values = c("grey20","red")) +
+  facet_wrap( ~ Site, ncol = 4) +
+  labs(x = NULL)
 
+#ggsave(fig1, filename = 'VA_results.png',height = 8, width = 5)
+
+fig1
+```
+
+```{r, fig.height=4, fig.width=6}
+fig1 <- fplot %>%
+  ggplot(aes(y = hypo_subcort_to_FPVA, x = DX, color = DX)) + 
+  geom_boxplot(outlier.shape = NA) + 
+  geom_dotplot(binaxis = 'y', stackdir = 'center', binwidth = 0.01, alpha = 0.5) +
+  scale_color_manual(values = c("grey20","red")) +
+  facet_wrap( ~ Site, ncol = 4) +
+  labs(x = NULL)
+
+#ggsave(fig1, filename = 'VA_results.png',height = 8, width = 5)
+
+fig1
+```
+
+```{r, fig.height=4, fig.width=6}
+fig1 <- fplot %>%
+  ggplot(aes(y = hyper_subcort_to_SMVI, x = DX, color = DX)) + 
+  geom_boxplot(outlier.shape = NA) + 
+  geom_dotplot(binaxis = 'y', stackdir = 'center', binwidth = 0.01, alpha = 0.5) +
+  scale_color_manual(values = c("grey20","red")) +
+  facet_wrap( ~ Site, ncol = 4) +
+  labs(x = NULL)
+
+#ggsave(fig1, filename = 'VA_results.png',height = 8, width = 5)
+
+fig1
+```
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
 
 When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
