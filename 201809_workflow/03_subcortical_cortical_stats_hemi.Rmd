@@ -2,7 +2,8 @@
 title: "Sub-cortical Cortical Stats Split by Hemisphere"
 output:
   html_document:
-    keep_md: TRUE
+    keep_md: yes
+  pdf_document: default
 ---
 
 # Sub-cortical Cortical Stats Left and Right
@@ -110,8 +111,7 @@ read_pint_meants <- function(outputprefix, vertex_type, projectname, output_dir)
 read_pint_volsphere_meants <- function(outputprefix, projectname, output_dir) {
   expected_filepath <- file.path(output_dir, projectname, "out",'ciftify_meants', 
                            str_c(outputprefix, '_desc-volcleansm8_atlas-6mmYeo780_timeseries.csv'))
-  meants = read_meants_csv(expected_filepath) %>% t() %>% as.data.frame()
-  names(meants) = Yeo7_2011_80verts$SHORTNAME
+  meants = read_meants_csv(expected_filepath) 
   return(meants)
 }
 
@@ -280,6 +280,11 @@ pheno <- pheno %>%
          outputprefix = construct_output_prefix(subject, session, func_base)) 
 ```
 
+a litle chunck I use to test if test if the reader is working...
+
+```{r eval = FALSE}
+run_read_subject_subcort_corrs(pheno$outputprefix[1], pheno$dataset[1])
+```
 
 
 ```{r read all the data}
@@ -302,7 +307,7 @@ results_pheno <- all_subcort_results %>%
          YeoNet = factor(YeoNet, levels = c("VI", "SM", "DA", "VA", "FP", "DM")),
          subcort_NET = factor(subcort_NET, levels = c("VI", "SM", "DA", "VA", "FP", "DM", "LI"))) %>%
   select(subject, PINT_ROI, subcort_ROI, subcort_NET,subcort_hemi, 
-         pvertex_corr, tvertex_corr, 
+         pvertex_corr, tvertex_corr, tvolume_corr,
          DX, Sex, fd_mean, Age, Site, Scanner, Age_pt, fd_mean_pt,  
          YeoNet, hemisphere, conn_type) 
 
@@ -331,7 +336,7 @@ kable(tabMat)
 ```{r plotting-PINT-change-matrix, fig.width=6, fig.height=8}
 table1 <- results_pheno %>%
   mutate(corr_diff = pvertex_corr - tvertex_corr) %>%
-  gather(corr_type, rval, pvertex_corr, tvertex_corr) %>%
+  gather(corr_type, rval, pvertex_corr, tvertex_corr, tvolume_corr) %>%
   group_by(corr_type, YeoNet, subcort_ROI, subcort_NET) %>%
   summarise(n = n(),
             Mean = mean(rval),
@@ -344,19 +349,38 @@ ggplot(table1, aes(y = YeoNet, x = subcort_NET, fill = Mean)) +
   facet_grid(subcort_ROI~corr_type) 
 
 ```
-```{r plotting-PINT-change-matrix-reduce, fig.width=8, fig.height=6}
+functions to help re-annotated the function axes
 
-table1 %>%
-  filter(subcort_NET != "VI",
+```{r function-to-plot-annots}
+#' sets some the main variables to factors to more descriptive labels
+add_corrtype_and_subcortROI_columns <- function(data) {
+  result <- data %>%
+    mutate(corrtype = factor(corr_type, levels = c('tvolume_corr','tvertex_corr','pvertex_corr'),
+                           labels = c("Volume", "Template (pre)", "Personalized (post)")),
+         subcortROI = factor(subcort_ROI, 
+                             levels = c("striatum", "thalamus", "cerebellum"),
+                             labels = c("Striatum", "Thalamus", "Cerebellum"))) 
+  return(result)
+}
+
+#'drop VI DA and LI network from resutls
+drop_VI_DA_LI <- function(data) {
+  result <- data %>%
+    filter(subcort_NET != "VI",
          subcort_NET != "DA",
          subcort_NET != "LI",
          YeoNet != "VI",
-         YeoNet != "DA") %>%
-  mutate(corrtype = factor(corr_type, levels = c('tvertex_corr','pvertex_corr'),
-                           labels = c("Template (pre)", "Personalized (post)")),
-         subcortROI = factor(subcort_ROI, 
-                             levels = c("striatum", "thalamus", "cerebellum"),
-                             labels = c("Striatum", "Thalamus", "Cerebellum"))) %>%
+         YeoNet != "DA") 
+  return(result)
+}
+```
+
+
+```{r plotting-PINT-change-matrix-reduce, fig.width=7.5, fig.height=7.5}
+
+table1 %>%
+  drop_VI_DA_LI() %>%
+  add_corrtype_and_subcortROI_columns() %>%
 ggplot(aes(y = YeoNet, x = subcort_NET, fill = Mean)) + 
   geom_tile() +
   geom_text(aes(label = sprintf('%3.2f',Mean))) +
@@ -367,26 +391,18 @@ ggplot(aes(y = YeoNet, x = subcort_NET, fill = Mean)) +
 
 ```
 
-```{r plotting-PINT-change-matrix-hemi, fig.width=8, fig.height=8}
+```{r plotting-PINT-change-matrix-hemi, fig.width=12, fig.height=12}
 table1 <- results_pheno %>%
   mutate(corr_diff = pvertex_corr - tvertex_corr) %>%
-  gather(corr_type, rval, pvertex_corr, tvertex_corr) %>%
+  gather(corr_type, rval, pvertex_corr, tvertex_corr, tvolume_corr) %>%
   group_by(corr_type, YeoNet, hemisphere, subcort_ROI, subcort_NET, subcort_hemi) %>%
   summarise(n = n(),
             Mean = mean(rval),
             SD = sd(rval)) 
 
 table1 %>%
-  filter(subcort_NET != "VI",
-         subcort_NET != "DA",
-         subcort_NET != "LI",
-         YeoNet != "VI",
-         YeoNet != "DA") %>%
-  mutate(corrtype = factor(corr_type, levels = c('tvertex_corr','pvertex_corr'),
-                           labels = c("Template (pre)", "Personalized (post)")),
-         subcortROI = factor(subcort_ROI, 
-                             levels = c("striatum", "thalamus", "cerebellum"),
-                             labels = c("Striatum", "Thalamus", "Cerebellum"))) %>%
+  drop_VI_DA_LI() %>%
+  add_corrtype_and_subcortROI_columns() %>%
 ggplot(aes(y = YeoNet, x = subcort_NET, fill = Mean)) + 
   geom_tile() +
   geom_text(aes(label = sprintf('%3.2f',Mean))) +
@@ -405,7 +421,8 @@ net_means <- results_pheno %>%
   mutate(corr_diff = pvertex_corr - tvertex_corr) %>%
   group_by(YeoNet, subcort_ROI, subcort_NET, conn_type, subject) %>%
   summarise(netmean_pvertex = mean(pvertex_corr),
-            netmean_tvertex = mean(tvertex_corr)) %>%
+            netmean_tvertex = mean(tvertex_corr),
+            netmean_tvolume = mean(tvolume_corr)) %>%
   ungroup()
 
 net_means_pint_t <- net_means %>%
@@ -416,11 +433,7 @@ net_means_pint_t <- net_means %>%
 net_means_pint_t %>%
   ungroup() %>%
   mutate(sig = if_else(p_FDR < 0.05, '*', NA_character_) ) %>%
-  filter(subcort_NET != "VI",
-       subcort_NET != "DA",
-       subcort_NET != "LI",
-       YeoNet != "VI",
-       YeoNet != "DA") %>%
+  drop_VI_DA_LI() %>%
   mutate(subcortROI = factor(subcort_ROI, 
                            levels = c("striatum", "thalamus", "cerebellum"),
                            labels = c("Striatum", "Thalamus", "Cerebellum"))) %>%
@@ -433,6 +446,26 @@ ggplot(aes(x = YeoNet, y = subcort_NET, fill = statistic)) +
 ```
 Here we plot the paired t-stat camparing personalized to template, we see a very strong increase in correlation along the diagonal (i.e. with the hypothesized regions) and decreases on the off-dignonal (i.e. decreased connectivity with the other network's parcels)
 
+```{r}
+net_means_vpint_t <- net_means %>%
+  group_by(YeoNet, subcort_ROI, subcort_NET) %>%
+  do(tidy(t.test(.$netmean_pvertex, .$netmean_tvolume, paired = TRUE))) %>%
+  ungroup() %>% mutate(p_FDR = p.adjust(p.value, method = "fdr"))
+
+net_means_vpint_t %>%
+  ungroup() %>%
+  mutate(sig = if_else(p_FDR < 0.05, '*', NA_character_) ) %>%
+  drop_VI_DA_LI() %>%
+  mutate(subcortROI = factor(subcort_ROI, 
+                           levels = c("striatum", "thalamus", "cerebellum"),
+                           labels = c("Striatum", "Thalamus", "Cerebellum"))) %>%
+ggplot(aes(x = YeoNet, y = subcort_NET, fill = statistic)) + 
+  geom_tile(color = "black", na.rm = TRUE) +
+  geom_point(aes(shape = sig), na.rm = TRUE) +
+  scale_fill_distiller(breaks = c(-10,10), type = "div", palette = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_wrap(~subcortROI)
+```
 
 # trying to calculate an vs off diagonal term
 
@@ -441,19 +474,22 @@ In the above table to calcuculated the "focussing" effect as the change (in on p
 Below we plot these values against zero
 
 ```{r net-focus-tstats}
-library(knitr)
 net_focus <- net_means %>%
   ungroup() %>%
-  mutate(pint_diff = netmean_pvertex - netmean_tvertex) %>%
+  mutate(pint_diff = netmean_pvertex - netmean_tvertex,
+         vpint_diff = netmean_pvertex - netmean_tvolume) %>%
   group_by(subject, subcort_ROI, YeoNet, conn_type) %>%
-  summarise(nets_avg = mean(pint_diff)) %>%
+  summarise(nets_avg_pint_diff = mean(pint_diff),
+            nets_avg_vpint_diff = mean(vpint_diff)
+            ) %>%
   ungroup() %>%
+  gather(comparison, nets_avg, nets_avg_pint_diff, nets_avg_vpint_diff) %>%
   spread(conn_type, nets_avg) %>%
   mutate(focus_effect = same_net - diff_net)
 
 net_focus %>%
   ungroup() %>%
-  group_by(subcort_ROI, YeoNet) %>%
+  group_by(subcort_ROI, YeoNet, comparison) %>%
   do(tidy(t.test(.$focus_effect))) %>%
   kable()
 ```
@@ -462,7 +498,8 @@ Another (maybe better) way to test this is to show calculate the "focusing" valu
 
 ```{r sub-focus-tstats}
 subject_focus <- net_means %>%
-  gather(vertex_type, nets_avg, netmean_pvertex, netmean_tvertex) %>%
+  drop_VI_DA_LI() %>%
+  gather(vertex_type, nets_avg, netmean_pvertex, netmean_tvertex, netmean_tvolume) %>%
   ungroup(subcort_NET) %>%
   group_by(subject, subcort_ROI, YeoNet, vertex_type, conn_type) %>%
   summarise(nets_type_avg = mean(nets_avg)) %>%
@@ -485,7 +522,15 @@ subject_focus %>%
   do(tidy(t.test(.$netmean_pvertex, .$netmean_tvertex, paired = TRUE))) %>%
   kable()
 ```
-
+```{r}
+subject_focus %>%
+  ungroup() %>% group_by(subject, YeoNet, subcort_ROI) %>%
+  select(subject, YeoNet, vertex_type, subcort_ROI, focus_effect) %>%
+  spread(vertex_type, focus_effect) %>%
+  group_by(subcort_ROI, YeoNet) %>%
+  do(tidy(t.test(.$netmean_tvertex, .$netmean_tvolume, paired = TRUE))) %>%
+  kable()
+```
 
 ```{r, fig.height=8, fig.width=4}
 subject_focus %>%
@@ -703,7 +748,7 @@ Note that the circle denotes an uncorrected p<0.05
 
 ```{r plotting-PINT-effect-separately-by-DX-all}
 net_means_byDX <- results_pheno %>%
-  mutate(corr_diff = pvertex_corr - tvertex_corr) %>%
+  mutate(corr_diff = pvertex_corr - tvolume_corr) %>%
   group_by(YeoNet, subcort_ROI, subcort_NET, subject, DX) %>%
   summarise(netmean_pvertex = mean(pvertex_corr),
             netmean_tvertex = mean(tvertex_corr)) %>%
@@ -723,7 +768,7 @@ ggplot(aes(x = YeoNet, y = subcort_NET, fill = statistic)) +
 ```
 ```{r plotting-PINT-effect-separately-by-DX}
 net_means_byDX <- results_pheno %>%
-  mutate(corr_diff = pvertex_corr - tvertex_corr) %>%
+  mutate(corr_diff = pvertex_corr - tvolume_corr) %>%
   group_by(YeoNet, subcort_ROI, subcort_NET, subject, DX) %>%
   summarise(netmean_pvertex = mean(pvertex_corr),
             netmean_tvertex = mean(tvertex_corr)) %>%
@@ -757,7 +802,7 @@ ggplot(aes(x = YeoNet, y = subcort_NET, fill = statistic)) +
 library(knitr)
 
 DX_lm_model <- results_pheno %>%
-  gather(vertex_type, corZ, pvertex_corr, tvertex_corr) %>%
+  gather(vertex_type, corZ, pvertex_corr, tvertex_corr, tvolume_corr) %>%
   filter(Age > 17, Age < 51) %>%
   filter(subcort_ROI %in% c("cerebellum", "striatum")) %>%
   group_by(vertex_type, subcort_ROI, subcort_NET, PINT_ROI) %>%
@@ -808,7 +853,6 @@ DX_lm_model %>%
 ```
 
 
-
 ```{r DX-effect-of-PINT-scatter, fig.height=4, fig.width=4}
 DX_lm_model %>%
   ungroup() %>%
@@ -818,11 +862,11 @@ DX_lm_model %>%
        subcort_NET != "LI") %>%
   select(vertex_type, subcort_ROI, subcort_NET, PINT_ROI, statistic) %>%
   spread(vertex_type, statistic) %>%
-  ggplot(aes(x = pvertex_corr, y = tvertex_corr)) +
+  ggplot(aes(x = pvertex_corr, y = tvolume_corr)) +
   geom_point() +
   geom_smooth(method = "lm", color = "blue") +
   geom_abline(slope = 1, intercept = 0) +
-  labs(x = "Personalized (after)", y = "Template (before)",
+  labs(x = "Personalized (after)", y = "Volume Template",
        title = "Effect of SSD Diagnosis (t-tstat)")
 ```
 
@@ -834,9 +878,9 @@ DX_lm_model %>%
        subcort_NET != "LI") %>%
   select(vertex_type, subcort_ROI, subcort_NET, PINT_ROI, statistic) %>%
   spread(vertex_type, statistic) %>%
-  filter(abs(tvertex_corr) > 4.5) %>%
-  mutate(abs_tstat_change = abs(pvertex_corr) - abs(tvertex_corr)) %>%
-  ggplot(aes(x = abs_tstat_change)) + geom_density() + geom_vline(xintercept = 0)
+  filter(abs(pvertex_corr) > 3.0) %>%
+  mutate(abs_tstat_change = abs(pvertex_corr) - abs(tvolume_corr)) %>%
+  ggplot(aes(x = abs_tstat_change)) + geom_histogram() + geom_vline(xintercept = 0)
 ```
 ```{r DX-effect-of-PINT-density-fill, fig.height=4, fig.width=6}
 DX_lm_model %>%
@@ -879,7 +923,7 @@ DX_lm_model %>%
   select(vertex_type, subcort_ROI, subcort_NET, PINT_ROI, statistic) %>%
   spread(vertex_type, statistic) %>%
   mutate(YeoNet = substr(PINT_ROI, 1,2)) %>%
-  ggplot(aes(x = pvertex_corr, y = tvertex_corr)) +
+  ggplot(aes(x = pvertex_corr, y = tvolume_corr)) +
   geom_point(aes(color=subcort_NET)) +
   geom_smooth(method = "lm", color = "blue") +
   geom_abline(slope = 1, intercept = 0) +
@@ -897,7 +941,7 @@ DX_lm_model %>%
   select(vertex_type, subcort_ROI, subcort_NET, PINT_ROI, statistic) %>%
   spread(vertex_type, statistic) %>%
   mutate(YeoNet = substr(PINT_ROI, 1,2)) %>%
-  ggplot(aes(x = pvertex_corr, y = tvertex_corr)) +
+  ggplot(aes(x = pvertex_corr, y = tvolume_corr)) +
   geom_point(aes(color=subcort_NET)) +
   geom_smooth(method = "lm", color = "blue") +
   geom_abline(slope = 1, intercept = 0) +
@@ -913,12 +957,13 @@ DX_lm_net_model <- results_pheno %>%
   group_by(YeoNet, subcort_ROI, subcort_NET, hemisphere, subcort_hemi, 
            subject, DX, Age_pt, Sex, Scanner, fd_mean_pt, Age) %>%
   summarise(netmean_pvertex = mean(pvertex_corr),
-            netmean_tvertex = mean(tvertex_corr)) %>%
-  gather(vertex_type, netmean_corZ, netmean_pvertex, netmean_tvertex) %>%
+            netmean_tvertex = mean(tvertex_corr),
+            netmean_tvolume = mean(tvolume_corr)) %>%
+  gather(vertex_type, netmean_corZ, netmean_pvertex, netmean_tvertex, netmean_tvolume) %>%
   filter(Age > 17, Age < 51) %>%
   
   group_by(vertex_type, subcort_ROI, subcort_NET, YeoNet) %>%
-  do(tidy(lm(netmean_corZ ~ DX + Sex + fd_mean_pt + poly(Age_pt,2) + Scanner,.))) %>%
+  do(tidy(lm(netmean_corZ ~ DX + Sex + fd_mean_pt + Age_pt + Scanner,.))) %>%
   select(vertex_type, subcort_ROI, YeoNet, term, statistic, p.value) %>%
   ungroup() %>%
   group_by(term) %>%
@@ -952,7 +997,7 @@ DX_lm_net_model %>%
   filter(term %in% c("DXSSD")) %>%
   select(vertex_type, subcort_ROI, subcort_NET, YeoNet, statistic) %>%
   spread(vertex_type, statistic) %>%
-  ggplot(aes(x = netmean_pvertex, y = netmean_tvertex)) +
+  ggplot(aes(x = netmean_pvertex, y = netmean_tvolume)) +
   geom_point(aes(color=YeoNet)) +
   geom_abline(slope = 1, intercept = 0) 
 ```

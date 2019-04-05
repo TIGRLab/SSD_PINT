@@ -15,7 +15,7 @@ library(knitr)
 library(tableone)
 library(cowplot)
 library(igraph)
-#library(ggraph)
+library(ggraph)
 ```
 
 ## The paths to data
@@ -387,23 +387,17 @@ results_pheno
 ```
 
 ```{r}
-DX_lm_model <- results_pheno %>%
+DX_lm_model_full <- results_pheno %>%
+  semi_join(node_annotations, by = c("to"="node_name")) %>%
+  semi_join(node_annotations, by = c("from"="node_name")) %>%
   mutate(corZ = weight) %>%
   group_by(vertex_type, to, from) %>%
-  do(tidy(lm(corZ ~ DX + Age_pt + Sex + fd_mean_pt + Scanner,.))) %>%
-  select(vertex_type, to, from, term, statistic, p.value) %>%
-  ungroup() %>%
-  group_by(term) %>%
-  mutate(p_FDR = p.adjust(p.value, method = "fdr")) %>%
-  arrange(p.value)
+  do(tidy(lm(corZ ~ DX + Age_pt + Sex + fd_mean_pt + Scanner,.))) 
 ```
 
 
-
-
-
 ```{r}
-annotated_graph_edges <- DX_lm_model %>%
+annotated_graph_edges <- DX_lm_model_full %>%
   ungroup() %>%
   select(to, from) %>%
   distinct() %>%
@@ -424,8 +418,21 @@ annotated_graph_edges <- DX_lm_model %>%
   mutate(from_to_type = recode(from_to_type, "Cort_SubCort" = "SubCort_Cort")) %>%
   mutate(hemis = recode(hemis, "RL" = "LR")) %>%
   mutate(to = to_edgename, from = from_edgename)
-  
 ```
+
+```{r}
+DX_lm_model <- DX_lm_model_full %>%
+  ungroup() %>%
+  inner_join(annotated_graph_edges, by = c("to", "from")) %>%
+  mutate(withinsubcort = if_else((from_to_type == "SubCort_SubCort") & (from_subcort_ROI == to_subcort_ROI), "drop", "keep")) %>%
+  filter(withinsubcort == "keep") %>%
+  select(vertex_type, to, from, term, statistic, p.value) %>%
+  ungroup() %>%
+  group_by(term) %>%
+  mutate(p_FDR = p.adjust(p.value, method = "fdr")) %>%
+  arrange(p.value)
+```
+
 
 
 ```{r}
@@ -617,28 +624,55 @@ current_cortcort <- DX_lm_model %>%
   filter(etype.x == "Cort", etype.y == "Cort") %>%
   select(network.x, network.y) %>%
   distinct() 
-
 new_mat <- current_cortcort %>%
   mutate(val = 1) %>%
   uppertri_df_to_agjmat() 
-
 ym <- YeoNet7$network[2:7]
 new_mat <- new_mat[order(ym),order(ym)]
 gm<- graph_from_adjacency_matrix(new_mat, mode = "upper") 
 new_order <- as_data_frame(gm)
-
 flipping_guide <- left_join(current_cortcort, mutate(new_order, thing = 1), by = c("network.x" = "from", "network.y" = "to")) %>%
   mutate(flip_order = if_else(is.na(thing), "yes", "no"),
          etype.x = "Cort",
          etype.y = "Cort") %>%
   select(-thing)
-
-flipping_guide
+flip_subcort <- DX_lm_model %>%
+  ungroup() %>%
+  select(to, from) %>%
+  inner_join(node_annotations, by = c("to"="node_name")) %>%
+  inner_join(node_annotations, by = c("from"="node_name")) %>%
+  filter(etype.x == "SubCort", etype.y == "SubCort") %>%
+  select(hemi.x, hemi.y, subcort_ROI.x, subcort_ROI.y) %>%
+  distinct() %>%
+  mutate(drop_rows = if_else(subcort_ROI.x == subcort_ROI.y, "drop", "keep"),
+         flip_order2 = if_else(subcort_ROI.x == "cerebellum" & subcort_ROI.y == "thalamus", "yes", "no"),
+         flip_order2 = if_else(subcort_ROI.x == "cerebellum" & subcort_ROI.y == "striatum", "yes", flip_order2),
+         flip_order2 = if_else(subcort_ROI.x == "thalamus" & subcort_ROI.y == "striatum", "yes", flip_order2))
 
 ```
 
-
 ```{r}
+flip_DX_model <- DX_lm_model %>%
+  ungroup() %>%
+  inner_join(node_annotations, by = c("to"="node_name")) %>%
+  inner_join(node_annotations, by = c("from"="node_name")) %>%
+  mutate(network.x = as.character(network.x),
+         network.y = as.character(network.y)) %>%
+  left_join(flipping_guide, by = c("network.x", "network.y", 'etype.x', 'etype.y')) %>%
+  mutate(flip_order = replace_na(flip_order, "no")) %>%
+  left_join(flip_subcort, by = c('hemi.x', 'hemi.y','subcort_ROI.x','subcort_ROI.y')) %>%
+  mutate(flip_order2 = replace_na(flip_order2, "no"),
+         drop_rows = replace_na(drop_rows, "no"),
+         flip_order = if_else(flip_order2 == "yes", "yes", flip_order)) %>%
+  mutate(nto = if_else(flip_order == "yes", from, to),
+         nfrom = if_else(flip_order == "yes", to, from)) %>%
+  select(-to, -from) %>%
+  rename(to = nto, from = nfrom) %>%
+  filter(drop_rows != "drop") %>%
+  select(to, from, term, vertex_type, statistic, p_FDR)
+```
+
+```{r eval = FALSE}
 flipping_guide$flip_order[flipping_guide$network.x=="VA" & flipping_guide$network.y == "DA"] <- "no"
 flipping_guide$flip_order[flipping_guide$network.x=="VI" & flipping_guide$network.y == "SM"] <- "yes"
 flipping_guide$flip_order[flipping_guide$network.x=="SM" & flipping_guide$network.y == "VA"] <- "yes"
@@ -704,6 +738,15 @@ flip_DX_model %>%
 flip_DX_model %>%
   filter(term == "DXSSD") %>%
   filter(vertex_type == "tvertex") %>%
+  make_super_cools_plot(pos_label = "SSD > HC", 
+                      neg_label = "HC > SSD",
+                      plot_title = "Template")
+```
+
+```{r fig.height=10, fig.width=10}
+flip_DX_model %>%
+  filter(term == "DXSSD") %>%
+  filter(vertex_type == "tvolume") %>%
   make_super_cools_plot(pos_label = "SSD > HC", 
                       neg_label = "HC > SSD",
                       plot_title = "Template")
