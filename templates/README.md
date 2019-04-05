@@ -94,6 +94,12 @@ rm rsn_PUTAMEN_*
 ## calculating subcortical roi size
 
 ```sh
+cd /scratch/edickie/saba_PINT/ciftify_fmriprep/ZHH/out/ciftify_meants/templates
+for struc in Lcerebellum Rcerebellum Lthalamus Rthalamus Lstriatum Rstriatum; do
+  wb_command -cifti-all-labels-to-rois 7RSN_roi-${struc}_atlas.dlabel.nii 1 tmp_7RSN_roi-${struc}_atlas_rois.dscalar.nii
+  wb_command -cifti-stats -reduce COUNT_NONZERO tmp_7RSN_roi-${struc}_atlas_rois.dscalar.nii > 7RSN_roi-${struc}_vxcount.txt
+done
 
+rm tmp_*
 
 ```
