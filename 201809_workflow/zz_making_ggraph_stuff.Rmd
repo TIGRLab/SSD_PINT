@@ -625,6 +625,15 @@ network_bar <- node_annotations %>%
   scale_fill_manual(values = rev(YeoNet7$hexcode[1:6])) +
   coord_fixed(ratio = 0.75)
 
+network_top_bar <- node_annotations %>%
+  filter(etype == "Cort") %>%
+  mutate(from_lab = factor(node_name, levels = node_annotations$node_name)) %>%
+  ggplot(aes(x=from_lab, y=1, fill = network)) +
+  geom_tile() +
+  geom_vline(xintercept= hgrid_beaks + 0.5, color='white', size=1) +
+  scale_fill_manual(values = rev(YeoNet7$hexcode[1:6])) +
+  coord_fixed(ratio = 0.75)
+
 # build the full heatmap plot object
 withincortical_heatmap <- function(data, plt_title = "", fillvar = "weight") {
   fillvar <- enquo(fillvar)
@@ -650,6 +659,7 @@ withincortical_heatmap <- function(data, plt_title = "", fillvar = "weight") {
   coord_fixed() +
   labs(title = plt_title,
        x = NULL, y = NULL, fill = "Correlation (Z)")
+  #p1<- insert_yaxis_grob(plt, network_top_bar, grid::unit(.03, "null"), position = "bottom")
   p2<- insert_yaxis_grob(plt, network_bar, grid::unit(.03, "null"), position = "left")
   return(p2)
 }
@@ -666,15 +676,16 @@ mean_cors %>%
   filter(vertex_type == "pvertex") %>%
   withincortical_heatmap("Personalized Mean Correlation", mcorZ) %>%
   ggdraw()
-# mean_cors %>%
-#   filter(vertex_type == "tvertex") %>%
-#   withincortical_heatmap("Surface Template Mean Correlation", mcorZ) %>%
-#   ggdraw()
-# 
-# mean_cors %>%
-#   filter(vertex_type == "tvolume") %>%
-#   withincortical_heatmap("Volume Template Mean Correlation", mcorZ) %>%
-#   ggdraw()
+
+mean_cors %>%
+  filter(vertex_type == "tvertex") %>%
+  withincortical_heatmap("Surface Template Mean Correlation", mcorZ) %>%
+  ggdraw()
+
+mean_cors %>%
+  filter(vertex_type == "tvolume") %>%
+  withincortical_heatmap("Volume Template Mean Correlation", mcorZ) %>%
+  ggdraw()
 ```
 
 
@@ -684,17 +695,20 @@ thissubject = unique(pheno$subject)[2]
 results_pheno %>%
   filter(subject==thissubject,
          vertex_type == "pvertex") %>%
-  withincortical_heatmap(str_c(thissubject, " Personalized Correlation"))
+  withincortical_heatmap(str_c(thissubject, " Personalized Correlation")) %>%
+  ggdraw()
 
 results_pheno %>%
   filter(subject==thissubject,
          vertex_type == "tvertex") %>%
-  withincortical_heatmap(str_c(thissubject, " Surface Template Correlation"))
+  withincortical_heatmap(str_c(thissubject, " Surface Template Correlation")) %>%
+  ggdraw()
 
 results_pheno %>%
   filter(subject==thissubject,
          vertex_type == "tvolume") %>%
-  withincortical_heatmap(str_c(thissubject, " Volume Template Correlation"))
+  withincortical_heatmap(str_c(thissubject, " Volume Template Correlation")) %>%
+  ggdraw()
 ```
 ```{r repsub2-cor-mats, fig.height=6, fig.width=7.5}
 thissubject = unique(pheno$subject)[3]
@@ -702,17 +716,20 @@ thissubject = unique(pheno$subject)[3]
 results_pheno %>%
   filter(subject==thissubject,
          vertex_type == "pvertex") %>%
-  withincortical_heatmap(str_c(thissubject, " Personalized Correlation"))
+  withincortical_heatmap(str_c(thissubject, " Personalized Correlation")) %>%
+  ggdraw()
 
 results_pheno %>%
   filter(subject==thissubject,
          vertex_type == "tvertex") %>%
-  withincortical_heatmap(str_c(thissubject, " Surface Template Correlation"))
+  withincortical_heatmap(str_c(thissubject, " Surface Template Correlation")) %>%
+  ggdraw()
 
 results_pheno %>%
   filter(subject==thissubject,
          vertex_type == "tvolume") %>%
-  withincortical_heatmap(str_c(thissubject, " Volume Template Correlation"))
+  withincortical_heatmap(str_c(thissubject, " Volume Template Correlation")) %>%
+  ggdraw()
 ```
 
 ```{r repsub3-cor-mats, fig.height=6, fig.width=7.5}
@@ -721,15 +738,18 @@ thissubject = unique(pheno$subject)[100]
 results_pheno %>%
   filter(subject==thissubject,
          vertex_type == "pvertex") %>%
-  withincortical_heatmap(str_c(thissubject, " Personalized Correlation"))
+  withincortical_heatmap(str_c(thissubject, " Personalized Correlation")) %>%
+  ggdraw()
 
 results_pheno %>%
   filter(subject==thissubject,
          vertex_type == "tvertex") %>%
-  withincortical_heatmap(str_c(thissubject, " Surface Template Correlation"))
+  withincortical_heatmap(str_c(thissubject, " Surface Template Correlation")) %>%
+  ggdraw()
 
 results_pheno %>%
   filter(subject==thissubject,
          vertex_type == "tvolume") %>%
-  withincortical_heatmap(str_c(thissubject, " Volume Template Correlation"))
+  withincortical_heatmap(str_c(thissubject, " Volume Template Correlation")) %>%
+  ggdraw()
 ```
