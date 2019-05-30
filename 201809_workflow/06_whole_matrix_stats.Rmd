@@ -438,8 +438,10 @@ DX_lm_model <- DX_lm_model_full %>%
 ```{r}
 DX_lm_model %>%
   inner_join(annotated_graph_edges, by = c("to", "from")) %>%
-  mutate(sig_edge = if_else(p_FDR < 0.05, "sig", "ns")) %>%
-  filter(term == "DXSSD") %>% count(vertex_type, from_to_type, sig_edge) %>%
+  mutate(sig_edge = if_else(p_FDR < 0.05, "sig", "ns"),
+         stat_pos = if_else(statistic > 0, "pos", "neg")) %>%
+  filter(term == "DXSSD") %>% 
+  count(vertex_type, from_to_type, sig_edge) %>%
   spread(sig_edge, n) %>%
   mutate(perc_sig = sig/(ns + sig)*100)
 
@@ -447,10 +449,12 @@ DX_lm_model %>%
 ```{r}
 DX_lm_model %>%
   inner_join(annotated_graph_edges, by = c("to", "from")) %>%
-  filter(term == "DXSSD", p_FDR < 0.05) %>% count(vertex_type, from_to_type, networks) %>%
+  mutate(cort_networks = str_c(to_cort_NET, from_cort_NET)) %>%
+  filter(term == "DXSSD", p_FDR < 0.05) %>% 
+  count(vertex_type, from_to_type, cort_networks) %>%
   spread(vertex_type, n, fill = 0) %>%
   mutate(vert_diff = pvertex - tvertex) %>%
-  arrange(-abs(vert_diff))
+  arrange(from_to_type, -abs(vert_diff))
 ```
 ```{r}
 DX_lm_model %>% count(term)

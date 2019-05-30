@@ -1360,3 +1360,7 @@ pheno %>%
   write_csv('../data/ciftify_fmriprep/qa_passes_summary_filelist.csv')
 ```
 
+```{r}
+save(file = '../intermediate/03_intermediate_data.RData')
+```
+

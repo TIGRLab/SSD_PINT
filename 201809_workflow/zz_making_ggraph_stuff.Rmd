@@ -296,6 +296,11 @@ flip_DX_model %>%
                       neg_label = "HC > SSD",
                       plot_title = "Volume")
 ```
+```{r}
+DX_lm_model
+```
+
+
 
 # so the interesting edges are:
 
@@ -323,6 +328,109 @@ full_DX_mat %>%
   labs(title = "T statistic for effect of DX",
        x = NULL, y = NULL, fill = "T statistic for DX")
 ```
+```{r}
+redux_annot <- node_annotations %>%
+  mutate(redux_region = if_else(etype == "Cort", 
+                                as.character(cort_NET), 
+                                as.character(subcort_ROI)),
+         redux_region = factor(redux_region,
+                               levels = c("DM", "FP", "VA", "DA", "SM", "VI", 
+                                          "striatum", "thalamus", "cerebellum"))) %>%
+  select(node_name, redux_region)
+```
+
+
+```{r}
+full_DX_mat %>%
+  inner_join(redux_annot, by = c("to"="node_name")) %>%
+  inner_join(redux_annot, by = c("from"="node_name")) %>%
+  group_by(redux_region.x, redux_region.y) %>%
+  summarise(mean_stat = mean(value)) %>%
+  ungroup() %>%
+  ggplot(aes(x=redux_region.x, y=redux_region.y, fill=mean_stat)) + 
+  geom_tile(color = "white") +
+  scale_fill_gradient2(high = "#b2182b", mid = "white", low = "#2166ac") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "T statistic for effect of DX",
+       x = NULL, y = NULL, fill = "T statistic for DX")
+```
+```{r}
+means_DX_effects <- DX_lm_model %>%
+  filter(term == "DXSSD") %>%
+  ungroup() %>%
+  select(vertex_type, to, from, statistic)  %>%
+  group_by(vertex_type) %>% 
+  nest() %>%
+  mutate(newdata = map(data, ~ uppertri_df_to_full(.x)))  %>%
+  unnest(newdata) %>%
+  inner_join(redux_annot, by = c("to"="node_name")) %>%
+  inner_join(redux_annot, by = c("from"="node_name")) %>%
+  group_by(vertex_type, redux_region.x, redux_region.y) %>%
+  summarise(mean_stat = mean(value)) %>%
+  ungroup() 
+
+means_DX_effects %>%
+  ggplot(aes(x=redux_region.x, y=redux_region.y, fill=mean_stat)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(high = "#b2182b", mid = "white", low = "#2166ac") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "T statistic for effect of DX",
+       x = NULL, y = NULL, fill = NULL) +
+  facet_wrap(~vertex_type)
+```
+
+```{r}
+means_DX_effects %>%
+  spread(vertex_type, mean_stat) %>%
+  mutate(pvertex_tvolume = pvertex - tvolume,
+         pvertex_tvertex = pvertex - tvertex,
+         tvertex_tvolume = tvertex - tvolume) %>%
+  gather(vchange, tchange, pvertex_tvolume, pvertex_tvertex, tvertex_tvolume) %>%
+  ggplot(aes(x=redux_region.x, y=redux_region.y, fill=tchange)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(high = "#b2182b", mid = "white", low = "#2166ac") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "T statistic change for effect of DX",
+       x = NULL, y = NULL, fill = NULL) +
+  facet_wrap(~vchange)
+
+```
+## So changes to expand upon would be
+
+- VI to thalamus
+- VI to striatum
+- VI to cerebellum
+- DM to stiatum
+- DM to DA
+- SM to DA
+- FP to striatum
+- FP to cerebellum
+
+```{r}
+DX_lm_model %>%
+  filter(term == "DXSSD") %>%
+  ungroup() %>%
+  select(vertex_type, to, from, statistic)  %>%
+  group_by(vertex_type) %>% 
+  nest() %>%
+  mutate(newdata = map(data, ~ uppertri_df_to_full(.x)))  %>%
+  unnest(newdata) %>%
+  inner_join(redux_annot, by = c("to"="node_name")) %>%
+  inner_join(redux_annot, by = c("from"="node_name")) %>%
+  filter(redux_region.x == "DM", redux_region.y == "DA") %>%
+  ggplot(aes(x = value, fill = vertex_type)) +
+  geom_density(alpha = 0.5)
+
+```
+
+
+- want to show density/ridge plots of edges for each group going from one to the other.. (maybe repost as cohen's D?)
+
+- maybe also split by site? (or just add final cohen;s D by site?)  
+
+- also VI to SM
+- also cerebellum to striatum
+
 subcortical with itself
 allsubcortical with VI/SM (hyper)
 subcortical with DM
