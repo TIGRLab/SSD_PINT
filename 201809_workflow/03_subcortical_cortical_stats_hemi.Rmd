@@ -295,6 +295,14 @@ all_subcort_results <- pheno %>%
                               ~run_read_subject_subcort_corrs(.x, .y)))
 ```
 
+```{r cache-subcort-Rdata, eval = FALSE}
+save(all_subcort_results, file = "03_subcort_results_cache.Rdata")
+```
+
+```{r load-cached-results, eval=FALSE}
+load("03_subcort_results_cache.Rdata")
+```
+
 ### merge with the phenotypic data
 
 ```{r merge with pheno and clean}
@@ -316,13 +324,14 @@ results_pheno <- all_subcort_results %>%
 
 
 
+
 ## make a subject table from resuts pheno
 
 
 ```{r report_demographics}
 library(tableone)
 therealtable1 <- CreateTableOne(
-  strata = c("Site", "DX"),
+  strata = c("DX", "Site"),
   vars = c("Age", "Sex", "fd_mean", "fd_perc"),
   data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L")
 )
@@ -330,6 +339,18 @@ tabMat <- print(therealtable1, quote = FALSE, noSpaces = TRUE, printToggle = FAL
 kable(tabMat)
 
 ```
+
+```{r report_demographics-pooled}
+library(tableone)
+therealtable1 <- CreateTableOne(
+  vars = c("Age", "Sex", "DX", "fd_mean", "fd_perc"),
+  data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L")
+)
+tabMat <- print(therealtable1, quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
+kable(tabMat)
+
+```
+
 
 # Is PINT "focusing" cortical subcortical connectivity
 
@@ -477,13 +498,15 @@ Below we plot these values against zero
 net_focus <- net_means %>%
   ungroup() %>%
   mutate(pint_diff = netmean_pvertex - netmean_tvertex,
-         vpint_diff = netmean_pvertex - netmean_tvolume) %>%
+         vpint_diff = netmean_pvertex - netmean_tvolume,
+         surf_diff = netmean_tvertex - netmean_tvolume) %>%
   group_by(subject, subcort_ROI, YeoNet, conn_type) %>%
   summarise(nets_avg_pint_diff = mean(pint_diff),
-            nets_avg_vpint_diff = mean(vpint_diff)
+            nets_avg_vpint_diff = mean(vpint_diff),
+            nets_avg_surf_diff = mean(surf_diff)
             ) %>%
   ungroup() %>%
-  gather(comparison, nets_avg, nets_avg_pint_diff, nets_avg_vpint_diff) %>%
+  gather(comparison, nets_avg, nets_avg_pint_diff, nets_avg_vpint_diff, nets_avg_surf_diff) %>%
   spread(conn_type, nets_avg) %>%
   mutate(focus_effect = same_net - diff_net)
 
@@ -515,20 +538,22 @@ subject_focus %>%
 ```
 ```{r}
 subject_focus %>%
-  ungroup() %>% group_by(subject, YeoNet, subcort_ROI) %>%
+  ungroup() %>% 
   select(subject, YeoNet, vertex_type, subcort_ROI, focus_effect) %>%
   spread(vertex_type, focus_effect) %>%
   group_by(subcort_ROI, YeoNet) %>%
   do(tidy(t.test(.$netmean_pvertex, .$netmean_tvertex, paired = TRUE))) %>%
+  mutate(cohenD = statistic/sqrt(parameter + 1)) %>%
   kable()
 ```
 ```{r}
 subject_focus %>%
-  ungroup() %>% group_by(subject, YeoNet, subcort_ROI) %>%
+  ungroup() %>% 
   select(subject, YeoNet, vertex_type, subcort_ROI, focus_effect) %>%
   spread(vertex_type, focus_effect) %>%
   group_by(subcort_ROI, YeoNet) %>%
   do(tidy(t.test(.$netmean_tvertex, .$netmean_tvolume, paired = TRUE))) %>%
+  mutate(cohenD = statistic/sqrt(parameter + 1)) %>%
   kable()
 ```
 
