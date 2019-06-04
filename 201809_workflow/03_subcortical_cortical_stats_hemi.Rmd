@@ -1,9 +1,9 @@
 ---
 title: "Sub-cortical Cortical Stats Split by Hemisphere"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
     keep_md: yes
-  pdf_document: default
 ---
 
 # Sub-cortical Cortical Stats Left and Right
@@ -526,19 +526,29 @@ subject_focus <- net_means %>%
   ungroup(subcort_NET) %>%
   group_by(subject, subcort_ROI, YeoNet, vertex_type, conn_type) %>%
   summarise(nets_type_avg = mean(nets_avg)) %>%
-  spread(conn_type, nets_type_avg) %>%
-  ungroup() %>%
-  mutate(focus_effect = same_net - diff_net)
+  spread(conn_type, nets_type_avg) # %>%
+  # ungroup() %>%
+  # mutate(focus_effect = same_net - diff_net)
 
 subject_focus %>%
   ungroup() %>%
   group_by(subcort_ROI, YeoNet, vertex_type) %>%
-  do(tidy(t.test(.$focus_effect))) %>%
+  do(tidy(t.test(.$same_net, .$diff_net, paired = TRUE))) %>%
+  mutate(cohenD = statistic/sqrt(parameter + 1)) %>%
   kable()
 ```
 ```{r}
+source('../R/R_rainclouds.R')
+subject_focus %>%
+  gather(nettype, corZ, diff_net, same_net)
+```
+
+
+```{r}
+
 subject_focus %>%
   ungroup() %>% 
+  mutate(focus_effect = same_net - diff_net) %>%
   select(subject, YeoNet, vertex_type, subcort_ROI, focus_effect) %>%
   spread(vertex_type, focus_effect) %>%
   group_by(subcort_ROI, YeoNet) %>%
@@ -549,6 +559,7 @@ subject_focus %>%
 ```{r}
 subject_focus %>%
   ungroup() %>% 
+  mutate(focus_effect = same_net - diff_net) %>%
   select(subject, YeoNet, vertex_type, subcort_ROI, focus_effect) %>%
   spread(vertex_type, focus_effect) %>%
   group_by(subcort_ROI, YeoNet) %>%
@@ -568,6 +579,16 @@ subject_focus %>%
   coord_flip()
 ```
 
+## fancy raincloud plots
+
+```{r}
+net_means %>%
+  drop_VI_DA_LI() %>%
+  gather(vertex_type, nets_avg, netmean_pvertex, netmean_tvertex, netmean_tvolume) %>%
+  ungroup(subcort_NET) %>%
+  group_by(subject, subcort_ROI, YeoNet, vertex_type, conn_type) %>%
+  summarise(nets_type_avg = mean(nets_avg)) 
+```
 
 Recreating the DM plot from the poster to double check
 
