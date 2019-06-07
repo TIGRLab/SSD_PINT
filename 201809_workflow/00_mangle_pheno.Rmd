@@ -1,7 +1,9 @@
 ---
 title: "Mangle the phenotypic data"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
+    keep_md: true
     df_print: paged
 ---
 
@@ -44,11 +46,10 @@ library(readxl)
 ```{r}
 
 
-ZHH_SZ = read.spss('../saba_pheno/Spreadsheets/ClinicalData/ZHH/Patient\ Sample\ 7-30-18.sav', to.data.frame=TRUE)
-ZHH_CRTL = read.spss('../saba_pheno/Spreadsheets/ClinicalData/ZHH/Control Sample 7-30-18.sav', to.data.frame=TRUE)
+ZHH_SZ = read.spss('../restricted_pheno/ZHH/phenotypic/Patient\ Sample\ 7-30-18.sav', to.data.frame=TRUE)
+ZHH_CRTL = read.spss('../restricted_pheno/ZHH/phenotypic/Control Sample 7-30-18.sav', to.data.frame=TRUE)
 
-#qryHC_NewResting_15_40 <- read_excel("/KIMEL/tigrlab/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
-qryHC_NewResting_15_40 <- read_excel("/external/miklos/demographics/qryHC_NewResting_15-40.xlsx")
+qryHC_NewResting_15_40 <- read_excel("../restricted_pheno/ZHH/demographics/qryHC_NewResting_15-40.xlsx")
 ```
 
 
@@ -228,7 +229,7 @@ old_pheno %>%
 
 ```{r include=FALSE}
 library(readxl)
-COBRE_Data_Dictionary <- read_excel("/external/rprshnas01/tigrlab/external/SchizConnect/COBRE/COBRE_Data_Dictionary.xlsx", sheet = "COBRE Data Dictionary") 
+COBRE_Data_Dictionary <- read_excel("../restricted_pheno/COBRE/COBRE_Data_Dictionary.xlsx", sheet = "COBRE Data Dictionary") 
 
 COBRE_Data_Dictionary %>%
   slice(2000:3000)
@@ -237,14 +238,14 @@ COBRE_Data_Dictionary %>%
 ```{r include=FALSE}
 library(readr)
 
-schizconnect_COBRE_assessmentData_2963 <- read_csv("/external/rprshnas01/tigrlab/external/SchizConnect/COBRE/schizconnect_COBRE_assessmentData_2963.csv",
+schizconnect_COBRE_assessmentData_2963 <- read_csv("../restricted_pheno/COBRE/schizconnect_COBRE_assessmentData_2963.csv",
 col_types = cols(question_value = col_character()))
 
 
 schizconnect_COBRE_assessmentData_2963
 ```
 ```{r include=FALSE}
-cobre_participants <- read_csv("/external/rprshnas01/tigrlab/external/SchizConnect/COBRE/schizconnect_COBRE_assessmentData_2963.csv",
+cobre_participants <- read_csv("../restricted_pheno/COBRE/schizconnect_COBRE_assessmentData_2963.csv",
 col_types = cols(question_value = col_character())) %>%
   filter(str_detect(question_id, "CODEM") | question_id == "SCIDII_01") %>%
   select(subjectid, site, question_id, question_value) %>%

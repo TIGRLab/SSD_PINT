@@ -1,6 +1,10 @@
 ---
 title: "Sulcal Depth Stats"
-output: html_notebook
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    keep_md: true
+    df_print: paged
 ---
 
 # Sulcal Depth Results

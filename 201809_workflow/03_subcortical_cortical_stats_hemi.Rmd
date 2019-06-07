@@ -17,12 +17,13 @@ This analysis tries to combine timeseries data from PINT outputs with subcortica
 
 Some work Ji (in prep) kinda suggests that there might be differences between left and right subcortical structures. AND spliting the left and right seemed to make more sense for whole brain correlations (because our cortical nodes have a hemisphere). So in this analysis have separate left and right ROIs
 
-```{r message=FALSE, warning=FALSE}
+```{r}
 library(tidyverse)
 library(broom)
 library(knitr)
 library(tableone)
 library(cowplot)
+library(ggridges)
 ```
 
 
@@ -377,7 +378,7 @@ functions to help re-annotated the function axes
 add_corrtype_and_subcortROI_columns <- function(data) {
   result <- data %>%
     mutate(corrtype = factor(corr_type, levels = c('tvolume_corr','tvertex_corr','pvertex_corr'),
-                           labels = c("Volume", "Template (pre)", "Personalized (post)")),
+                           labels = c("Volume Template", "Surface Template", "Surface Personalized")),
          subcortROI = factor(subcort_ROI, 
                              levels = c("striatum", "thalamus", "cerebellum"),
                              labels = c("Striatum", "Thalamus", "Cerebellum"))) 
@@ -411,6 +412,7 @@ ggplot(aes(y = YeoNet, x = subcort_NET, fill = Mean)) +
   labs(y = "Cortical RSN Network", x = "Subcortical Subregion")
 
 ```
+
 
 ```{r plotting-PINT-change-matrix-hemi, fig.width=12, fig.height=12}
 table1 <- results_pheno %>%
@@ -537,11 +539,123 @@ subject_focus %>%
   mutate(cohenD = statistic/sqrt(parameter + 1)) %>%
   kable()
 ```
-```{r}
+```{r eval = FALSE}
 source('../R/R_rainclouds.R')
-subject_focus %>%
-  gather(nettype, corZ, diff_net, same_net)
 ```
+```{r eval = FALSE}
+subject_focus %>%
+  gather(nettype, corZ, diff_net, same_net) %>%
+  filter(subcort_ROI == "cerebellum", YeoNet == "VA") %>%
+  ggplot(aes(x = vertex_type, y = corZ, fill = nettype)) +
+  geom_flat_violin(aes(fill = nettype), position = position_nudge(x = .1, y = 0),
+                   adjust = 1.5, trim = FALSE, alpha = .5, colour = NA) +
+  geom_point(aes(x = as.numeric(vertex_type)-.15, y = corZ, colour = nettype),
+             position = position_jitter(width = .05), size = 1, shape = 20) +
+  geom_boxplot(aes(x = vertex_type, y = corZ, fill = nettype), outlier.shape = NA, alpha = .5, width = .1, colour = "black")+
+  geom_hline(yintercept = 0) +
+  scale_colour_brewer(palette = "Dark2")+
+  scale_fill_brewer(palette = "Dark2")+
+  coord_flip() +
+  ggtitle(str_c("cerebellum to cortical VA"))
+```
+```{r}
+# library(ggridges)
+samediff_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
+plt <- data %>%
+  mutate(corrtype = factor(vertex_type, levels = c('netmean_pvertex', 'netmean_tvertex', 'netmean_tvolume'),
+                           labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+  gather(nettype, gvalue, diff_net, same_net) %>%
+  filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
+  ungroup() %>%
+  ggplot(aes(y = corrtype, x = gvalue, fill = nettype, colour = nettype)) +
+  geom_density_ridges(
+    #jittered_points = TRUE, position = "raincloud",
+    alpha = 0.5, scale = 2,
+    quantile_lines = TRUE, quantiles = 2
+  ) +
+  geom_vline(xintercept = 0) +
+  scale_colour_manual(values = c("#808080", YeoNet_colours[[this_YeoNet]])) +
+  scale_fill_manual(values = c("#808080", YeoNet_colours[[this_YeoNet]])) +
+  scale_x_continuous(limits = c(-0.5, 0.6)) +
+  labs(y = NULL,
+       x = NULL) +
+  theme(legend.position='none')
+if (no_ticks==TRUE) {
+  plt <- plt + theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank())
+} else {
+  plt <- plt + labs(x = "Subcortical-Cortical Correlation (Z)")
+}
+return(plt)
+  
+}
+
+focus_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
+plt <- data %>%
+  mutate(corrtype = factor(vertex_type, levels = c('netmean_pvertex', 'netmean_tvertex', 'netmean_tvolume'),
+                           labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+  mutate(focus = same_net - diff_net) %>%
+  filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
+  ungroup() %>%
+  ggplot(aes(y = corrtype, x = focus)) +
+  geom_density_ridges(
+    # jittered_points = TRUE, position = "raincloud",
+    alpha = 0.5, scale = 2,
+    quantile_lines = TRUE, quantiles = 2,
+    fill = YeoNet_colours[[this_YeoNet]],
+    colour = YeoNet_colours[[this_YeoNet]]
+  ) +
+  geom_vline(xintercept = 0) +
+  scale_x_continuous(limits = c(-0.3, 0.6)) +
+  labs(y = NULL,
+       x = NULL) +
+  theme(legend.position='none', 
+        axis.title.y=element_blank(),
+        axis.text.y=element_blank()) 
+if (no_ticks==TRUE) {
+  plt <- plt + theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank())
+} else {
+  plt <- plt + labs(x = "Same - Diff.")
+}
+return(plt)
+  
+}
+
+samediff_plus_focus_rainclouds <- function(subject_focus, this_subcort, this_YeoNet, no_ticks = TRUE) {
+plt <- plot_grid(samediff_subcort_raincloud(subject_focus, this_subcort, this_YeoNet, no_ticks), 
+                         focus_subcort_raincloud(subject_focus, this_subcort, this_YeoNet, no_ticks), 
+                         rel_widths = c(2,1))
+return(plt)
+}
+
+subcortical_raincloud <- function(subject_focus, this_subcort) {
+DM <- samediff_plus_focus_rainclouds(subject_focus, this_subcort, "DM")
+FP <- samediff_plus_focus_rainclouds(subject_focus,this_subcort, "FP")
+VA <- samediff_plus_focus_rainclouds(subject_focus,this_subcort, "VA")
+SM <- samediff_plus_focus_rainclouds(subject_focus,this_subcort, "SM", no_ticks = FALSE)
+title <- ggdraw() + draw_label(this_subcort, fontface='bold')
+plt <- plot_grid(title, DM, FP, VA, SM, ncol = 1, rel_heights = c(0.5, 1, 1, 1, 1.5))
+return(plt)
+}
+```
+
+```{r stiatum-rainclouds}
+subcortical_raincloud(subject_focus, "striatum")
+```
+
+```{r thalamus-rainclouds}
+subcortical_raincloud(subject_focus, "thalamus")
+```
+```{r cerebellum-raincloud}
+subcortical_raincloud(subject_focus, "cerebellum")
+```
+
+
+
+
+
+
 
 
 ```{r}
@@ -568,27 +682,9 @@ subject_focus %>%
   kable()
 ```
 
-```{r, fig.height=8, fig.width=4}
-subject_focus %>%
-  ungroup() %>% 
-  ggplot(aes(x = YeoNet, y = focus_effect)) +
-  geom_boxplot(color = "blue", outlier.shape = NA) +
-  geom_jitter(alpha = 0.05) +
-  geom_hline(yintercept = 0) +
-  facet_wrap(~ subcort_ROI, ncol = 1) + 
-  coord_flip()
-```
 
-## fancy raincloud plots
 
-```{r}
-net_means %>%
-  drop_VI_DA_LI() %>%
-  gather(vertex_type, nets_avg, netmean_pvertex, netmean_tvertex, netmean_tvolume) %>%
-  ungroup(subcort_NET) %>%
-  group_by(subject, subcort_ROI, YeoNet, vertex_type, conn_type) %>%
-  summarise(nets_type_avg = mean(nets_avg)) 
-```
+
 
 Recreating the DM plot from the poster to double check
 
