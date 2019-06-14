@@ -405,9 +405,21 @@ means_DX_effects %>%
 - SM to DA
 - FP to striatum
 - FP to cerebellum
+```{r}
+packages <- c("ggplot2", "dplyr", "lavaan", "plyr", "cowplot", "rmarkdown", 
+              "readr", "caTools", "bitops")
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))  
+}
+```
 
 ```{r}
-DX_lm_model %>%
+library(ggridges)
+```
+
+
+```{r}
+DXlm_for_ridges <- DX_lm_model %>%
   filter(term == "DXSSD") %>%
   ungroup() %>%
   select(vertex_type, to, from, statistic)  %>%
@@ -416,13 +428,112 @@ DX_lm_model %>%
   mutate(newdata = map(data, ~ uppertri_df_to_full(.x)))  %>%
   unnest(newdata) %>%
   inner_join(redux_annot, by = c("to"="node_name")) %>%
-  inner_join(redux_annot, by = c("from"="node_name")) %>%
-  filter(redux_region.x == "DM", redux_region.y == "DA") %>%
-  ggplot(aes(x = value, fill = vertex_type)) +
-  geom_density(alpha = 0.5)
+  inner_join(redux_annot, by = c("from"="node_name"))
+```
+
+```{r}
+DX_lm_model %>%
+  filter(term == "DXSSD", p_FDR < 0.05) %>%
+  arrange(abs(statistic)) %>%
+  slice(1)
+```
+
+
+```{r fig.height=2, fig.width=6}
+
+x_redux = "DM"
+y_redux = "DA"
+t_threshold = 2.77
+
+edges_effected_rigdgeline <- function(x_redux, y_redux, threshold) {
+plt <- DXlm_for_ridges %>%
+  mutate(vertex_type = factor(vertex_type,
+                              levels = c("tvolume", "tvertex", "pvertex"),
+                              labels = c("volume template", "surface template", "surface personalized"))) %>%
+  filter(redux_region.x %in% x_redux, 
+         redux_region.y %in% y_redux) %>%
+  ggplot(aes(x = value, 
+             y = vertex_type,
+             colour = vertex_type,
+             fill = vertex_type)) +
+  geom_vline(xintercept = -(t_threshold), color = "#00BFC4") +
+  geom_vline(xintercept = t_threshold, color = "#F8766D") +
+  #geom_rect(xmin = -Inf, xmax = -(t_threshold), 
+  #          ymin=-Inf, ymax=Inf, 
+  #          fill = "#00BFC4", alpha = 0.01, linetype = "blank") +
+  #geom_rect(xmin = t_threshold, xmax = Inf, 
+  #          ymin=-Inf, ymax=Inf, 
+  #          fill = "#F8766D", alpha = 0.01, linetype = "blank") +
+  geom_density_ridges(
+    jittered_points = TRUE, position = "raincloud",
+    alpha = 0.5, scale = 0.8,
+    quantile_lines = TRUE, quantiles = 2) +
+  geom_vline(xintercept = 0) +
+  scale_x_continuous(limits = c(-7, 7)) +
+  scale_color_brewer(palette = "Dark2",type = "qual", direction = -1) +
+  scale_fill_brewer(palette = "Dark2",type = "qual", direction = -1) +
+  scale_y_discrete(position = "right") +
+  labs(title = str_c(x_redux, " to ", y_redux),
+       x = "t-statistic (SSD Diagnosis)", y = NULL) +
+  theme_minimal() +
+  theme(legend.position = "none")
+  return(plt)
+}
+```
+
+```{r fig.height=6, fig.width = 6}
+
+eplot1a <- edges_effected_rigdgeline(c("striatum","thalamus","cerebellum"),
+                                    c("VI"), t_threshold)
+eplot1b <- edges_effected_rigdgeline(c("striatum","thalamus","cerebellum"),
+                                    c("SM"), t_threshold)
+eplot2 <- edges_effected_rigdgeline(c("striatum","thalamus","cerebellum"), 
+                                    c("DA"), t_threshold)
+eplot3a <- edges_effected_rigdgeline(c("striatum","thalamus","cerebellum"), 
+                                    c("VA"), t_threshold)
+eplot3b <- edges_effected_rigdgeline(c("striatum","thalamus","cerebellum"), 
+                                    c("FP"), t_threshold)
+eplot4 <- edges_effected_rigdgeline(c("striatum","thalamus","cerebellum"), 
+                                    c("DM"), t_threshold)
+
+
+
+plot_grid(eplot1a,
+          #eplot1b,
+          #eplot2,
+          #eplot3a,
+          eplot3b,
+          eplot4,
+          ncol = 1)
 
 ```
 
+```{r fig.height=6, fig.width = 6}
+
+eplot1a <- edges_effected_rigdgeline(c("DM"),
+                                    c("DA"), t_threshold)
+eplot1b <- edges_effected_rigdgeline(c("DA"),
+                                    c("SM"), t_threshold)
+eplot2 <- edges_effected_rigdgeline(c("striatum","thalamus","cerebellum"), 
+                                    c("DA"), t_threshold)
+eplot3a <- edges_effected_rigdgeline(c("striatum","thalamus","cerebellum"), 
+                                    c("VA"), t_threshold)
+eplot3b <- edges_effected_rigdgeline(c("SM"), 
+                                    c("SM"), t_threshold)
+eplot4 <- edges_effected_rigdgeline(c("VI"), 
+                                    c("VI"), t_threshold)
+
+
+
+plot_grid(eplot1a,
+          eplot1b,
+          #eplot2,
+          #eplot3a,
+          eplot3b,
+          eplot4,
+          ncol = 1)
+
+```
 
 - want to show density/ridge plots of edges for each group going from one to the other.. (maybe repost as cohen's D?)
 
@@ -554,6 +665,16 @@ FC_weighted %>%
   select(weigthFc, term, statistic, p.value) %>%
   knitr::kable()
 ```
+
+```{r}
+FC_weighted %>%
+  ungroup() %>%
+  group_by(weigthFc, Site) %>%
+  do(tidy(lm(mwcorZ ~ DX + Age_pt + Sex + fd_mean_pt,.))) %>%
+  select(weigthFc, term, statistic, p.value) %>%
+  knitr::kable()
+```
+
 ```{r}
 SSD_cors <- FC_weighted %>%
   filter(DX == "SSD") %>%
@@ -860,4 +981,99 @@ results_pheno %>%
          vertex_type == "tvolume") %>%
   withincortical_heatmap(str_c(thissubject, " Volume Template Correlation")) %>%
   ggdraw()
+```
+
+```{r}
+results_pheno %>%
+  inner_join(annotated_graph_edges, by = c("from", "to")) %>%
+  filter(from_to_type == "Cort_Cort") %>%
+  ungroup() %>%
+  select(to, from, weight) %>%
+  uppertri_df_to_full() %>%
+    mutate(to_lab = factor(to, levels = node_annotations$node_name), 
+         from_lab = factor(from, levels = rev(node_annotations$node_name))) %>%
+  slice(20)
+
+```
+
+
+```{r}
+samediff_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
+plt <- data %>%
+  mutate(corrtype = factor(vertex_type, levels = c('netmean_pvertex', 'netmean_tvertex', 'netmean_tvolume'),
+                           labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+  gather(nettype, gvalue, diff_net, same_net) %>%
+  filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
+  ungroup() %>%
+  ggplot(aes(y = corrtype, x = gvalue, fill = nettype, colour = nettype)) +
+  geom_density_ridges(
+    #jittered_points = TRUE, position = "raincloud",
+    alpha = 0.5, scale = 2,
+    quantile_lines = TRUE, quantiles = 2
+  ) +
+  geom_vline(xintercept = 0) +
+  scale_colour_manual(values = c("#808080", YeoNet_colours[[this_YeoNet]])) +
+  scale_fill_manual(values = c("#808080", YeoNet_colours[[this_YeoNet]])) +
+  scale_x_continuous(limits = c(-0.5, 0.6)) +
+  labs(y = NULL,
+       x = NULL) +
+  theme(legend.position='none')
+if (no_ticks==TRUE) {
+  plt <- plt + theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank())
+} else {
+  plt <- plt + labs(x = "Subcortical-Cortical Correlation (Z)")
+}
+return(plt)
+  
+}
+
+focus_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
+plt <- data %>%
+  mutate(corrtype = factor(vertex_type, levels = c('netmean_pvertex', 'netmean_tvertex', 'netmean_tvolume'),
+                           labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+  mutate(focus = same_net - diff_net) %>%
+  filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
+  ungroup() %>%
+  ggplot(aes(y = corrtype, x = focus)) +
+  geom_density_ridges(
+    # jittered_points = TRUE, position = "raincloud",
+    alpha = 0.5, scale = 2,
+    quantile_lines = TRUE, quantiles = 2,
+    fill = YeoNet_colours[[this_YeoNet]],
+    colour = YeoNet_colours[[this_YeoNet]]
+  ) +
+  geom_vline(xintercept = 0) +
+  scale_x_continuous(limits = c(-0.3, 0.6)) +
+  labs(y = NULL,
+       x = NULL) +
+  theme(legend.position='none', 
+        axis.title.y=element_blank(),
+        axis.text.y=element_blank()) 
+if (no_ticks==TRUE) {
+  plt <- plt + theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank())
+} else {
+  plt <- plt + labs(x = "Same - Diff.")
+}
+return(plt)
+  
+}
+
+samediff_plus_focus_rainclouds <- function(subject_focus, this_subcort, this_YeoNet, no_ticks = TRUE) {
+plt <- plot_grid(samediff_subcort_raincloud(subject_focus, this_subcort, this_YeoNet, no_ticks), 
+                         focus_subcort_raincloud(subject_focus, this_subcort, this_YeoNet, no_ticks), 
+                         rel_widths = c(2,1))
+return(plt)
+}
+
+subcortical_raincloud <- function(subject_focus, this_subcort) {
+DM <- samediff_plus_focus_rainclouds(subject_focus, this_subcort, "DM")
+FP <- samediff_plus_focus_rainclouds(subject_focus,this_subcort, "FP")
+VA <- samediff_plus_focus_rainclouds(subject_focus,this_subcort, "VA")
+SM <- samediff_plus_focus_rainclouds(subject_focus,this_subcort, "SM", no_ticks = FALSE)
+title <- ggdraw() + draw_label(this_subcort, fontface='bold')
+plt <- plot_grid(title, DM, FP, VA, SM, ncol = 1, rel_heights = c(0.5, 1, 1, 1, 1.5))
+return(plt)
+}
 ```
