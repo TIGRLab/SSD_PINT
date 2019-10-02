@@ -66,12 +66,6 @@ node_annotations <- tibble(node_name = c(Yeo7_2011_80verts$SHORTNAME,
                             thalamus = "Thal", cerebellum = "Cblm", striatum = "Stria"),
          subcort_ROI = factor(subcort_ROI, levels = c("striatum", "thalamus", "cerebellum"))) 
 
-node_annotations
-```
-
-
-
-```{r}
 node_annotations <- node_annotations %>%
   filter(size_is_ok == "yes") %>%
   arrange(etype, subcort_ROI, network, subregion, hemi) %>%
@@ -82,7 +76,9 @@ node_annotations <- node_annotations %>%
          custom_order = max(custom_order) - custom_order) %>%
   select(-basic_rank, -etype_rank, -subcort_rank)
 
+node_annotations
 ```
+
 
 
 ```{r eval = FALSE}
@@ -482,6 +478,7 @@ plt <- DXlm_for_ridges %>%
 ```
 
 ```{r fig.height=6, fig.width = 6}
+library(cowplot)
 
 eplot1a <- edges_effected_rigdgeline(c("striatum","thalamus","cerebellum"),
                                     c("VI"), t_threshold)
