@@ -8,8 +8,8 @@ notebooks/*.html
 notebooks/*.pdf
 notebooks/*.png
 deprecated
-201809_workflow/*.nb.html
-201809_workflow/*.html
-201809_workflow/*.pdf
-201809_workflow/*.png
+workflow/*.nb.html
+workflow/*.html
+workflow/*.pdf
+workflow/*.png
 notebooks/.ipynb_checkpoints/
