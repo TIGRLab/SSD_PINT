@@ -153,6 +153,7 @@ plt <- ggraph(tg_lm, layout = 'linear', circular = FALSE,
 
 
 
+
 ```{r}
 #' convert from three col graph df to adjacency matrix
 uppertri_df_to_agjmat <- function(graph_df) {
