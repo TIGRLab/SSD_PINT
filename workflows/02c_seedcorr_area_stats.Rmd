@@ -40,11 +40,19 @@ YeoNet_colours = list("VI" = "#781286",
                       "DM" = "#CD3E3A", 
                       "FP" = "#E69422")
 
-pheno <- read_csv('../phenotypic/20190301_pheno_qapass.csv') %>% drop_na(DX) 
+pheno <- read_csv('../phenotypic/20200202_pheno_qapass.csv') %>% drop_na(DX) 
 
 pint_sc <- read_csv('../data/ciftify_fmriprep/qa_passes_seedcor_counts_20181116.csv')
 ```
+```{r}
+pint_sc %>%
+  anti_join(pheno, by = c("subject", "dataset"))
+```
 
+```{r}
+pheno %>%
+  anti_join(pint_sc, by = c("subject", "dataset"))
+```
 
 Write a func_base and outputprefix cols into the pheno file for the file reading step
 

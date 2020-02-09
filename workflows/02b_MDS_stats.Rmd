@@ -39,7 +39,7 @@ YeoNet_colours = list("VI" = "#781286",
                       "DM" = "#CD3E3A", 
                       "FP" = "#E69422")
 
-pheno <- read_csv('../phenotypic/20190301_pheno_qapass.csv') %>% drop_na(DX) 
+pheno <- read_csv('../phenotypic/20200202_pheno_qapass.csv') %>% drop_na(DX) 
 
 subsub <- read_csv('../data/ciftify_fmriprep/postPINT2_sub2sub_all_qa_passes.csv')
 ```

@@ -1,4 +1,14 @@
 
+YeoNet7 <- tribble(
+  ~network, ~hexcode,
+  "VI", "#781286",
+  "SM", "#4682B4",
+  "DA", "#00760E",
+  "VA", "#C43AFA",
+  "FP", "#E69422",
+  "DM", "#CD3E3A",
+  "LI", "#dcf8a4")
+
 #' Left section of the raincload plots used in sub-cortical cortical change reporting
 samediff_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
   plt <- data %>%
@@ -14,8 +24,8 @@ samediff_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_t
       quantile_lines = TRUE, quantiles = 2
     ) +
     geom_vline(xintercept = 0) +
-    scale_colour_manual(values = c("#808080", YeoNet_colours[[this_YeoNet]])) +
-    scale_fill_manual(values = c("#808080", YeoNet_colours[[this_YeoNet]])) +
+    scale_colour_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_fill_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
     scale_x_continuous(limits = c(-0.5, 0.6)) +
     labs(y = NULL,
          x = NULL) +
@@ -43,8 +53,8 @@ focus_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_tick
       # jittered_points = TRUE, position = "raincloud",
       alpha = 0.5, scale = 2,
       quantile_lines = TRUE, quantiles = 2,
-      fill = YeoNet_colours[[this_YeoNet]],
-      colour = YeoNet_colours[[this_YeoNet]]
+      fill = YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode),
+      colour = YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode)
     ) +
     geom_vline(xintercept = 0) +
     scale_x_continuous(limits = c(-0.3, 0.6)) +
@@ -82,39 +92,44 @@ subcortical_raincloud <- function(subject_focus, this_subcort) {
   return(plt)
 }
 
-# figure out where the white lines goes
-hgrid_beaks <- node_annotations %>%
-  filter(etype == "Cort") %>%
-  mutate(diffnet = as.numeric(network) %>% diff()*1:80) %>%
-  filter(diffnet > 0) %>%
-  pull(diffnet)
-
-# make the Yeo 6 network color bar for the axis
-network_bar <- node_annotations %>%
-  filter(etype == "Cort") %>%
-  mutate(to_lab = factor(node_name, levels = rev(node_annotations$node_name))) %>%
-  ggplot(aes(x=1, y=to_lab, fill = network)) +
-  geom_tile() +
-  geom_hline(yintercept= 80.5-hgrid_beaks, color='white', size=1) +
-  scale_fill_manual(values = rev(YeoNet7$hexcode[1:6])) +
-  coord_fixed(ratio = 0.75)
-
-network_top_bar <- node_annotations %>%
-  filter(etype == "Cort") %>%
-  mutate(from_lab = factor(node_name, levels = node_annotations$node_name)) %>%
-  ggplot(aes(x=from_lab, y=1, fill = network)) +
-  geom_tile() +
-  geom_vline(xintercept= hgrid_beaks + 0.5, color='white', size=1) +
-  scale_fill_manual(values = rev(YeoNet7$hexcode[1:6])) +
-  coord_fixed(ratio = 0.75)
 
 # build the full heatmap plot object
-withincortical_heatmap <- function(data, plt_title = "", fillvar = "weight") {
+withincortical_heatmap <- function(data, plt_title = "", 
+                                   fillvar = "weight") {
+  
   fillvar <- enquo(fillvar)
   max_fill <- 1.15
+  
+  ## filter the node_annotations to take only cortical edges
+  cortical_annotations <- node_annotations %>%
+    filter(etype == "Cort")
+  
+  # figure out where the white lines goes
+  hgrid_beaks <- cortical_annotations %>%
+      mutate(diffnet = as.numeric(network) %>% diff()*1:80) %>%
+      filter(diffnet > 0) %>%
+      pull(diffnet)
+  
+  # make the Yeo 6 network color bar for the axis
+  network_bar <- cortical_annotations %>%
+    mutate(to_lab = factor(node_name, levels = rev(node_annotations$node_name))) %>%
+    ggplot(aes(x=1, y=to_lab, fill = network)) +
+    geom_tile() +
+    geom_hline(yintercept= 80.5-hgrid_beaks, color='white', size=1) +
+    scale_fill_manual(values = rev(YeoNet7$hexcode[1:6])) +
+    coord_fixed(ratio = 0.75)
+  
+  network_top_bar <- cortical_annotations %>%
+    mutate(from_lab = factor(node_name, levels = node_annotations$node_name)) %>%
+    ggplot(aes(x=from_lab, y=1, fill = network)) +
+    geom_tile() +
+    geom_vline(xintercept= hgrid_beaks + 0.5, color='white', size=1) +
+    scale_fill_manual(values = rev(YeoNet7$hexcode[1:6])) +
+    coord_fixed(ratio = 0.75)
+  
   plt <- data %>%
-    inner_join(annotated_graph_edges, by = c("from", "to")) %>%
-    filter(from_to_type == "Cort_Cort") %>%
+    filter(to %in% cortical_annotations$node_name) %>%
+    filter(from %in% cortical_annotations$node_name) %>%
     ungroup() %>%
     select(to, from, !!fillvar) %>%
     uppertri_df_to_full() %>%

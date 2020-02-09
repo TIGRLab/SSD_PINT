@@ -29,8 +29,8 @@ read_mriqc_bold <- function(studyname) {
   return(bold)
 }
 
-all_the_bolds <- tibble(studyname = sub_projects) %>% 
-    mutate(boldqc = map(studyname, function(x) {
+all_the_bolds <- tibble(dataset = sub_projects) %>% 
+    mutate(boldqc = map(dataset, function(x) {
         read_mriqc_bold(x)
     })) %>%
     unnest() %>%
@@ -50,28 +50,30 @@ read_mriqc_t1w <- function(studyname) {
   return(bold)
 }
 
-all_the_T1w <- tibble(studyname = sub_projects) %>% 
-    mutate(t1wqc = map(studyname, function(x) {
+all_the_T1w <- tibble(dataset = sub_projects) %>% 
+    mutate(t1wqc = map(dataset, function(x) {
         read_mriqc_t1w(x)
     })) %>%
     unnest() %>%
-  group_by(studyname, subject_id) %>%
+  group_by(dataset, subject_id) %>%
   summarise(num_t1w = n())
 ```
 
 ```{r}
 usable_scans <- all_the_bolds %>%
-  group_by(studyname, subject_id, task_id) %>%
+  group_by(dataset, subject_id, task_id) %>%
   summarise(num_rest = n()) %>%
-  full_join(all_the_T1w, by = c("subject_id", "studyname")) %>%
-  mutate(num_scans = num_rest + num_t1w)
+  full_join(all_the_T1w, by = c("subject_id", "dataset")) %>%
+  mutate(num_scans = num_rest + num_t1w,
+         subject = str_c("sub-", subject_id)) %>%
+  ungroup()
 ```
 
 
 ```{r}
 usable_scans %>%
   ungroup() %>%
-  select(subject_id, studyname, num_scans) %>%
+  select(subject_id, dataset, num_scans) %>%
   drop_na(num_scans) %>%
   distinct() %>%
   count()
@@ -100,8 +102,7 @@ rm(pint_summarys_nses, pint_summarys_wses, pintdf_nses, pintdf_wses)
 
 ```{r}
 bolds_condensed <- all_the_bolds %>%
-  select(studyname, ends_with('_id'), starts_with('fd_'), starts_with('size'), starts_with('spacing')) %>%
-  rename(dataset = studyname) %>%
+  select(dataset, ends_with('_id'), starts_with('fd_'), starts_with('size'), starts_with('spacing')) %>%
   mutate(subject = str_c("sub-", subject_id),
          session = str_c("ses-",session_id)) 
 ```
@@ -113,29 +114,42 @@ simple_pheno <- read_csv('../phenotypic/simple_pheno_201811.csv')
 
 #### we see that the only people we have bold info but no phenotype for is that one VIPR participant in SPINS and the 5 people from ds00030 who don't have a T1w scan
 
-```{r}
-all_surfs <- Sys.glob('../data/ciftify_fmriprep/*/out/freesurfer/CorticalMeasuresENIGMA_SurfAvg.csv') %>%
-  map_df(read_csv, col_types = cols(
-  .default = col_double(),
-  SubjID = col_character()
-)) %>%
-  select(SubjID, LSurfArea, RSurfArea) %>%
-  mutate(SurfArea = LSurfArea + RSurfArea)
 
+
+```{r}
+all_surfs <- tibble(dataset = sub_projects) %>%
+  mutate(data = map(dataset, ~read_csv(str_c('../data/ciftify_fmriprep/',.x,
+                                             '/out/freesurfer/CorticalMeasuresENIGMA_SurfAvg.csv'),
+                                       col_types = cols(
+                                         .default = col_double(),
+                                         SubjID = col_character())))) %>%
+  unnest() %>%
+  select(dataset, SubjID, LSurfArea, RSurfArea) %>%
+  mutate(SurfArea = LSurfArea + RSurfArea)
 ```
 
+
+
+
+```{r}
+unique(usable_scans$studyname)
+```
+
+```{r}
+unique(simple_pheno$dataset)
+```
 
 
 ```{r}
 usable_scans %>%
-  mutate(subject = str_c("sub-", subject_id)) %>%
-  anti_join(simple_pheno, by = "subject") %>%
+  anti_join(simple_pheno, by = c("subject", "dataset")) %>%
   drop_na(num_scans)
 ```
 ```{r}
 simple_pheno %>%
-  anti_join(usable_scans %>% mutate(subject = str_c("sub-", subject_id)), by = "subject") 
+  anti_join(usable_scans, by = c("subject", "dataset")) 
 ```
+
 
 
 ## Setting the motion threshold:
@@ -149,16 +163,22 @@ mean_fd_thres <- 0.5
 perc_fd_thres <- 50
 
 pre_qa <- bolds_condensed %>%
-  inner_join(usable_scans %>% mutate(subject = str_c("sub-", subject_id)), by = "subject") %>%
+  inner_join(select(usable_scans, -task_id, -subject_id), 
+             by = c("subject", "dataset")) %>%
   drop_na(num_scans) %>%
   inner_join(simple_pheno, by = c("subject", "dataset")) %>%
-  inner_join(all_surfs, by = c("subject"="SubjID"))
+  inner_join(all_surfs %>% rename(subject = SubjID), by = c("subject", "dataset"))
+```
+
+```{r}
 
 pre_qa_counts <- pre_qa %>%
   select(subject, dataset, DX) %>%
   distinct() %>%
   count(DX)
+```
 
+```{r}
 qa_passes_pheno <- pre_qa %>%
   filter(fd_mean < 0.5, fd_perc < 50, size_t > 100) 
 
@@ -197,7 +217,7 @@ pheno <- qa_passes_pheno %>%
   left_join(pintdf,
           by = c("dataset", "subject", "session")) %>%
   filter(!is.na(filename)) %>%
-  group_by(subject) %>%
+  group_by(subject, dataset) %>%
   arrange(fd_perc) %>%
   slice(1) %>%
   ungroup() 
@@ -207,7 +227,7 @@ pheno <- qa_passes_pheno %>%
 ```{r}
 pheno %>%
   ggplot(aes(x = Age, y = SurfArea)) + 
-  geom_point(aes(color = studyname)) + geom_smooth(method = "lm") 
+  geom_point(aes(color = Site)) + geom_smooth(method = "lm") 
 ```
 
 
@@ -256,7 +276,8 @@ qa_passes_pheno %>%
   sample_n(1) %>%
   ungroup() %>%
   group_by(Site, DX, size_t, size_x, size_y, size_z, spacing_x_round, spacing_z_round, scan_length) %>%
-  count()
+  count() %>%
+  arrange(-n)
 
 ```
 
@@ -264,8 +285,15 @@ qa_passes_pheno %>%
 
 
 ```{r} 
-write_csv(pheno, '../phenotypic/20190301_pheno_qapass.csv')
+write_csv(pheno, '../phenotypic/20200202_pheno_qapass.csv')
 ```
+
+```{r}
+pheno %>%
+  filter(!is.na(DX)) %>%
+  count(Site, DX) 
+```
+
 
 + ASDD is done!
 + ZHH is done! (note that the TR for scans without a TR was set to 2s by Saba and Dayton)

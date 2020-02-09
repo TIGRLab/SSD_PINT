@@ -30,12 +30,16 @@ library(ggridges)
 ## The paths to data
 
 ```{r setting paths}
-source('../R/file_reading_helpers.R')
-source('../R/custom_plot_helpers.R')
 
+source('../R/settings_helpers.R')
 pheno <- read_pheno_file()
 YeoNet_colours <- define_Yeo7_colours()
 Yeo7_2011_80verts <- read_Yeo72011_template()
+the_subcortical_guide <- get_subcortical_guide()
+node_annotations <- get_node_annotations(Yeo7_2011_80verts, the_subcortical_guide)
+source('../R/custom_plot_helpers.R')
+
+source('../R/file_reading_helpers.R')
 ```
 
 
@@ -54,6 +58,9 @@ pheno <- pheno %>%
 ```
 
 a litle chunck I use to test if test if the reader is working...
+
+
+
 
 ```{r eval = FALSE}
 run_read_all_subject_timeseries_and_subcortcort_corZ(pheno$outputprefix[1], pheno$dataset[1])
@@ -76,18 +83,21 @@ save(all_subcort_results, file = "../intermediate/03_subcort_results_cache.Rdata
 load("../intermediate/03_subcort_results_cache.Rdata")
 ```
 
+
+
 ### merge with the phenotypic data
 
 ```{r merge with pheno and clean}
 results_pheno <- all_subcort_results %>%
-  inner_join(pheno, by = "subject") %>%
+  inner_join(pheno, by = c("subject", "dataset")) %>%
   unnest() %>%
+  inner_join(the_subcortical_guide, by = c("combined_name")) %>%
   mutate(YeoNet = str_sub(PINT_ROI, 1,2),
          hemisphere = str_sub(PINT_ROI, 5,5)) %>%
   mutate(conn_type = if_else(YeoNet == subcort_NET, "same_net", "diff_net"),
          YeoNet = factor(YeoNet, levels = c("VI", "SM", "DA", "VA", "FP", "DM")),
          subcort_NET = factor(subcort_NET, levels = c("VI", "SM", "DA", "VA", "FP", "DM", "LI"))) %>%
-  select(subject, PINT_ROI, subcort_ROI, subcort_NET,subcort_hemi, 
+  select(subject, dataset, PINT_ROI, subcort_ROI, subcort_NET,subcort_hemi, 
          pvertex_corr, tvertex_corr, tvolume_corr,
          DX, Sex, fd_mean, Age, Site, Scanner, Age_pt, fd_mean_pt,  
          YeoNet, hemisphere, conn_type) 

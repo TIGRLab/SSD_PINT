@@ -42,7 +42,7 @@ YeoNet_colours = list("VI" = "#781286",
                       "FP" = "#E69422")
 
 ## adding a subid that matches what the concatenation script adds..
-pheno <- read_csv('../phenotypic/20190301_pheno_qapass.csv') %>%
+pheno <- read_csv('../phenotypic/20200202_pheno_qapass.csv') %>%
   mutate(subid = str_replace(filename, '_summary.csv','')) %>%
   drop_na(DX)
 
@@ -90,7 +90,13 @@ dist_by_total %>%
   theme_bw()
 ```
 
-
+```{r age-location-plot, fig.height=4, fig.width=7}
+dist_by_total %>%
+  ggplot(aes(y = MeanDistance, x = Age, color = DX)) +
+  geom_point() + 
+  geom_smooth(method = "lm")+
+  theme_bw()
+```
 
 ```{r}
 dist_by_network <- pint_concat %>%

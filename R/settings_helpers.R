@@ -3,7 +3,7 @@
 output_base <- '../data/ciftify_fmriprep/'
 
 read_pheno_file <- function() {
-  pheno <- read_csv('../phenotypic/20181118_pheno_qapass.csv') %>%
+  pheno <- read_csv('../phenotypic/20200202_pheno_qapass.csv') %>%
     drop_na(DX)
   return(pheno)
 }
@@ -34,6 +34,20 @@ define_Yeo7_colours <- function() {
                         "FP" = "#E69422")
   
   return(YeoNet_colours)
+}
+
+
+define_YeoNet7_colours <- function() {
+YeoNet7 <- tribble(
+  ~network, ~hexcode,
+  "VI", "#781286",
+  "SM", "#4682B4",
+  "DA", "#00760E",
+  "VA", "#C43AFA",
+  "FP", "#E69422",
+  "DM", "#CD3E3A",
+  "LI", "#dcf8a4")
+return(YeoNet7)
 }
 
 get_subcortical_guide <- function() {
@@ -73,7 +87,7 @@ get_node_annotations <- function(Yeo7_2011_80verts, the_subcortical_guide) {
   node_annotations <- tibble(node_name = c(Yeo7_2011_80verts$SHORTNAME,
                                          the_subcortical_guide$combined_name)) %>%
   left_join(the_subcortical_guide, by = c("node_name" = "combined_name")) %>%
-  mutate_if(is.character, funs(replace(., is.na(.), ''))) %>%
+  mutate_if(is.character, list(~ replace(., is.na(.), ''))) %>%
   mutate(etype = if_else(str_sub(node_name,2,2)=="_","SubCort", "Cort")) %>%
   mutate(cort_NET = if_else(etype == "Cort", str_sub(.$node_name, 1,2), ""),
          cort_hemi = if_else(etype == "Cort", str_sub(.$node_name, 5,5), ""),
