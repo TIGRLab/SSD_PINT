@@ -7,7 +7,7 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 
 #### Note: this chapter uses the resticted (unshared) phenotypic data. So can only be run on a CAMH computer..
 
-We output the file `data/phenotypic/simple_pheno_20200202.csv` which is carrier forward to the next script..
+We output the file `data/processed/pheno/simple_pheno_20200214.csv` which is carrier forward to the next script..
 
 The code chunks below where run on the kimel lab system and not only echo when rest of the notebooks are run.. (i.e. eval = FALSE)
 
@@ -83,7 +83,8 @@ ZHH_pheno <-bind_rows(mangle_SZ_ZHH, mangle_CTRL_ZHH) %>%
   mutate(subject = str_c('sub-',GRID),
          dataset = "ZHH",
          Site = "ZHH",
-         Scanner = "ZHH")
+         Scanner = "ZHH") %>%
+  select(-GRID, -MRI_Date, -Edu, -isFEP)
 
 rm(mangle_CTRL_ZHH, mangle_SZ_ZHH)
 
@@ -192,7 +193,7 @@ simple_pheno = bind_rows(CMH_pheno,
 
 
 ```{r eval=FALSE}
-write_csv(simple_pheno, here("data/processed/pheno/simple_pheno_20200202.csv"))
+write_csv(simple_pheno, here("data/processed/pheno/simple_pheno_20200214.csv"))
 ```
 
 

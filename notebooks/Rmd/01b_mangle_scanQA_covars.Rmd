@@ -9,7 +9,7 @@ This section of the code checks to make sure that we have preprocessed data avai
 
 Then, for participants with more than one run/session of bold data it picks the best run per participant for the next analysis
 
-The final output is the QAed phenotypic file is `data/phenotypic/20200202_pheno_qapass.csv` which is the input for all of the rest of the analyses.
+The final output is the QAed phenotypic file is `data/processed/pheno/simple_pheno_20200214.csv` which is the input for all of the rest of the analyses.
 
 ```{r}
 library(tidyverse)
@@ -122,7 +122,7 @@ rm(pint_summarys_nses, pint_summarys_wses, pintdf_nses, pintdf_wses)
 
 ```{r}
 # removing session id column because it is redundant
-simple_pheno <- read_csv(here('data/processed/pheno/simple_pheno_20200202.csv')) 
+simple_pheno <- read_csv(here('data/processed/pheno/simple_pheno_20200214.csv')) 
 ```
 
 ## also read in an concatenate all the surface area info from freesurfer
@@ -283,7 +283,7 @@ qa_passes_pheno %>%
 
 
 ```{r} 
-write_csv(pheno, here('data/processed/pheno/20200202_pheno_qapass.csv'))
+write_csv(pheno, here('data/processed/pheno/20200214_pheno_qapass.csv'))
 ```
 
 ```{r}
@@ -302,6 +302,22 @@ pheno %>%
 + COBRE is done (enough) - but half of it never downloaded
 + ds00030 5 subjects need to rerun ciftify..
 
+### write out subject list for further analysis
 
+this section is run manually before the postPINT group steps are done..
 
+```{r eval = FALSE}
+source(here('code','R','file_reading_helpers.R'))
+
+final_sublist <- pheno %>%
+  mutate(func_base = get_func_base_from_pint_summary_filename(filename,subject, session), 
+         outputprefix = construct_output_prefix(subject, session, func_base),
+         expected_filepath = file.path(dataset, "out",'ciftify_PINT', 
+                                 str_c(outputprefix, '_desc-clean_bold_summary.csv')))
+
+final_sublist %>%
+  select(expected_filepath) %>%
+  arrange(expected_filepath) %>%
+  write_csv(path = here('data/processed/mri/all_qa_passes_group/pint_summary_filelist.csv'), col_names = FALSE)
+```
 
