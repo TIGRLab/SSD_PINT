@@ -1,0 +1,116 @@
+---
+title: "MDS stats"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+---
+
+# Multi-Dimensional Scaling Stats on PINT ROI locations
+
+```{r}
+library(tidyverse)
+library(broom)
+library(igraph)
+library(here)
+```
+
+```{r setting paths}
+source(here('code/R/settings_helpers.R'))
+
+Yeo7_2011_80verts <- read_Yeo72011_template()
+
+YeoNet_colours = define_Yeo7_colours()
+
+pheno <- read_pheno_file() %>%  drop_na(DX)
+ 
+subsub <- read_csv(file.path(output_base,'postPINT2_sub2sub_all_qa_passes.csv'))
+```
+
+```{r}
+mds_sub2sub <- function(data) {
+  ## filter allsub2sub distances to only include the qced subids
+  ## then run multidimensional scaling to resolve the sub2sub distances to a 2D plane
+  distout <- data %>%
+  graph_from_data_frame() %>%
+  get.adjacency(attr = "distance") %>%
+  as.matrix() %>%
+  cmdscale(k=2) %>%
+  as.data.frame()
+  
+  
+  names(distout) <- c('mds1','mds2')
+  distout$src_file <- row.names(distout)
+  
+  distout <- as.tibble(distout) %>%
+    select(src_file, mds1, mds2)
+  
+  return(as.tibble(distout))
+}
+```
+
+```{r}
+subsub %>%
+  filter(roiidx == 1) %>%
+  select(subid1, subid2, distance) %>%
+  mds_sub2sub()
+```
+
+```{r}
+mds_results <- subsub %>%
+  group_by(roiidx) %>%
+  nest() %>%
+  mutate(sdist = map(data, ~mds_sub2sub(.x))) %>%
+  select(roiidx, sdist) %>%
+  unnest()
+```
+
+```{r}
+mds_pheno <- pheno %>%
+  mutate(src_file = str_replace(filename, '_summary.csv','')) %>%
+  inner_join(mds_results, by = "src_file") %>%
+  inner_join(Yeo7_2011_80verts, by = "roiidx") 
+```
+
+```{r}
+sdist_manova <- mds_pheno %>%
+  group_by(SHORTNAME) %>%
+  do(tidy(manova(cbind(mds1, mds2) ~ DX*Age_pt + Sex + fd_mean_pt + Scanner + SurfArea_pt,.))) %>%
+  ungroup() %>%
+  group_by(term) %>%
+  mutate(p_FDR  = p.adjust(p.value, method = "fdr"))
+```
+
+```{r}
+sdist_manova %>% filter(p_FDR < 0.1) %>% knitr::kable()
+```
+
+
+```{r fig.height=3, fig.width=8}
+mds_pheno %>%
+  filter(SHORTNAME %in% c("DAF1R", "FPF5R", "VAF4R")) %>%
+  ggplot(aes(x = mds1, y = mds2, color = DX)) +
+  geom_point(alpha = 0.1) +
+  scale_color_manual(values = c("grey20","red")) +
+  facet_wrap(~SHORTNAME, ncol = 5)
+```
+```{r fig.height=3, fig.width=8}
+mds_pheno %>%
+  filter(SHORTNAME %in% c("DAF1R", "FPF5R", "VAF4R")) %>%
+  ggplot(aes(x = mds1, y = mds2, color = Age)) +
+  geom_point(alpha = 0.2) +
+  scale_color_viridis_c() +
+  facet_wrap(~SHORTNAME, ncol = 5)
+```
+```{r fig.height=6, fig.width=8}
+mds_pheno %>%  
+  mutate(Age_coarse = case_when(Age < 25 ~ "young adult",
+                                Age > 35 ~ "middle age")) %>%
+  drop_na(Age_coarse) %>%
+  filter(SHORTNAME %in% c("DAF1R")) %>%
+  ggplot(aes(x = mds1, y = mds2)) +
+  stat_density_2d(aes(fill = stat(level)), bins = 8, geom = "polygon") +
+  geom_point(alpha = 0.5, size = 0.5) +
+  scale_fill_viridis_c() +
+  geom_hline(yintercept = 0) + geom_vline(xintercept = 0) +
+  facet_grid(Age_coarse ~ Site)
+```
+
+

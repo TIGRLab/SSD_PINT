@@ -1,15 +1,15 @@
 # helpers for reading files
 
-output_base <- '../data/ciftify_fmriprep/'
+output_base <- here('data/processed/mri/')
 
 read_pheno_file <- function() {
-  pheno <- read_csv('../phenotypic/20200202_pheno_qapass.csv') %>%
+  pheno <- read_csv(here('data/processed/pheno/20200202_pheno_qapass.csv')) %>%
     drop_na(DX)
   return(pheno)
 }
 
 read_Yeo72011_template <- function() {
-  Yeo7_2011_80verts <- read_csv("../templates/Yeo7_2011_80verts.csv",
+  Yeo7_2011_80verts <- read_csv(here("data/raw/templates/Yeo7_2011_80verts.csv"),
                                 col_types = c(
                                   hemi = col_character(),
                                   tvertex = col_integer(),
@@ -62,7 +62,7 @@ get_subcortical_guide <- function() {
     unnest() %>%
     unite(combined_name, subcort_hemi:subcort_NET, remove = FALSE)
   
-  subcort_vxcounts <- read_csv("../templates/subcort_vxcounts.csv") %>%
+  subcort_vxcounts <- read_csv(here("data/raw/templates/subcort_vxcounts.csv")) %>%
     unite(combined_name, subcort_hemi, subcort_ROI, network, sep = "_") %>%
     mutate(size_is_ok  = if_else(numvx > 34, "yes", "no"))
   

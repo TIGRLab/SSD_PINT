@@ -1,0 +1,132 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r message=FALSE, warning=FALSE}
+library(tidygraph)
+library(tidyverse)
+library(broom)
+library(knitr)
+library(igraph)
+library(ggraph)
+library(ggridges)
+library(cowplot)
+```
+
+```{r}
+load("../intermediate/intermediate_201904.RData")
+```
+
+```{r}
+YeoNet7 <- tribble(
+  ~network, ~hexcode,
+  "VI", "#781286",
+  "SM", "#4682B4",
+  "DA", "#00760E",
+  "VA", "#C43AFA",
+  "FP", "#E69422",
+  "DM", "#CD3E3A",
+  "LI", "#dcf8a4")
+
+```
+
+
+```{r}
+results_pheno %>%
+  select(to, from, vertex_type, weight) %>%
+  inner_join(annotated_graph_edges, by = c("from", "to")) %>%
+  filter(from_to_type == "Cort_Cort") 
+
+```
+
+```{r}
+samediff_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
+plt <- data %>%
+  mutate(corrtype = factor(vertex_type, levels = c('netmean_pvertex', 'netmean_tvertex', 'netmean_tvolume'),
+                           labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+  gather(nettype, gvalue, diff_net, same_net) %>%
+  filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
+  ungroup() %>%
+  ggplot(aes(y = corrtype, x = gvalue, fill = nettype, colour = nettype)) +
+  geom_density_ridges(
+    #jittered_points = TRUE, position = "raincloud",
+    alpha = 0.5, scale = 2,
+    quantile_lines = TRUE, quantiles = 2
+  ) +
+  geom_vline(xintercept = 0) +
+  scale_colour_manual(values = c("#808080", YeoNet_colours[[this_YeoNet]])) +
+  scale_fill_manual(values = c("#808080", YeoNet_colours[[this_YeoNet]])) +
+  scale_x_continuous(limits = c(-0.5, 0.6)) +
+  labs(y = NULL,
+       x = NULL) +
+  theme(legend.position='none')
+if (no_ticks==TRUE) {
+  plt <- plt + theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank())
+} else {
+  plt <- plt + labs(x = "Subcortical-Cortical Correlation (Z)")
+}
+return(plt)
+  
+}
+
+focus_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
+plt <- data %>%
+  mutate(corrtype = factor(vertex_type, levels = c('netmean_pvertex', 'netmean_tvertex', 'netmean_tvolume'),
+                           labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+  mutate(focus = same_net - diff_net) %>%
+  filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
+  ungroup() %>%
+  ggplot(aes(y = corrtype, x = focus)) +
+  geom_density_ridges(
+    # jittered_points = TRUE, position = "raincloud",
+    alpha = 0.5, scale = 2,
+    quantile_lines = TRUE, quantiles = 2,
+    fill = YeoNet_colours[[this_YeoNet]],
+    colour = YeoNet_colours[[this_YeoNet]]
+  ) +
+  geom_vline(xintercept = 0) +
+  scale_x_continuous(limits = c(-0.3, 0.6)) +
+  labs(y = NULL,
+       x = NULL) +
+  theme(legend.position='none', 
+        axis.title.y=element_blank(),
+        axis.text.y=element_blank()) 
+if (no_ticks==TRUE) {
+  plt <- plt + theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank())
+} else {
+  plt <- plt + labs(x = "Same - Diff.")
+}
+return(plt)
+  
+}
+
+samediff_plus_focus_rainclouds <- function(subject_focus, this_subcort, this_YeoNet, no_ticks = TRUE) {
+plt <- plot_grid(samediff_subcort_raincloud(subject_focus, this_subcort, this_YeoNet, no_ticks), 
+                         focus_subcort_raincloud(subject_focus, this_subcort, this_YeoNet, no_ticks), 
+                         rel_widths = c(2,1))
+return(plt)
+}
+
+subcortical_raincloud <- function(subject_focus, this_subcort) {
+DM <- samediff_plus_focus_rainclouds(subject_focus, this_subcort, "DM")
+FP <- samediff_plus_focus_rainclouds(subject_focus,this_subcort, "FP")
+VA <- samediff_plus_focus_rainclouds(subject_focus,this_subcort, "VA")
+SM <- samediff_plus_focus_rainclouds(subject_focus,this_subcort, "SM", no_ticks = FALSE)
+title <- ggdraw() + draw_label(this_subcort, fontface='bold')
+plt <- plot_grid(title, DM, FP, VA, SM, ncol = 1, rel_heights = c(0.5, 1, 1, 1, 1.5))
+return(plt)
+}
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.

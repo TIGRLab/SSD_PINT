@@ -1,0 +1,19 @@
+book_filename: "SSD_PINT_full"
+language:
+  ui:
+    chapter_name: "Chapter "
+delete_merged_file: true
+new_session: yes
+rmd_files: [
+  "index.Rmd",
+  "01a_mangle_participant_dems.Rmd",
+  "01b_mangle_scanQA_covars.Rmd",
+  "02a_pint_displacement_stats.Rmd",
+  "02b_MDS_stats.Rmd",
+  "02c_seedcorr_area_stats.Rmd",
+  "03_subcortical_cortical_stats_hemi.Rmd",
+  "04_cortical-cortical_changes.Rmd",
+ # "05_sulcal_depth_stats.Rmd",
+  "06_whole_matrix_stats.Rmd"
+]
+output_dir: "../reports"
