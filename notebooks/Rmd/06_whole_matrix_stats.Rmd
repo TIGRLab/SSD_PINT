@@ -95,6 +95,8 @@ pheno <- pheno %>%
          outputprefix = construct_output_prefix(subject, session, func_base)) 
 ```
 
+
+
 ```{r eval = FALSE}
 map2(pheno$outputprefix[1], pheno$dataset[1],
                               ~run_read_all_subject_timeseries_and_wholebrain_corZ(.x, .y))
@@ -110,11 +112,11 @@ all_corZ_results <- pheno %>%
 ```
 
 ```{r cache-subcort-Rdata}
-save(all_corZ_results, file = file.path(output_base, "all_qa_passes_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
+save(all_corZ_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
 ```
 
 ```{r load-cached-results, eval=FALSE}
-load(file.path(output_base, "all_qa_passes_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
+load(file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
 ```
 
 
@@ -127,9 +129,47 @@ results_pheno <- all_corZ_results %>%
 
 ```
 
+```{r drop_the_unmatched}
+results_pheno <- results_pheno %>% filter(in_matched_sample)
+```
+
+
 
 ```{r eval = FALSE}
 results_pheno
+```
+
+
+
+```{r}
+library(modelr)
+library(effsize)
+
+
+calc_DX_cohenD <- function(df) { 
+m1 <- lm(corZ ~ Age_match_pt + Sex + fd_mean_match_pt + Scanner, data = df)
+result <-df %>% 
+  add_residuals(m1) %>%
+  cohen.d(resid ~ DX, data = .) %>% 
+  .$estimate
+return(result)
+}
+```
+
+
+
+```{r}
+results_pheno_plus_DXd <- results_pheno %>%
+  semi_join(node_annotations, by = c("to"="node_name")) %>%
+  semi_join(node_annotations, by = c("from"="node_name")) %>%
+  mutate(corZ = weight) %>%
+  group_by(vertex_type, to, from) %>%
+  nest() %>%
+  #slice(1:3) %>%
+  mutate(DX_cohenD = map(data, ~calc_DX_cohenD(.x))) %>%
+  unnest(DX_cohenD) %>%
+  ungroup() %>%
+  select(vertex_type, to, from, DX_cohenD)
 ```
 
 ```{r}
@@ -138,9 +178,8 @@ DX_lm_model_full <- results_pheno %>%
   semi_join(node_annotations, by = c("from"="node_name")) %>%
   mutate(corZ = weight) %>%
   group_by(vertex_type, to, from) %>%
-  do(tidy(lm(corZ ~ DX + Age_pt + Sex + fd_mean_pt + Scanner,.))) 
+  do(tidy(lm(corZ ~ DX + Age_match_pt + Sex + fd_mean_match_pt + Scanner,.))) 
 ```
-
 
 ```{r}
 annotated_graph_edges <- DX_lm_model_full %>%
@@ -172,11 +211,25 @@ DX_lm_model <- DX_lm_model_full %>%
   arrange(p.value)
 ```
 
+```{r}
+DX_lm_model_DXcohenD <- DX_lm_model %>%
+  filter(term == "DXSSD") %>%
+  inner_join(results_pheno_plus_DXd, by = c("vertex_type", "to", "from")) %>%
+  mutate(cohenD_DX_tstatdir = -1 * DX_cohenD)
+DX_lm_model_DXcohenD %>%
+  ggplot(aes(cohenD_DX_tstatdir, statistic, color = (p_FDR < 0.05))) +
+  geom_point()
+```
+```{r}
+
+```
+
+
 ## Make co
 
 ```{r fig.height=10, fig.width=10}
 source(here('code/R/swirly_plot_helpers.R'))
-DX_lm_model %>%
+DX_lm_model_DXcohenD %>%
   ungroup() %>%
   ## filtering steps
   filter(term == "DXSSD") %>%
@@ -191,7 +244,7 @@ DX_lm_model %>%
 
 
 ```{r fig.height=10, fig.width=10}
-DX_lm_model %>%
+DX_lm_model_DXcohenD %>%
   ungroup() %>%
   filter(term == "DXSSD") %>%
   filter(vertex_type == "tvertex") %>%
@@ -203,7 +256,7 @@ DX_lm_model %>%
 
 
 ```{r fig.height=10, fig.width=10}
-DX_lm_model %>%
+DX_lm_model_DXcohenD %>%
   ungroup() %>%
   filter(term == "DXSSD") %>%
   filter(vertex_type == "tvolume") %>%
@@ -315,7 +368,7 @@ calc_fc_weights <- function(lm_df, t_threshold) {
   
     full_DX_mat <- lm_df %>%
       ungroup() %>%
-      select(to, from, statistic) %>%
+      select(to, from, cohenD_DX_tstatdir) %>%
       uppertri_df_to_full() %>%
       inner_join(node_annotations, by = c("to"="node_name")) %>%
       inner_join(node_annotations, by = c("from"="node_name")) 
@@ -407,22 +460,22 @@ Fz_weigths <-bind_rows(hypo_cortDM_to_rest = hypo_cortDM_to_rest,
 
 
 ```{r}
-t_threshold = 1.1
+cohenD_threshold = 0.1
 
-Fz_DXweigths_pvertex <- DX_lm_model %>%
+Fz_DXweigths_pvertex <- DX_lm_model_DXcohenD %>%
   filter(term == "DXSSD", vertex_type == "pvertex") %>%
   ungroup() %>%
-  calc_fc_weights(.,t_threshold)
+  calc_fc_weights(.,cohenD_threshold)
 
-Fz_DXweigths_tvertex <- DX_lm_model %>%
+Fz_DXweigths_tvertex <- DX_lm_model_DXcohenD %>%
   filter(term == "DXSSD", vertex_type == "tvertex") %>%
   ungroup() %>%
-  calc_fc_weights(.,t_threshold)
+  calc_fc_weights(.,cohenD_threshold)
 
-Fz_DXweigths_tvolume <- DX_lm_model %>%
+Fz_DXweigths_tvolume <- DX_lm_model_DXcohenD %>%
   filter(term == "DXSSD", vertex_type == "tvolume") %>%
   ungroup() %>%
-  calc_fc_weights(.,t_threshold)
+  calc_fc_weights(.,cohenD_threshold)
 
 Fz_DXweigths <- bind_rows(pvertex = Fz_DXweigths_pvertex,
                      tvertex = Fz_DXweigths_tvertex,
@@ -430,8 +483,8 @@ Fz_DXweigths <- bind_rows(pvertex = Fz_DXweigths_pvertex,
                      .id = "vertex_type") 
 Fz_DXweigths %>% 
   group_by(vertex_type, edge_group, effect_direction) %>%
-  summarise(median_weight = median(edge_FC_weight)) %>%
-  ggplot(aes(y = abs(median_weight), x = vertex_type, color = edge_group)) +
+  summarise(mean_weight = mean(edge_FC_weight)) %>%
+  ggplot(aes(y = abs(mean_weight), x = vertex_type, color = edge_group)) +
     geom_point() +
     geom_line(aes(group = edge_group))
   
@@ -450,9 +503,9 @@ Fz_DXweigths %>%
   spread(vertex_type, median_weight)
 ```
 ```{r}
-write_csv(Fz_DXweigths_pvertex, file.path(output_base, "all_qa_passes_group", "weighted_subject_FC_weigths", "SSD4cohorts_DXtweigths_pvertex.csv"))
-write_csv(Fz_DXweigths_tvertex, file.path(output_base, "all_qa_passes_group", "weighted_subject_FC_weigths", "SSD4cohorts_DXtweigths_tvertex.csv"))
-write_csv(Fz_DXweigths_tvolume, file.path(output_base, "all_qa_passes_group", "weighted_subject_FC_weigths", "SSD4cohorts_DXtweigths_tvolume.csv"))
+write_csv(Fz_DXweigths_pvertex, file.path(output_base, "all_clinicalplusqa_group", "weighted_subject_FC_weigths", "SSD4cohorts_DXtweigths_pvertex.csv"))
+write_csv(Fz_DXweigths_tvertex, file.path(output_base, "all_clinicalplusqa_group", "weighted_subject_FC_weigths", "SSD4cohorts_DXtweigths_tvertex.csv"))
+write_csv(Fz_DXweigths_tvolume, file.path(output_base, "all_clinicalplusqa_group", "weighted_subject_FC_weigths", "SSD4cohorts_DXtweigths_tvolume.csv"))
 ```
 
 ```{r}
@@ -474,9 +527,8 @@ calc_subjects_wFC_score <- function(subject_edges_df, edge_weights) {
   unnest(uptri) %>%
   inner_join(edge_weights, by = c("to", "from")) %>%
   ungroup() %>%
-  mutate(wcorZ = abs(edge_FC_weight) * value) %>%
   group_by(subject, dataset, effect_direction, edge_group) %>%
-  summarise(wFC_score = sum(wcorZ)/sum(abs(edge_FC_weight)),
+  summarise(wFC_score = mean(value, w = edge_FC_weight),
             mFC_score = mean(value)) %>%
   ungroup()
   return(result)
@@ -511,7 +563,7 @@ FC_scores_together <- bind_rows(
 )
 
 write_csv(FC_scores_together, file.path(output_base, 
-                                        "all_qa_passes_group", 
+                                        "all_clinicalplusqa_group", 
                                         "weighted_subject_FC_scores",
                                         "SSD4cohorts_DXweighted_subject_scores.csv"))
 ```
@@ -524,7 +576,7 @@ FC_scores_lmfit <- FC_scores_together %>%
   inner_join(pheno, by = c("subject", "dataset")) %>%
   ungroup() %>%
   group_by(edge_group, effect_direction, vertex_type) %>%
-  do(tidy(lm(wFC_score ~ DX + Age_pt + Sex + fd_mean_pt + Site,.))) 
+  do(tidy(lm(wFC_score ~ DX + Age_pt + Sex + fd_mean_pt + Scanner,.))) 
 
 FC_scores_lmfit %>%
   select(edge_group, effect_direction, term, statistic, p.value) %>%
@@ -639,7 +691,7 @@ fplot <- FC_scores_together %>%
 ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_subcort_to_VI, y = hypo_cerebullum_to_striatum))
 ```
 ```{r, fig.width=5, fig.height = 4}
-ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_subcort_to_SM, y = hypo_cerebullum_to_striatum))
+ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_subcort_to_SM, y = hypo_subcort_to_FP))
 ```
 
 
@@ -702,24 +754,23 @@ edge_grouping_guide <- matrix(1,
 ```
 
 ```{r}
-t_threshold = 1.1
-define_hypohyper_weights <- function(lm_df, t_threshold, node_annotations, edge_guide) {
+define_hypohyper_weights <- function(lm_df, cohenD_threshold, node_annotations, edge_guide) {
 full_DX_mat <- lm_df %>%
       ungroup() %>%
-      select(to, from, statistic) %>%
+      select(to, from, cohenD_DX_tstatdir) %>%
       uppertri_df_to_full() %>%
       inner_join(node_annotations, by = c("to"="node_name")) %>%
       inner_join(node_annotations, by = c("from"="node_name")) 
     
 pos_weights <- full_DX_mat %>%
-    filter(value > t_threshold) %>%
+    filter(value > cohenD_threshold) %>%
     semi_join(edge_grouping_guide, by = c("node_grouping.x" = "to",
                                           "node_grouping.y" = "from")) %>%
     unite(edge_group, node_grouping.x, node_grouping.y) %>%
     select(edge_group, to, from, value)
 
 neg_weights <- full_DX_mat %>%
-    filter(value < -t_threshold) %>%
+    filter(value < -cohenD_threshold) %>%
     semi_join(edge_grouping_guide, by = c("node_grouping.x" = "to",
                                           "node_grouping.y" = "from")) %>%
     unite(edge_group, node_grouping.x, node_grouping.y) %>%
@@ -731,12 +782,12 @@ all_weights <- bind_rows(hyper = pos_weights,
 return(all_weights)
 }
 
-define_vertex_hypohyper_weights <- function(lm_df, v_type, t_threshold) {
+define_vertex_hypohyper_weights <- function(lm_df, v_type, cohenD_threshold) {
   groupwise_weights <- lm_df %>%
   filter(term == "DXSSD", 
          vertex_type == v_type) %>%
   ungroup() %>%
-  define_hypohyper_weights(., t_threshold,
+  define_hypohyper_weights(., cohenD_threshold,
                            node_annotations = node_annotations1,
                            edge_guide = edge_guide)
   return(groupwise_weights)
@@ -744,7 +795,7 @@ define_vertex_hypohyper_weights <- function(lm_df, v_type, t_threshold) {
 
 groupwise_weights <- tibble(vertex_type = c("pvertex", "tvertex", "tvolume")) %>%
   mutate(result = map(vertex_type, 
-                      ~ define_vertex_hypohyper_weights(DX_lm_model, .x, t_threshold))) %>%
+                      ~ define_vertex_hypohyper_weights(DX_lm_model_DXcohenD, .x, cohenD_threshold))) %>%
   unnest()
 ```
 
@@ -802,12 +853,7 @@ groupwise_weights_both %>%
   geom_line(aes(group = edge_group)) +
   facet_wrap(~effect_direction)
 ```
-```{r}
-file.path(output_base, 
-                                        "all_qa_passes_group", 
-                                        "weighted_subject_FC_weigths",
-                                        'SSD4cohorts_DXweighted_moregroups_subject_weights.csv')
-```
+
 
 
 ```{r}
@@ -824,7 +870,7 @@ groupwise_weights_both %>%
 ```
 ```{r}
 write_csv(groupwise_weights_both, file.path(output_base, 
-                                        "all_qa_passes_group", 
+                                        "all_clinicalplusqa_group", 
                                         "weighted_subject_FC_weigths",
                                         'SSD4cohorts_DXweighted_moregroups_subject_weights.csv'))
 ```
@@ -851,7 +897,7 @@ all_subject_FC_weights <- tibble(vertex_type = c("pvertex", "tvertex", "tvolume"
 ```{r}
 
 write_csv(all_subject_FC_weights, file.path(output_base, 
-                                        "all_qa_passes_group", 
+                                        "all_clinicalplusqa_group", 
                                         "weighted_subject_FC_scores",
                                         'SSD4cohorts_DXweighted_moregroups_subject_scores.csv'))
 ```
@@ -930,7 +976,7 @@ FC_gscores_lmfitbySite_mFC %>%
 
 ```{r fig.height=7, fig.width=7}
 wFC_corrs <- all_subject_FC_weights %>%
-  filter(vertex_type == "pvertex") %>%
+  filter(vertex_type == "tvertex") %>%
   select(subject, dataset, edge_group, wFC_score) %>%
   spread(edge_group, wFC_score) %>%
   select(-subject, -dataset) %>%

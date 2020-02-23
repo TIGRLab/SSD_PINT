@@ -34,6 +34,7 @@ read_mriqc_bold <- function(studyname) {
   return(bold)
 }
 
+## read all mriqc bold outputs
 all_the_bolds <- tibble(dataset = sub_projects) %>% 
     mutate(boldqc = map(dataset, function(x) {
         read_mriqc_bold(x)
@@ -41,15 +42,14 @@ all_the_bolds <- tibble(dataset = sub_projects) %>%
     unnest() %>%
   filter(task_id == "rest") 
 
-```
-
-```{r}
+## mangle the mriqc bold outputs
 bolds_condensed <- all_the_bolds %>%
   select(dataset, ends_with('_id'), starts_with('fd_'), starts_with('size'), starts_with('spacing')) %>%
   mutate(subject = str_c("sub-", subject_id),
          session = str_c("ses-",session_id)) 
 ```
-
+ 
+Also read the mriqc outputs from the T1w images
 
 ```{r message=FALSE, warning=FALSE}
 read_mriqc_t1w <- function(studyname) {
@@ -74,16 +74,15 @@ all_the_T1w <- tibble(dataset = sub_projects) %>%
 
 ```{r}
 usable_scans <- all_the_bolds %>%
-  group_by(dataset, subject_id, task_id) %>%
+  group_by(dataset, subject_id, session_id, task_id) %>%
   summarise(num_rest = n()) %>%
   full_join(all_the_T1w, by = c("subject_id", "dataset")) %>%
   mutate(num_scans = num_rest + num_t1w,
-         subject = str_c("sub-", subject_id)) %>%
+         subject = str_c("sub-", subject_id),
+         session = str_c("ses-", session_id)) %>%
   ungroup()
-```
 
-
-```{r}
+## print the number of usable scans
 usable_scans %>%
   ungroup() %>%
   select(subject_id, dataset, num_scans) %>%
@@ -122,7 +121,8 @@ rm(pint_summarys_nses, pint_summarys_wses, pintdf_nses, pintdf_wses)
 
 ```{r}
 # removing session id column because it is redundant
-simple_pheno <- read_csv(here('data/processed/pheno/simple_pheno_20200214.csv')) 
+simple_pheno <- read_csv(here('data/processed/pheno/simple_pheno_20200221.csv')) %>%
+  drop_na(DX)
 ```
 
 ## also read in an concatenate all the surface area info from freesurfer
@@ -151,6 +151,23 @@ usable_scans %>%
 
 #### we see that the only people we have bold info but no phenotype for is that one VIPR participant in SPINS and the 5 people from ds00030 who don't have a T1w scan
 
+## ZHH is the only site where we have session specific pheno information.. so we will check that
+
+*Note: (known issue) we discovered that, due to a duplicate row in the participants spreadsheet - one ZHH scan `SessNo` 22434 was copied into two sessions..(ses-01 & ses-02)* 
+
+Data from sub-11082-ses-02 should be discarded from further analyses - ses-02 does not exist..it is a duplicate of ses-01 from the same participant..(note how the scan QA values are also identical)
+
+```{r}
+usable_scans %>%
+  filter(dataset == "ZHH") %>%
+  anti_join(simple_pheno, by = c("subject", "session", "dataset")) %>%
+  drop_na(num_scans)
+```
+
+
+```{r}
+bolds_condensed %>% filter(dataset == "ZHH", subject == "sub-11082")
+```
 ## Setting the motion threshold:
 
 We have set the motion threshold to:
@@ -158,15 +175,17 @@ Mean FD < 0.5mm and
 No more than 50% of the scan with motion > 0.2mm
 
 ```{r}
+GRIDs_w_cerebellum_cutoff <- c(7793, 7834, 9405)
+  
 mean_fd_thres <- 0.5
 perc_fd_thres <- 50
 
 pre_qa <- bolds_condensed %>%
-  inner_join(select(usable_scans, -task_id, -subject_id), 
-             by = c("subject", "dataset")) %>%
+  inner_join(usable_scans %>% select(subject, dataset, num_scans), by = c("subject", "dataset")) %>%
   drop_na(num_scans) %>%
-  inner_join(simple_pheno, by = c("subject", "dataset")) %>%
-  inner_join(all_surfs %>% rename(subject = SubjID), by = c("subject", "dataset"))
+  inner_join(simple_pheno %>% select(subject, dataset, DX, Site), by = c("subject", "dataset")) %>%
+  inner_join(all_surfs, by = c("subject"="SubjID", "dataset")) %>%
+    filter(!(subject_id %in% GRIDs_w_cerebellum_cutoff))
 ```
 
 ```{r}
@@ -190,7 +209,7 @@ qa_passes_pheno %>%
 
 ```{r}
 anti_join(qa_passes_pheno, pintdf,
-          by = c("dataset", "subject", "session")) 
+          by = c("dataset", "subject")) 
 ```
 
 ## Selecting scans with least motion
@@ -198,16 +217,75 @@ anti_join(qa_passes_pheno, pintdf,
 
 ```{r select-scans-with-least-motion}
 # select the scan for each participant with the least motion
-pheno <- qa_passes_pheno %>%
+mangle_qa_passes <- qa_passes_pheno %>%
   select(-ends_with("_x"), -ends_with("_y")) %>%
   left_join(pintdf,
           by = c("dataset", "subject", "session")) %>%
-  filter(!is.na(filename)) %>%
+  filter(!is.na(filename)) 
+
+qa_passes_no_ZHH <- mangle_qa_passes %>% filter(dataset != "ZHH") %>% distinct()
+qa_passes_no_ZHH_leastmotion <- qa_passes_no_ZHH %>% 
+  left_join(simple_pheno %>% select(-session), by = c("subject", "dataset", "DX", "Site")) %>%
   group_by(subject, dataset) %>%
   arrange(fd_perc) %>%
   slice(1) %>%
   ungroup() 
 ```
+
+```{r}
+names(qa_passes_no_ZHH_leastmotion)
+```
+
+
+```{r}
+anti_join(qa_passes_no_ZHH, qa_passes_no_ZHH_leastmotion, by = c("subject", "dataset", "session", "fd_mean"))
+```
+
+```{r}
+bind_rows(pre_drop = qa_passes_no_ZHH %>% count(dataset),
+          post_drop = qa_passes_no_ZHH_leastmotion %>% count(dataset),
+          .id = "prepost") %>%
+  spread(prepost, n)
+```
+
+```{r}
+qa_passes_ZHH <- mangle_qa_passes %>% 
+  filter(dataset == "ZHH") %>% 
+  distinct() %>%
+  left_join(simple_pheno, by = c("subject", "dataset", "session", "DX", "Site")) 
+
+qa_passes_ZHH_leastmotion <- qa_passes_ZHH %>% 
+  group_by(subject, dataset) %>%
+  arrange(fd_perc) %>%
+  slice(1) %>%
+  ungroup() 
+
+qa_passes_ZHH_chosenleastmotion <- qa_passes_ZHH %>% 
+  group_by(subject, dataset) %>%
+  arrange(desc(zhh_chosen_sess), fd_num) %>%
+  slice(1) %>%
+  ungroup() 
+
+## show table of picking scans purely for motion vs picking the scan with better clinical characterization.. 
+bind_rows(before = qa_passes_ZHH %>% count(DX, isFEP),
+          after_dropping_formot = qa_passes_ZHH_leastmotion %>% count(DX, isFEP),
+          after_dropping_notchosen = qa_passes_ZHH_chosenleastmotion %>% count(DX, isFEP),
+          .id = "prepost") %>%
+  spread(prepost, n)
+```
+
+So, luckily, it looks like the difference between what we did before (just selecting the session with the least motion) and what we would like to do now (selecting the session with better clinical characterization) leads to similar subject lists (differing only by 15 sessions).
+
+Note - from this calculation it looks like we have repeat scans available for some later analysis from 33 SSD participants..
+
+```{r}
+anti_join(qa_passes_ZHH, qa_passes_ZHH_chosenleastmotion, by = c("subject", "dataset", "session", "fd_mean")) %>% distinct(subject) %>% count()
+```
+```{r}
+pheno <- bind_rows(qa_passes_no_ZHH_leastmotion,
+                   qa_passes_ZHH_chosenleastmotion)
+```
+
 
 
 ```{r}
@@ -215,7 +293,12 @@ pheno %>%
   ggplot(aes(x = Age, y = SurfArea)) + 
   geom_point(aes(color = Site)) + geom_smooth(method = "lm") 
 ```
-
+```{r}
+pheno %>%
+  ggplot(aes(x = fd_mean, color = DX)) + 
+  geom_density() +
+  facet_wrap(~Site, ncol = 1)
+```
 ## final mangle of the phenotypic data (transforming variables)
 
 ```{r}
@@ -225,7 +308,7 @@ transform_to_normal <- function(X) {
   # apply the power transform and save the result to a new variable
   X_pT <- X^pT$lambda ## note ^ is exponent in r
   xout = scales::rescale(X_pT)
-  return(X_pT)
+  return(xout)
 }
 
 # transform age and fd_mean to normality
@@ -270,7 +353,7 @@ qa_passes_pheno %>%
   group_by(subject) %>%
   sample_n(1) %>%
   ungroup() %>%
-  group_by(Site, size_t, size_x, size_y, size_z, spacing_x_round, spacing_z_round, scan_length) %>%
+  group_by(Site, size_t, size_x, size_y, size_z, spacing_x_round, spacing_z_round, spacing_tr, scan_length) %>%
   count() %>%
   ungroup() %>%
   group_by(Site) %>%
@@ -280,10 +363,101 @@ qa_passes_pheno %>%
 
 ```
 
+## adding matching for the ds00030 subsample first...
+
+In ds00030 there are a lot more controls than SSD participants - and the controls are mostly from one scanner with no ghosting artifact.. so it might be good idea to drop some of them..
+
+```{r}
+library(MatchIt)
+```
+
+```{r}
+ds30 <- pheno %>%
+   filter(Site == "ds000030") %>%
+   select(subject, DX, Age, Sex, ghost_NoGhost, Scanner, Site) %>%
+   mutate(DXnum = as.numeric(factor(DX))-1)
+
+
+(ds30_match1 <- matchit(DXnum ~ Age + Sex + as.character(ghost_NoGhost) + as.character(Scanner),
+                     data = ds30))
+```
+```{r}
+therest <- pheno %>%
+   filter(Site != "ds000030") %>%
+   select(subject, DX, Age, Sex, Scanner) %>%
+   mutate(DXnum = as.numeric(factor(DX))-1)
+
+
+(therest_match1 <- matchit(DXnum ~ Age + Sex + as.character(Scanner),
+                     data = therest))
+```
+
+```{r}
+pheno1 <- bind_rows(
+  pheno %>% semi_join(match.data(ds30_match1), by = c("subject", "Site")),
+  pheno %>% semi_join(match.data(therest_match1), by = c("subject", "Scanner")))
+
+pheno1 %>% count(Site,DX)
+```
+```{r}
+pheno1 %>%
+  group_by(Site, DX) %>%
+  summarise(n = n(),
+            nMale = sum(Sex == "M"),
+            perc_male = nMale/n()*100,
+            age_mean = mean(Age, na.rm = T),
+            age_sd = sd(Age, na.rm = T),
+            age_min = min(Age, na.rm = T),
+            age_max = max(Age, na.rm = T)) %>%
+    mutate(age_report =sprintf("%0.1f(%0.1f) %0.0f - %0.0f", 
+                               age_mean, age_sd, age_min, age_max),
+           sex_report = str_c(nMale, '(', sprintf("%0.1f", perc_male), '%)')) %>%
+  select(Site, DX, n, age_report, sex_report)
+
+```
+```{r}
+pheno1 %>%
+  ggplot(aes(x = fd_mean, color = DX)) + 
+  geom_density() +
+  facet_wrap(~Site, ncol = 1)
+```
+
+```{r}
+final_pheno <- pheno %>%
+  left_join(pheno1 %>% select(subject, dataset, Age, fd_mean, SurfArea), 
+            by =c("subject", "dataset"),
+            suffix = c("", "_match")) %>%
+  mutate(in_matched_sample = !is.na(Age_match),
+         Age_match_pt = transform_to_normal(Age_match),
+         fd_mean_match_pt = transform_to_normal(fd_mean_match),
+         SurfArea_match_pt = transform_to_normal(SurfArea_match))
+```
+```{r}
+final_pheno %>%
+  ggplot(aes(x = fd_mean_match_pt, color = DX)) + 
+  geom_density() +
+  scale_colour_manual(values = c("grey10", "red")) +
+  facet_wrap(~Site, ncol = 1)
+```
+```{r}
+final_pheno %>%
+  ggplot(aes(x = SurfArea_match_pt, color = DX)) + 
+  geom_density() +
+  scale_colour_manual(values = c("grey10", "red")) +
+  facet_wrap(~Site, ncol = 1)
+```
+
+```{r}
+final_pheno %>%
+  ggplot(aes(x = SurfArea_match_pt, color = DX)) + 
+  geom_density() +
+  scale_colour_manual(values = c("grey10", "red")) +
+  facet_wrap(~Site, ncol = 1)
+```
 
 
 ```{r} 
-write_csv(pheno, here('data/processed/pheno/20200214_pheno_qapass.csv'))
+write_csv(final_pheno, here('data/processed/pheno/20200221_pheno_clinicalplusqa.csv'))
 ```
 
 ```{r}
@@ -291,6 +465,9 @@ pheno %>%
   filter(!is.na(DX)) %>%
   count(Site, DX) 
 ```
+
+
+
 
 
 + ASDD is done!
@@ -309,7 +486,7 @@ this section is run manually before the postPINT group steps are done..
 ```{r eval = FALSE}
 source(here('code','R','file_reading_helpers.R'))
 
-final_sublist <- pheno %>%
+final_sublist <- final_pheno %>%
   mutate(func_base = get_func_base_from_pint_summary_filename(filename,subject, session), 
          outputprefix = construct_output_prefix(subject, session, func_base),
          expected_filepath = file.path(dataset, "out",'ciftify_PINT', 
@@ -318,6 +495,6 @@ final_sublist <- pheno %>%
 final_sublist %>%
   select(expected_filepath) %>%
   arrange(expected_filepath) %>%
-  write_csv(path = here('data/processed/mri/all_qa_passes_group/pint_summary_filelist.csv'), col_names = FALSE)
+  write_csv(path = here('data/processed/mri/all_clinicalplusqa_group/pint_summary_filelist.csv'), col_names = FALSE)
 ```
 

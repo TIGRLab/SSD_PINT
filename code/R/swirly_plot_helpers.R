@@ -62,7 +62,7 @@ make_swirly_results_plot <- function(lm_df, pos_label, neg_label, plot_title, no
                                   p_FDR > 0.05 ~ "ns")) %>%
     
     ## clean if up a bit
-    select(to, from, effect_cat, statistic)
+    select(to, from, effect_cat, DX_cohenD, statistic)
   
   tg_lm <- as_tbl_graph(lm_df) %>%
     activate(nodes) %>%
@@ -78,8 +78,8 @@ make_swirly_results_plot <- function(lm_df, pos_label, neg_label, plot_title, no
                 sort.by = "custom_order", use.numeric = TRUE,
                 offset = pi) +
     geom_edge_arc(aes(color = effect_cat, 
-                      width = abs(statistic), 
-                      alpha = abs(statistic))) +
+                      #width = abs(DX), 
+                      alpha = abs(DX_cohenD))) +
     geom_node_point(aes(color = network), size = 2) +
     scale_color_manual(values = rev(YeoNet7$hexcode)) +
     coord_flip() +

@@ -30,18 +30,15 @@ pheno <- read_pheno_file() %>%
   mutate(subid = str_replace(filename, '_summary.csv','')) %>%
   drop_na(DX)
 
-pint_concat <- read_csv(file.path(output_base,'postPINT1_concat_all_qa_passes.csv'))
+#pint_concat <- read_csv(file.path(output_base,'postPINT1_concat_all_qa_passes.csv'))
+pint_concat <- read_csv(file.path(output_base, 'all_qa_passes_group','postPINT','postPINT1_concat_all_qa_passes.csv'))
 ```
 
 
+
+
 ```{r}
-pheno %>%  
-  select(subject, dataset) %>%
-  distinct() %>%
-  count()
-```
-```{r}
-ana_data <- pheno %>%
+ana_data <- pheno1 %>%
   inner_join(pint_concat, by = "subid") %>%
   inner_join(Yeo7_2011_80verts, by = "roiidx") %>%
   mutate(network = str_sub(SHORTNAME, 1,2))
@@ -56,12 +53,11 @@ dist_by_total <- pint_concat %>%
   group_by(subid) %>%
   summarise(MeanDistance = mean(std_distance)) %>%
   ungroup() %>%
-  inner_join(pheno, by = "subid")  
+  inner_join(pheno1, by = "subid")  
 
 dist_by_total %>%
   ungroup() %>%
-  do(tidy(lm(MeanDistance ~ DX + Age_pt + Sex + fd_mean_pt + Site + SurfArea_pt,.))) %>%
-  mutate(p_bonf = p.value*6) %>%
+  do(tidy(lm(MeanDistance ~ DX + Age_pt + Sex + fd_mean_pt + Scanner + SurfArea_pt,.))) %>%
   knitr::kable()
 ```
 
@@ -73,14 +69,17 @@ dist_by_total %>%
   facet_wrap(~DX) +
   theme_bw()
 ```
-
-```{r age-location-plot, fig.height=4, fig.width=7}
+```{r age-location-plot-byDX, fig.height=4, fig.width=7}
 dist_by_total %>%
   ggplot(aes(y = MeanDistance, x = Age, color = DX)) +
-  geom_point() + 
+  geom_point(aes(fill = Site)) + 
   geom_smooth(method = "lm")+
   theme_bw()
 ```
+
+
+
+
 
 ```{r}
 dist_by_network <- pint_concat %>%
@@ -89,14 +88,14 @@ dist_by_network <- pint_concat %>%
   group_by(subid, network) %>%
   summarise(MeanDistance = mean(std_distance)) %>%
   ungroup() %>%
-  inner_join(pheno, by = "subid")  
+  inner_join(pheno1, by = "subid")  
 
 dist_by_network %>%
   ungroup() %>% group_by(network) %>%
-  do(tidy(aov(lm(MeanDistance ~ DX + Age_pt + Sex + fd_mean_pt + Scanner + SurfArea_pt,.)))) %>%
+  do(tidy(lm(MeanDistance ~ DX + Age_pt + Sex + fd_mean_pt + Scanner + SurfArea_pt,.))) %>%
   mutate(p_bonf = p.value*6) %>%
-  filter(!(term %in% c('Intercept', 'ScannerCOBRE', 'Scannerds00003035343', 'ScannerZHH', 'Scannerds00003035426'))) %>%
-  select(network, term, df, statistic, p.value, p_bonf) %>%
+  filter(!(term %in% c('(Intercept)', 'ScannerCOBRE', 'Scannerds00003035343', 'ScannerZHH', 'Scannerds00003035426'))) %>%
+  #select(network, term, df, statistic, p.value, p_bonf) %>%
   knitr::kable()
 ```
 
@@ -125,6 +124,5 @@ roi_dx_lm <- ana_data %>%
   mutate(p_fdr  = p.adjust(p.value, method = 'fdr'))
 
 roi_dx_lm %>%
-  filter(term == "Age_pt") %>%
   filter(p_fdr < 0.1)
 ```

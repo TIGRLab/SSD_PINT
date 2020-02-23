@@ -76,12 +76,16 @@ all_subcort_results <- pheno %>%
                               ~run_read_all_subject_timeseries_and_subcortcort_corZ(.x, .y)))
 ```
 
-```{r cache-subcort-Rdata, eval = FALSE}
-save(all_subcort_results, file = here("data/processed/Rdata_cache/03_subcort_results_cache.Rdata"))
+```{r cache-subcort-Rdata}
+save(all_subcort_results, file = here("data/processed/mri/all_qa_passes_group/Rdata_cache/03_subcort_results_cache.Rdata"))
 ```
 
 ```{r load-cached-results, eval=FALSE}
-load(here("data/processed/Rdata_cache/03_subcort_results_cache.Rdata"))
+load(here("data/processed/mri/all_qa_passes_group/Rdata_cache/03_subcort_results_cache.Rdata"))
+```
+
+```{r}
+names(pheno)
 ```
 
 
@@ -100,12 +104,32 @@ results_pheno <- all_subcort_results %>%
          subcort_NET = factor(subcort_NET, levels = c("VI", "SM", "DA", "VA", "FP", "DM", "LI"))) %>%
   select(subject, dataset, PINT_ROI, subcort_ROI, subcort_NET,subcort_hemi, 
          pvertex_corr, tvertex_corr, tvolume_corr,
-         DX, Sex, fd_mean, Age, Site, Scanner, Age_pt, fd_mean_pt,  
-         YeoNet, hemisphere, conn_type) 
+         DX, Sex, fd_mean, Age, Site, Scanner, Age_pt, fd_mean_pt, 
+         Age_match_pt, fd_mean_match_pt,  in_matched_sample,
+         YeoNet, hemisphere, conn_type, ) 
 
 ```
 
+## run this bit to only use the matched subsample 
 
+```{r merge-and-use-matched}
+results_pheno <- all_subcort_results %>%
+  inner_join(pheno, by = c("subject", "dataset")) %>%
+  unnest() %>%
+  filter(in_matched_sample) %>%
+  inner_join(the_subcortical_guide, by = c("combined_name")) %>%
+  mutate(YeoNet = str_sub(PINT_ROI, 1,2),
+         hemisphere = str_sub(PINT_ROI, 5,5)) %>%
+  mutate(conn_type = if_else(YeoNet == subcort_NET, "same_net", "diff_net"),
+         YeoNet = factor(YeoNet, levels = c("VI", "SM", "DA", "VA", "FP", "DM")),
+         subcort_NET = factor(subcort_NET, levels = c("VI", "SM", "DA", "VA", "FP", "DM", "LI"))) %>%
+  select(subject, dataset, PINT_ROI, subcort_ROI, subcort_NET,subcort_hemi, 
+         pvertex_corr, tvertex_corr, tvolume_corr,
+         DX, Sex, fd_mean, Age, Site, Scanner,  
+         Age_match_pt, fd_mean_match_pt, in_matched_sample,
+         YeoNet, hemisphere, conn_type, ) 
+
+```
 
 
 
@@ -184,6 +208,27 @@ drop_VI_DA_LI <- function(data) {
 ```{r plotting-PINT-change-matrix-reduce, fig.width=7.5, fig.height=7.5}
 
 table1 %>%
+  drop_VI_DA_LI() %>%
+  add_corrtype_and_subcortROI_columns() %>%
+ggplot(aes(y = YeoNet, x = subcort_NET, fill = Mean)) + 
+  geom_tile() +
+  geom_text(aes(label = sprintf('%3.2f',Mean))) +
+  scale_fill_distiller(breaks = c(-0.5,0.5), type = "div", palette = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_grid(corrtype~subcortROI) +
+  labs(y = "Cortical RSN Network", x = "Subcortical Subregion")
+
+```
+```{r plotting-PINT-change-matrix-reduce-match, fig.width=7.5, fig.height=7.5}
+table1m <- results_pheno %>%
+  filter(in_matched_sample) %>%
+  mutate(corr_diff = pvertex_corr - tvertex_corr) %>%
+  gather(corr_type, rval, pvertex_corr, tvertex_corr, tvolume_corr) %>%
+  group_by(corr_type, YeoNet, subcort_ROI, subcort_NET) %>%
+  summarise(n = n(),
+            Mean = mean(rval),
+            SD = sd(rval)) 
+table1m %>%
   drop_VI_DA_LI() %>%
   add_corrtype_and_subcortROI_columns() %>%
 ggplot(aes(y = YeoNet, x = subcort_NET, fill = Mean)) + 
@@ -305,6 +350,24 @@ net_focus %>%
 Another (maybe better) way to test this is to show calculate the "focusing" value in individual subjects THAN compute how this number changes with PINT. Let try that..
 
 ```{r sub-focus-tstats}
+subject_focus <- net_means %>%
+  drop_VI_DA_LI() %>%
+  gather(vertex_type, nets_avg, netmean_pvertex, netmean_tvertex, netmean_tvolume) %>%
+  ungroup(subcort_NET) %>%
+  group_by(subject, subcort_ROI, YeoNet, vertex_type, conn_type) %>%
+  summarise(nets_type_avg = mean(nets_avg)) %>%
+  spread(conn_type, nets_type_avg) # %>%
+  # ungroup() %>%
+  # mutate(focus_effect = same_net - diff_net)
+
+subject_focus %>%
+  ungroup() %>%
+  group_by(subcort_ROI, YeoNet, vertex_type) %>%
+  do(tidy(t.test(.$same_net, .$diff_net, paired = TRUE))) %>%
+  mutate(cohenD = statistic/sqrt(parameter + 1)) %>%
+  kable()
+```
+```{r sub-focus-tstats-matched}
 subject_focus <- net_means %>%
   drop_VI_DA_LI() %>%
   gather(vertex_type, nets_avg, netmean_pvertex, netmean_tvertex, netmean_tvolume) %>%

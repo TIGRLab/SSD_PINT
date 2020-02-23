@@ -1,0 +1,198 @@
+---
+title: "Run clinical against FC scores"
+output: html_notebook
+---
+
+
+
+```{r}
+library(tidyverse)
+library(here)
+```
+
+
+## The paths to data
+
+
+```{r setting paths}
+# These functions are for reading timeseries files
+source(here('code/R/settings_helpers.R'))
+source(here('code/R/file_reading_helpers.R'))
+
+pheno <- read_pheno_file()%>%
+  drop_na(DX)
+YeoNet_colours <- define_Yeo7_colours()
+Yeo7_2011_80verts <- read_Yeo72011_template()  
+
+```
+
+```{r}
+pheno_extended <- read_csv(here("data/processed/pheno/20200213_extended_pheno.csv")) %>%
+  mutate(subject = str_c("sub-",sub_id))
+```
+
+```{r}
+weighted_subject_scores <- read_csv(here("data/processed/mri/all_clinicalplusqa_group/weighted_subject_FC_scores/SSD4cohorts_DXweighted_subject_scores.csv"))
+weighted_subject_scores2 <- read_csv(here("data/processed/mri/all_clinicalplusqa_group/weighted_subject_FC_scores/SSD4cohorts_DXweighted_moregroups_subject_scores.csv"))
+```
+
+```{r}
+inner_join(pheno, pheno_extended, by = c("subject", "dataset")) %>%
+  select(subject, dataset) %>%
+  distinct()
+```
+```{r}
+pheno_extended %>%
+  count(sub_id, dataset) %>%
+  filter(n > 1) 
+```
+```{r}
+pheno_extended %>%
+  names()
+```
+```{r}
+pheno_extended %>%
+  gather(clinical_measure, clinical_score, 
+         starts_with("panss"), 
+         starts_with("sans"),
+         starts_with("wtar"),
+         "Edu") %>%
+  group_by(Site, dx, clinical_measure) %>%
+  summarise(n = sum(!is.na(clinical_score))) %>%
+  spread(clinical_measure, n)
+```
+```{r}
+summary(pheno_extended$sans_G_total)
+```
+
+
+```{r}
+with_wFC <- weighted_subject_scores2 %>%
+  inner_join(pheno_extended, by = c("subject", "dataset")) %>%
+  drop_na(dx)
+```
+
+```{r fig.height=10, fig.width=6}
+with_wFC %>%
+  filter(Site %in% c("CMH", "COBRE"),
+         dx == "SSD") %>%
+  gather(clinical_measure, clinical_score, starts_with("panss")) %>%
+  ggplot(aes(x = clinical_score, y = wFC_score, color = Site)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  facet_grid(edge_group~clinical_measure, scales = "free_x")
+  
+```
+```{r fig.height=10, fig.width=8}
+with_wFC %>%
+  filter(Site %in% c("CMH", "COBRE"),
+         dx == "SSD") %>%
+  gather(clinical_measure, clinical_score, wtar_std, panss_total_calc) %>%
+  filter(clinical_score < 900) %>%
+  ggplot(aes(x = clinical_score, y = wFC_score, color = Site)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  facet_grid(edge_group~clinical_measure*vertex_type, scales = "free_x")
+  
+```
+```{r}
+length(unique(with_wFC$edge_group))
+```
+
+```{r}
+library(broom)
+with_wFC %>%
+  filter(Site %in% c("CMH", "COBRE"),
+         dx == "SSD") %>%
+  gather(clinical_measure, clinical_score, wtar_std, panss_total_calc) %>%
+  filter(clinical_score < 900) %>%
+  group_by(edge_group, effect_direction, vertex_type, clinical_measure) %>%
+  do(tidy(lm(wFC_score ~ clinical_score + Site, data = .))) %>%
+  filter(term == "clinical_score") %>%
+  mutate(p_bonf = p.value*35) %>%
+  arrange(p.value) %>%
+  select(vertex_type, clinical_measure, edge_group, statistic, p.value, p_bonf) %>%
+  knitr::kable()
+```
+
+```{r}
+with_wFC %>%
+  filter(Site %in% c("CMH", "COBRE"),
+         dx == "SSD") %>%
+  gather(clinical_measure, clinical_score, starts_with("panss_total_calc")) %>%
+  group_by(edge_group, effect_direction, clinical_measure) %>%
+  do(tidy(lm(mFC_score ~ clinical_score + Site, data = .))) %>%
+  filter(term == "clinical_score") %>%
+  mutate(p_bonf = p.value*9) %>%
+  arrange(p.value) %>%
+  select(clinical_measure, edge_group, statistic, p.value, p_bonf) %>%
+  knitr::kable()
+```
+
+```{r fig.height=12, fig.width=12}
+with_wFC %>%
+  filter(dx == "SSD") %>%
+  filter(str_detect(edge_group, "subcort")) %>%
+  gather(clinical_measure, clinical_score, starts_with("sans")) %>%
+  ggplot(aes(x = clinical_score, y = wFC_score, color = Site)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  facet_grid(edge_group~clinical_measure*vertex_type, scales = "free_x")
+  
+```
+```{r}
+with_wFC %>%
+  filter(Site %in% c("CMH", "COBRE", "ZHH"),
+         dx == "SSD") %>%
+  gather(clinical_measure, clinical_score, starts_with("sans")) %>%
+  group_by(edge_group, effect_direction, clinical_measure, vertex_type) %>%
+  do(tidy(lm(mFC_score ~ clinical_score + Site, data = .))) %>%
+  filter(term == "clinical_score") %>%
+  mutate(p_bonf = p.value*9) %>%
+  arrange(p.value) %>%
+  select(clinical_measure, edge_group, statistic, p.value, p_bonf) %>%
+  knitr::kable()
+```
+
+```{r fig.height=12, fig.width=12}
+weighted_subject_scores2 %>%
+  inner_join(pheno, by = c("subject", "dataset")) %>%
+  filter(Site == "ZHH") %>%
+  filter(!(str_detect(edge_group, "_Cort"))) %>%
+  filter(effect_direction == "hypo") %>% 
+  drop_na(isFEP) %>%
+  ggplot(aes(x = isFEP, y = wFC_score)) +
+  geom_boxplot() +
+  geom_jitter(alpha = 0.3) +
+  facet_grid(vertex_type~edge_group, scales = "free_y")
+  
+```
+```{r fig.height=12, fig.width=12}
+weighted_subject_scores2 %>%
+  inner_join(pheno, by = c("subject", "dataset")) %>%
+  filter(Site == "ZHH") %>%
+  filter(!(str_detect(edge_group, "_Cort"))) %>%
+  filter(effect_direction == "hyper") %>% 
+  drop_na(isFEP) %>%
+  ggplot(aes(x = isFEP, y = wFC_score)) +
+  geom_boxplot() +
+  geom_jitter(alpha = 0.3) +
+  facet_grid(vertex_type~edge_group, scales = "free_y")
+  
+```
+
+```{r}
+weighted_subject_scores2 %>%
+  inner_join(pheno, by = c("subject", "dataset")) %>%
+  filter(Site == "ZHH") %>%
+  #filter(str_detect(edge_group, "subcort")) %>%
+  drop_na(isFEP) %>%
+  group_by(edge_group, vertex_type) %>%
+  do(tidy(lm(mFC_score ~ isFEP , data = .))) %>%
+  mutate(p_bonf = p.value*9) %>%
+  arrange(p.value) %>%
+  filter(term != "(Intercept)") %>%
+  select(term, statistic, p.value, p_bonf) %>%
+  knitr::kable()
+```
+

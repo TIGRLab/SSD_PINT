@@ -3,7 +3,7 @@
 output_base <- here('data/processed/mri/')
 
 read_pheno_file <- function() {
-  pheno <- read_csv(here('data/processed/pheno/20200214_pheno_qapass.csv')) %>%
+  pheno <- read_csv(here('data/processed/pheno/20200221_pheno_clinicalplusqa.csv')) %>%
     drop_na(DX)
   return(pheno)
 }
