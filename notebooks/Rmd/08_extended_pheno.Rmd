@@ -1,0 +1,85 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+
+```{r}
+library(tidyverse)
+library(tableone)
+```
+
+```{r}
+dat <- read.csv("/projects/gherman/SZ_PINT/compiled_clinical/compiled_2020_feb13.csv") %>% select(-X, -SessNo)
+
+
+```
+Here's an extremely basic table one, this makes me think I should also add in education and stuff where we have it
+```{r}
+
+CreateTableOne(data=dat, vars=c("dataset", "sex", "age", "panss_total_calc", "panss_general_total_calc", "sans_G_total", "wtar_raw", "wtar_std", "Edu"), strata="dx", includeNA=TRUE)
+```
+
+Okay, some sources of education data: 
+
+/scratch/gherman/SCZ_PINT/data/saba/ClinicalData/ClinicalDataNotes this has some notes abt stuff
+
+## for SOME ZHH
+the education data are in: /scratch/gherman/SCZ_PINT/data/20181118_pheno_qapass.csv. They also exist in /scratch/gherman/SCZ_PINT/data/ZHH/phenotypic/Control Sample 7-30-18.sav and /scratch/gherman/SCZ_PINT/data/ZHH/phenotypic/Patient Sample 7-30-18.sav. There is also race data here but idk if I have the data dictionary/codes
+/scratch/gherman/SCZ_PINT/data/ZHH/demographics/qryHC_NewResting_15-40.xlsx, /scratch/gherman/SCZ_PINT/data/ZHH/demographics/qrySZ_Sess_Miklos.xlsx  
+
+/scratch/gherman/SCZ_PINT/data/saba/filtered_HC_demo.csv
+/scratch/gherman/SCZ_PINT/data/saba/filtered_SCZ_demo.csv
+
+## Some RTMSWM
+/scratch/gherman/SCZ_PINT/data/saba/Demographics_Github_29Aug2018.csv <- this also seems to have zhh!
+
+
+## Some DTI
+
+/scratch/gherman/SCZ_PINT/data/saba/Demographics_Github_29Aug2018.csv
+
+## Some COBRE
+
+/scratch/gherman/SCZ_PINT/data/saba/Demographics_Github_29Aug2018.csv
+
+## Is PNS there? 
+
+## Nothing received from ASDD (according to /scratch/gherman/SCZ_PINT/data/saba/ClinicalData/ClinicalDataNotes) <- email stephanie who contact
+
+
+
+
+
+OKAY, if I want to add age of onset data here is where to find it: 
+
+ZHH: 
+/scratch/gherman/SCZ_PINT/data/ZHH/phenotypic/Control Sample 7-30-18.sav and /scratch/gherman/SCZ_PINT/data/ZHH/phenotypic/Patient Sample 7-30-18.sav
+
+
+COBRE:
+/scratch/gherman/SCZ_PINT/data/saba/ClinicalData/COBRE/schizconnect_COBRE_assessmentData_2963.csv
+CODEM_17
+
+DTI3T:
+/scratch/gherman/SCZ_PINT/data/saba/ClinicalData/DTI3T/DTI_DATA_LABELS_2018-07-16.csv
+age of onset
+
+
+PNSC:
+/scratch/gherman/SCZ_PINT/data/saba/ClinicalData/PNS/PNS_DATA_2018-07-16_1026.csv
+scid5_dis2_age_onset
+
+RTMSWM/SPINS 
+
+/scratch/gherman/SCZ_PINT/data/saba/ClinicalData/SPINS/SPINS_DATA_2018-07-16.csv
