@@ -2,7 +2,7 @@
 
 ## some postPINT concat bits..
 
-re-run 2020-02-14 on kandel
+re-run 2020-02-24 on kandel - to get the `all_clinicalplusqa_group` results
 
 
 
@@ -22,11 +22,11 @@ ${ciftify_container}
 ### than inside the container
 
 ```sh
-cd output
-mkdir all_qa_passes_group/postPINT
+cd /output
+mkdir all_clinicalplusqa_group/postPINT
 ciftify_postPINT1_concat \
-  /output/all_qa_passes_group/postPINT/postPINT1_concat_all_qa_passes.csv \
-  `cat /output/all_qa_passes_group/pint_summary_filelist.csv`
+  /output/all_clinicalplusqa_group/postPINT/postPINT1_concat_all_qa_passes.csv \
+  `cat /output/all_clinicalplusqa_group/pint_summary_filelist.csv`
 ```
 
 
@@ -37,13 +37,13 @@ ciftify_postPINT1_concat \
 
 
 ```sh
-echo singularity exec \
+singularity exec \
 -H ${sing_home} \
 -B ${outdir}:/output \
 ${ciftify_container} \
 ciftify_postPINT2_sub2sub \
-/output/all_qa_passes_group/postPINT/postPINT1_concat_all_qa_passes.csv \
-/output/all_qa_passes_group/postPINT/postPINT2_sub2sub_all_qa_passes.csv 
+/output/all_clinicalplusqa_group/postPINT/postPINT1_concat_all_qa_passes.csv \
+/output/all_clinicalplusqa_group/postPINT/postPINT2_sub2sub_all_qa_passes.csv 
 
 ```
 
@@ -64,8 +64,8 @@ singularity exec \
 -B ${sz_pint_scripts}:/scripts \
 ${ciftify_container} python /scripts/code/bin/seedcor_number_voxels_above_threshold.py  \
   /output/ \
-  /scripts/data/processed/pheno/20200214_pheno_qapass.csv \
-  /output/all_qa_passes_group/postPINT/seedcorr_numvxabove_all_qa_passes.csv
+  /scripts/data/processed/pheno/20200221_pheno_clinicalplusqa.csv \
+  /output/all_clinicalplusqa_group/postPINT/seedcorr_numvxabove_all_qa_passes.csv
 ```
 
 note: one participant failed this last step - `DTI3T/sub-CMHH170/ses-01` - if we do need the seedcorr info we will have to reload these things..
