@@ -29,7 +29,8 @@ source(here('code/R/settings_helpers.R'))
 source(here('code/R/file_reading_helpers.R'))
 
 pheno <- read_pheno_file()%>%
-  drop_na(DX)
+  drop_na(DX) %>%
+  filter(in_matched_sample)
 YeoNet_colours <- define_Yeo7_colours()
 Yeo7_2011_80verts <- read_Yeo72011_template()  
 
@@ -125,7 +126,7 @@ load(file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_whole
 ```{r merge with pheno and clean}
 results_pheno <- all_corZ_results %>%
   inner_join(pheno, by = c("subject", "dataset")) %>%
-  unnest()  
+  unnest(cols = c(the_corrs))  
 
 ```
 
@@ -154,6 +155,9 @@ result <-df %>%
   .$estimate
 return(result)
 }
+```
+```{r}
+rm(all_corZ_results)
 ```
 
 

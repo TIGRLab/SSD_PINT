@@ -1,0 +1,216 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# whole brain prediction
+
+```{r message=FALSE, warning=FALSE}
+library(here)
+library(tidymodels)
+library(vip)
+library(tidyverse)
+```
+
+```{r setting paths}
+# These functions are for reading timeseries files
+source(here('code/R/settings_helpers.R'))
+
+pheno <- read_pheno_file()%>%
+  drop_na(DX) %>%
+  filter(in_matched_sample)
+YeoNet_colours <- define_Yeo7_colours()
+Yeo7_2011_80verts <- read_Yeo72011_template()  
+
+```
+Load the connectivity data
+
+```{r load-cached-results, eval=FALSE}
+load(file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
+```
+
+## merge if with the pheno data
+
+```{r merge with pheno and clean}
+results_pheno <- all_corZ_results %>%
+  inner_join(pheno, by = c("subject", "dataset")) %>%
+  unnest(cols = c(the_corrs))  
+
+```
+
+```{r drop_the_unmatched}
+results_pheno <- results_pheno %>% filter(in_matched_sample)
+```
+
+for the first simple fit - we are using the covariates to predict DX (hopefully badly)
+
+```{r}
+dataset1 <- pheno %>%
+  filter(in_matched_sample) %>%
+  select(subject, dataset, DX, Age, Sex, fd_mean, Site) 
+```
+
+```{r}
+brain_data <- results_pheno %>%
+  filter(in_matched_sample) %>%
+  select(subject, dataset, DX, Age, Sex, fd_mean, Site, 
+         vertex_type, from, to, weight) %>%
+  unite(FC_edgename, vertex_type, from, to) %>%
+  group_by(subject, dataset, DX, Age, Sex, fd_mean, Site) %>%
+  spread(FC_edgename, weight) %>%
+  ungroup()
+```
+
+## the data splitting
+
+```{r}
+set.seed(123)
+data1_split <- initial_split(dataset1, 
+                            strata = DX)
+
+data1_train <- training(data1_split)
+data1_test  <- testing(data1_split)
+
+set.seed(345)
+folds <- vfold_cv(data1_train, v = 5)
+folds
+```
+
+
+
+  
+  
+## set up a random forest engine with parsnip
+
+```{r}
+rf_recipe <- 
+  recipe(DX ~ ., data = dataset1) %>%
+  update_role(subject, dataset, new_role = "ID")
+```
+
+```{r}
+cores <- parallel::detectCores()
+cores
+```
+
+```{r}
+rf_mod <- 
+  rand_forest(mtry = tune(), min_n = tune(), trees = 1000) %>% 
+  set_engine("ranger", num.threads = 2) %>% 
+  set_mode("classification")
+```
+
+```{r}
+rf_workflow <- 
+  workflow() %>% 
+  add_model(rf_mod) %>% 
+  add_recipe(rf_recipe)
+```
+
+```{r}
+# runs the cross validated hyper parameter tuning
+set.seed(345)
+rf_res <- 
+  rf_workflow %>% 
+  tune_grid(resamples = folds,
+            grid = 25,
+            control = control_grid(save_pred = TRUE))
+```
+
+```{r}
+
+## using show best to print the best params
+rf_res %>% 
+  show_best(metric = "roc_auc")
+```
+```{r}
+## using autoplot to plot the results across the parameter grid
+autoplot(rf_res)
+```
+
+```{r}
+## using select best to save the best fit to the 
+rf_best <- 
+  rf_res %>% 
+  select_best(metric = "roc_auc")
+rf_best
+```
+
+
+
+### running the model one last time with the picked parameters from above
+
+```{r}
+# update model with hard coded best parameters from the above chunk
+last_rf_mod <- 
+  rand_forest(mtry = 1, min_n = 31, trees = 1000) %>% 
+  set_engine("ranger", num.threads = 2, importance = "impurity") %>% 
+  set_mode("classification")
+```
+
+```{r}
+# the last workflow
+last_rf_workflow <- 
+  rf_workflow %>% 
+  update_model(last_rf_mod)
+
+# the last fit is apparently another way of spliting doing the final fit
+set.seed(345)
+last_rf_fit <- 
+  last_rf_workflow %>% 
+  last_fit(data1_split) ## splits
+
+last_rf_fit
+```
+
+final_fit <- 
+  final_wf %>%
+  last_fit(cell_split) 
+
+final_fit %>%
+  collect_metrics()
+#> # A tibble: 2 x 3
+#>   .metric  .estimator .estimate
+#>   <chr>    <chr>          <dbl>
+#> 1 accuracy binary         0.802
+#> 2 roc_auc  binary         0.860
+
+final_fit %>%
+  collect_predictions() %>% 
+  roc_curve(class, .pred_PS) %>% 
+  autoplot()
+### plotting and looking at things from the last fit
+```{r}
+## print accuracy and roc
+last_rf_fit %>% 
+  collect_metrics()
+```
+
+```{r}
+## plotting the very important predictors
+last_rf_fit %>% 
+  pluck(".workflow", 1) %>%   
+  pull_workflow_fit() %>% 
+  vip(num_features = 20)
+```
+```{r}
+### plotting the roc curve
+last_rf_fit %>% 
+  collect_predictions() %>% 
+  roc_curve(DX, .pred_SSD) %>% 
+  autoplot()
+```
+
+### ploting the ROC curv 
+
+(this one is colour coded across two fits)
+
+```{r}
+bind_rows(rf_auc, lr_auc) %>% 
+  ggplot(aes(x = 1 - specificity, y = sensitivity, col = model)) + 
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  geom_abline(lty = 3) + 
+  coord_equal() + 
+  scale_color_viridis_d(option = "plasma", end = .6)
+```
+
