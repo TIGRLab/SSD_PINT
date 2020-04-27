@@ -28,17 +28,22 @@ YeoNet_colours = define_Yeo7_colours()
 ## adding a subid that matches what the concatenation script adds..
 pheno <- read_pheno_file() %>%
   mutate(subid = str_replace(filename, '_summary.csv','')) %>%
-  drop_na(DX)
+  drop_na(DX) %>%
+  drop_na(Age_match) # dropping un-matched subjects
 
 #pint_concat <- read_csv(file.path(output_base,'postPINT1_concat_all_qa_passes.csv'))
-pint_concat <- read_csv(file.path(output_base, 'all_qa_passes_group','postPINT','postPINT1_concat_all_qa_passes.csv'))
+pint_concat <- read_csv(here("data","processed","mri",
+              "all_clinicalplusqa_group", "postPINT",
+              "postPINT1_concat_all_qa_passes.csv"))
+
+lm_predictors <- "DX + Age_match_pt + Sex + fd_mean_match_pt + Site + SurfArea_match_pt"
 ```
 
 
 
 
 ```{r}
-ana_data <- pheno1 %>%
+ana_data <- pheno %>%
   inner_join(pint_concat, by = "subid") %>%
   inner_join(Yeo7_2011_80verts, by = "roiidx") %>%
   mutate(network = str_sub(SHORTNAME, 1,2))
@@ -49,15 +54,15 @@ ana_data <- pheno1 %>%
 ## run for the whole head
 
 ```{r}
-dist_by_total <- pint_concat %>%
+dist_by_total <- ana_data %>%
   group_by(subid) %>%
   summarise(MeanDistance = mean(std_distance)) %>%
   ungroup() %>%
-  inner_join(pheno1, by = "subid")  
+  inner_join(pheno, by = "subid") 
 
 dist_by_total %>%
   ungroup() %>%
-  do(tidy(lm(MeanDistance ~ DX + Age_pt + Sex + fd_mean_pt + Scanner + SurfArea_pt,.))) %>%
+  do(tidy(lm(formula(paste("MeanDistance ~", lm_predictors)),.))) %>%
   knitr::kable()
 ```
 
@@ -65,19 +70,30 @@ dist_by_total %>%
 dist_by_total %>%
   ggplot(aes(y = MeanDistance, x = Age)) +
   geom_point(aes(color = Site)) + 
-  geom_smooth(method = "lm")+
+  geom_smooth(aes(color = DX), method = "lm")+
   facet_wrap(~DX) +
   theme_bw()
 ```
-```{r age-location-plot-byDX, fig.height=4, fig.width=7}
+```{r age-location-plot-byDX-blackred, fig.height=4, fig.width=5}
 dist_by_total %>%
   ggplot(aes(y = MeanDistance, x = Age, color = DX)) +
-  geom_point(aes(fill = Site)) + 
+  geom_point() + 
   geom_smooth(method = "lm")+
+  scale_color_manual(values = c("grey20","red")) +
   theme_bw()
 ```
 
 
+```{r, fig.height=4, fig.width=6}
+dist_by_total %>%
+  ggplot(aes(y = MeanDistance, x = DX, color = DX)) + 
+  geom_boxplot(outlier.shape = NA) + 
+  geom_dotplot(binaxis = 'y', stackdir = 'center', binwidth = 0.08, alpha = 0.5) +
+  scale_color_manual(values = c("grey20","red")) +
+  facet_wrap( ~ Site, ncol = 4) +
+  labs(x = NULL) +
+  theme_minimal()
+```
 
 
 
@@ -88,14 +104,17 @@ dist_by_network <- pint_concat %>%
   group_by(subid, network) %>%
   summarise(MeanDistance = mean(std_distance)) %>%
   ungroup() %>%
-  inner_join(pheno1, by = "subid")  
+  inner_join(pheno, by = "subid")  
 
-dist_by_network %>%
+dist_by_network_lmfit <- dist_by_network %>%
   ungroup() %>% group_by(network) %>%
-  do(tidy(lm(MeanDistance ~ DX + Age_pt + Sex + fd_mean_pt + Scanner + SurfArea_pt,.))) %>%
-  mutate(p_bonf = p.value*6) %>%
-  filter(!(term %in% c('(Intercept)', 'ScannerCOBRE', 'Scannerds00003035343', 'ScannerZHH', 'Scannerds00003035426'))) %>%
+  do(tidy(lm(formula(paste("MeanDistance ~", lm_predictors)),.))) %>%
+  mutate(p_bonf = p.value*6)
+
+dist_by_network_lmfit %>%
+  filter(!(term %in% c('(Intercept)', 'SiteCOBRE', 'Siteds000030', 'SiteZHH'))) %>%
   #select(network, term, df, statistic, p.value, p_bonf) %>%
+  arrange(term, network) %>%
   knitr::kable()
 ```
 
@@ -103,13 +122,15 @@ dist_by_network %>%
 
 
 
-```{r age-loc_dx-plot, fig.height=3, fig.width = 10}
+```{r age-loc_dx-plot_by_network, fig.height=3, fig.width = 10}
+
 dist_by_network %>%
   ggplot(aes(y = MeanDistance, x = Age)) +
   geom_point(alpha = 0.2, size = 0.5) + 
   geom_smooth(aes(color = DX), method = "lm") +
   facet_wrap(~network, scales = "free", nrow = 1) +
-  scale_color_manual(values = c("grey20","red"))
+  scale_color_manual(values = c("grey20","red"))+
+  theme_minimal()
   
 ```
 
@@ -117,12 +138,20 @@ dist_by_network %>%
 ## run linear model per edge
 
 ```{r}
+
 roi_dx_lm <- ana_data %>%
   ungroup() %>% group_by(SHORTNAME) %>%
-  do(tidy(lm(std_distance ~ DX + Sex + fd_mean_pt + Age_pt + Scanner,.))) %>%
+  do(tidy(lm(formula(paste("std_distance ~", lm_predictors)),.))) %>%
   ungroup() %>% group_by(term) %>%
   mutate(p_fdr  = p.adjust(p.value, method = 'fdr'))
 
 roi_dx_lm %>%
+  filter(term %in% c("DXSSD")) %>%
   filter(p_fdr < 0.1)
 ```
+```{r}
+roi_dx_lm %>%
+  filter(term %in% c("Age_match_pt")) %>%
+  filter(p_fdr < 0.1)
+```
+

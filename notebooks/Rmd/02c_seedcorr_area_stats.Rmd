@@ -22,8 +22,15 @@ source(here('code/R/settings_helpers.R'))
 
 Yeo7_2011_80verts <- read_Yeo72011_template()
 YeoNet_colours = define_Yeo7_colours()
-pheno <- read_pheno_file() %>%  drop_na(DX)
-pint_sc <- read_csv(file.path(output_base, 'qa_passes_seedcor_counts_20181116.csv'))
+pheno <- read_pheno_file() %>%  
+  drop_na(DX) %>%
+  drop_na(Age_match) # dropping un-matched subjects
+pint_sc <- read_csv(file.path(output_base, 
+                              "all_clinicalplusqa_group",
+                              "postPINT",
+                              'seedcorr_numvxabove_all_qa_passes.csv'))
+
+lm_predictors <- "DX + Age_match_pt + Sex + fd_mean_match_pt + Site + SurfArea_match_pt"
 ```
 
 ```{r}
@@ -58,12 +65,11 @@ Looks like two people might need to be reprocessed if this works out.
 combined_df %>%
   drop_na(DX) %>%
   group_by(NETWORK, vx_gt_thres) %>%
-  filter(Age > 17, Age < 51) %>%
   filter(vx_gt_thres < 0.6) %>%
-  do(tidy(aov(lm(num_sc_vx_gt ~ DX*Age_pt + Sex + fd_mean_pt + Scanner + SurfArea_pt,.)))) %>%
+  do(tidy(aov(lm(formula(paste("num_sc_vx_gt ~", lm_predictors)),.)))) %>%
   ungroup() %>% group_by(term) %>%
   mutate(p_FDR = p.adjust(p.value, method = "fdr")) %>%
-  filter(term != "(Intercept)", term != "Scanner", p_FDR < 0.06) %>%
+  filter(term != "(Intercept)", term != "Site", p_FDR < 0.06) %>%
   arrange(NETWORK, term) 
        
 ```

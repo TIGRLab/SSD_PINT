@@ -21,8 +21,13 @@ YeoNet_colours = define_Yeo7_colours()
 
 pheno <- read_pheno_file() %>%  drop_na(DX)
  
-subsub <- read_csv(file.path(output_base,'postPINT2_sub2sub_all_qa_passes.csv'))
+subsub <- read_csv(file.path(output_base,
+                             "all_clinicalplusqa_group", "postPINT",
+                             'postPINT2_sub2sub_all_qa_passes.csv'))
 ```
+
+
+
 
 ```{r}
 mds_sub2sub <- function(data) {
@@ -46,7 +51,7 @@ mds_sub2sub <- function(data) {
 }
 ```
 
-```{r}
+```{r, eval=FALSE}
 subsub %>%
   filter(roiidx == 1) %>%
   select(subid1, subid2, distance) %>%
@@ -59,41 +64,46 @@ mds_results <- subsub %>%
   nest() %>%
   mutate(sdist = map(data, ~mds_sub2sub(.x))) %>%
   select(roiidx, sdist) %>%
-  unnest()
+  unnest(cols = c(sdist))
 ```
 
 ```{r}
 mds_pheno <- pheno %>%
   mutate(src_file = str_replace(filename, '_summary.csv','')) %>%
   inner_join(mds_results, by = "src_file") %>%
-  inner_join(Yeo7_2011_80verts, by = "roiidx") 
+  inner_join(Yeo7_2011_80verts, by = "roiidx") %>%
+  drop_na(DX) %>%
+  drop_na(Age_match) # dropping un-matched subjects
 ```
 
 ```{r}
 sdist_manova <- mds_pheno %>%
   group_by(SHORTNAME) %>%
-  do(tidy(manova(cbind(mds1, mds2) ~ DX*Age_pt + Sex + fd_mean_pt + Scanner + SurfArea_pt,.))) %>%
+  do(tidy(manova(cbind(mds1, mds2) ~ DX + Age_match_pt + Sex + fd_mean_match_pt + Site + SurfArea_match_pt,.))) %>%
   ungroup() %>%
   group_by(term) %>%
   mutate(p_FDR  = p.adjust(p.value, method = "fdr"))
 ```
 
 ```{r}
-sdist_manova %>% filter(p_FDR < 0.1) %>% knitr::kable()
+sdist_manova %>%
+  filter(term != "Site") %>%
+  filter(p_FDR < 0.1) %>% knitr::kable()
 ```
 
 
-```{r fig.height=3, fig.width=8}
+```{r fig.height=4, fig.width=5}
 mds_pheno %>%
-  filter(SHORTNAME %in% c("DAF1R", "FPF5R", "VAF4R")) %>%
+  filter(SHORTNAME %in% c("VI03L", "VAP2L")) %>%
   ggplot(aes(x = mds1, y = mds2, color = DX)) +
   geom_point(alpha = 0.1) +
+  geom_density_2d() +
   scale_color_manual(values = c("grey20","red")) +
-  facet_wrap(~SHORTNAME, ncol = 5)
+  facet_grid(DX~SHORTNAME)
 ```
 ```{r fig.height=3, fig.width=8}
 mds_pheno %>%
-  filter(SHORTNAME %in% c("DAF1R", "FPF5R", "VAF4R")) %>%
+  filter(SHORTNAME %in% c("VI03L", "VAP2L")) %>%
   ggplot(aes(x = mds1, y = mds2, color = Age)) +
   geom_point(alpha = 0.2) +
   scale_color_viridis_c() +

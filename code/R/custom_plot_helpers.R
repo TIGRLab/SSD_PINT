@@ -11,8 +11,17 @@ YeoNet7 <- tribble(
 
 #' Left section of the raincload plots used in sub-cortical cortical change reporting
 samediff_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
+  eff_size_df <- data %>%
+    ungroup() %>%
+    mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
+                             labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+    filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>%
+    group_by(subcort_ROI, YeoNet, corrtype) %>%
+    do(tidy(t.test(.$same_net, .$diff_net, paired = TRUE))) %>%
+    mutate(cohenD = statistic/sqrt(parameter + 1))
+  
   plt <- data %>%
-    mutate(corrtype = factor(vertex_type, levels = c('netmean_pvertex', 'netmean_tvertex', 'netmean_tvolume'),
+    mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
                              labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
     gather(nettype, gvalue, diff_net, same_net) %>%
     filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
@@ -42,8 +51,10 @@ samediff_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_t
 
 #' Right section of the raincload plots used in sub-cortical cortical change reporting
 focus_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
+
+  
   plt <- data %>%
-    mutate(corrtype = factor(vertex_type, levels = c('netmean_pvertex', 'netmean_tvertex', 'netmean_tvolume'),
+    mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
                              labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
     mutate(focus = same_net - diff_net) %>%
     filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 

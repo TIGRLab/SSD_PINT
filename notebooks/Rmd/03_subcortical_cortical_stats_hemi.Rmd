@@ -33,14 +33,24 @@ library(here)
 ```{r setting paths}
 
 source(here('code/R/settings_helpers.R'))
-pheno <- read_pheno_file()
+pheno <- read_pheno_file() %>%
+  drop_na(DX) %>%
+  drop_na(Age_match) # dropping un-matched subjects
 YeoNet_colours <- define_Yeo7_colours()
 Yeo7_2011_80verts <- read_Yeo72011_template()
 the_subcortical_guide <- get_subcortical_guide()
 node_annotations <- get_node_annotations(Yeo7_2011_80verts, the_subcortical_guide)
+
 source(here('code/R/custom_plot_helpers.R'))
 
 source(here('code/R/file_reading_helpers.R'))
+
+lm_predictor_cols <- c("DX",
+                        "Age_match_pt", 
+                        "Sex",
+                        "fd_mean_match_pt",
+                        "Site")
+
 ```
 
 
@@ -60,7 +70,17 @@ pheno <- pheno %>%
 
 a litle chunck I use to test if test if the reader is working...
 
+```{r read_all_the-data, eval=FALSE}
 
+all_corZ_results <- pheno %>%
+  select(subject, outputprefix, dataset) %>%
+  mutate(the_corrs = map2(.$outputprefix, .$dataset,
+                              ~run_read_all_subject_timeseries_and_wholebrain_corZ(.x, .y)))
+```
+
+```{r cache-subcort-Rdata, eval=FALSE}
+save(all_corZ_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
+```
 
 
 ```{r eval = FALSE}
@@ -68,7 +88,7 @@ run_read_all_subject_timeseries_and_subcortcort_corZ(pheno$outputprefix[1], phen
 ```
 
 
-```{r read all the data}
+```{r read all the data, eval=FALSE}
 
 all_subcort_results <- pheno %>%
   select(subject, outputprefix, dataset) %>%
@@ -76,17 +96,33 @@ all_subcort_results <- pheno %>%
                               ~run_read_all_subject_timeseries_and_subcortcort_corZ(.x, .y)))
 ```
 
-```{r cache-subcort-Rdata}
-save(all_subcort_results, file = here("data/processed/mri/all_qa_passes_group/Rdata_cache/03_subcort_results_cache.Rdata"))
-```
 
 ```{r load-cached-results, eval=FALSE}
 load(here("data/processed/mri/all_qa_passes_group/Rdata_cache/03_subcort_results_cache.Rdata"))
 ```
 
 ```{r}
-names(pheno)
+load(here('data','processed','mri',
+          'all_clinicalplusqa_group','Rdata_cache',
+          '06_wholebrain_results_cache.Rdata'))
 ```
+
+### reduce data from the whole brain data to only include the subcortical cortical connections 
+
+```{r}
+## go from the whole matrix to only the subcortical-cortical and annotate
+all_subcort_results <- all_corZ_results %>%
+  unnest(cols = c(the_corrs)) %>%
+  filter(!(from %in% the_subcortical_guide$combined_name)) %>%
+  inner_join(the_subcortical_guide, by = c("to"="combined_name")) %>%
+  mutate(PINT_ROI = from,
+         YeoNet = str_sub(PINT_ROI, 1,2),
+         hemisphere = str_sub(PINT_ROI, 5,5)) %>%
+  mutate(conn_type = if_else(YeoNet == subcort_NET, "same_net", "diff_net"),
+         YeoNet = factor(YeoNet, levels = c("VI", "SM", "DA", "VA", "FP", "DM")),
+         subcort_NET = factor(subcort_NET, levels = c("VI", "SM", "DA", "VA", "FP", "DM", "LI")))
+```
+
 
 
 
@@ -95,39 +131,12 @@ names(pheno)
 ```{r merge with pheno and clean}
 results_pheno <- all_subcort_results %>%
   inner_join(pheno, by = c("subject", "dataset")) %>%
-  unnest() %>%
-  inner_join(the_subcortical_guide, by = c("combined_name")) %>%
-  mutate(YeoNet = str_sub(PINT_ROI, 1,2),
-         hemisphere = str_sub(PINT_ROI, 5,5)) %>%
-  mutate(conn_type = if_else(YeoNet == subcort_NET, "same_net", "diff_net"),
-         YeoNet = factor(YeoNet, levels = c("VI", "SM", "DA", "VA", "FP", "DM")),
-         subcort_NET = factor(subcort_NET, levels = c("VI", "SM", "DA", "VA", "FP", "DM", "LI"))) %>%
-  select(subject, dataset, PINT_ROI, subcort_ROI, subcort_NET,subcort_hemi, 
-         pvertex_corr, tvertex_corr, tvolume_corr,
-         DX, Sex, fd_mean, Age, Site, Scanner, Age_pt, fd_mean_pt, 
-         Age_match_pt, fd_mean_match_pt,  in_matched_sample,
-         YeoNet, hemisphere, conn_type, ) 
-
-```
-
-## run this bit to only use the matched subsample 
-
-```{r merge-and-use-matched}
-results_pheno <- all_subcort_results %>%
-  inner_join(pheno, by = c("subject", "dataset")) %>%
-  unnest() %>%
-  filter(in_matched_sample) %>%
-  inner_join(the_subcortical_guide, by = c("combined_name")) %>%
-  mutate(YeoNet = str_sub(PINT_ROI, 1,2),
-         hemisphere = str_sub(PINT_ROI, 5,5)) %>%
-  mutate(conn_type = if_else(YeoNet == subcort_NET, "same_net", "diff_net"),
-         YeoNet = factor(YeoNet, levels = c("VI", "SM", "DA", "VA", "FP", "DM")),
-         subcort_NET = factor(subcort_NET, levels = c("VI", "SM", "DA", "VA", "FP", "DM", "LI"))) %>%
-  select(subject, dataset, PINT_ROI, subcort_ROI, subcort_NET,subcort_hemi, 
-         pvertex_corr, tvertex_corr, tvolume_corr,
-         DX, Sex, fd_mean, Age, Site, Scanner,  
-         Age_match_pt, fd_mean_match_pt, in_matched_sample,
-         YeoNet, hemisphere, conn_type, ) 
+  select(subject, dataset, rval = weight,
+         YeoNet, hemisphere, conn_type, 
+         PINT_ROI, subcort_ROI, subcort_NET, subcort_hemi, 
+         vertex_type, Age, Site, Scanner, fd_mean, fd_perc,
+         one_of(lm_predictor_cols),
+         in_matched_sample) 
 
 ```
 
@@ -141,7 +150,7 @@ library(tableone)
 therealtable1 <- CreateTableOne(
   strata = c("DX", "Site"),
   vars = c("Age", "Sex", "fd_mean", "fd_perc"),
-  data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L")
+  data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L", vertex_type == "pvertex")
 )
 tabMat <- print(therealtable1, quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
 kable(tabMat)
@@ -152,7 +161,7 @@ kable(tabMat)
 library(tableone)
 therealtable1 <- CreateTableOne(
   vars = c("Age", "Sex", "DX", "fd_mean", "fd_perc"),
-  data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L")
+  data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L", vertex_type == "pvertex")
 )
 tabMat <- print(therealtable1, quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
 kable(tabMat)
@@ -164,9 +173,7 @@ kable(tabMat)
 
 ```{r plotting-PINT-change-matrix, fig.width=6, fig.height=8}
 table1 <- results_pheno %>%
-  mutate(corr_diff = pvertex_corr - tvertex_corr) %>%
-  gather(corr_type, rval, pvertex_corr, tvertex_corr, tvolume_corr) %>%
-  group_by(corr_type, YeoNet, subcort_ROI, subcort_NET) %>%
+  group_by(vertex_type, YeoNet, subcort_ROI, subcort_NET) %>%
   summarise(n = n(),
             Mean = mean(rval),
             SD = sd(rval)) 
@@ -175,7 +182,7 @@ ggplot(table1, aes(y = YeoNet, x = subcort_NET, fill = Mean)) +
   geom_tile() +
   scale_fill_distiller(breaks = c(-0.5,0.5), type = "div", palette = 5) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  facet_grid(subcort_ROI~corr_type) 
+  facet_grid(subcort_ROI~vertex_type) 
 
 ```
 functions to help re-annotated the function axes
@@ -184,7 +191,7 @@ functions to help re-annotated the function axes
 #' sets some the main variables to factors to more descriptive labels
 add_corrtype_and_subcortROI_columns <- function(data) {
   result <- data %>%
-    mutate(corrtype = factor(corr_type, levels = c('tvolume_corr','tvertex_corr','pvertex_corr'),
+    mutate(corrtype = factor(vertex_type, levels = c('tvolume','tvertex','pvertex'),
                            labels = c("Volume Template", "Surface Template", "Surface Personalized")),
          subcortROI = factor(subcort_ROI, 
                              levels = c("striatum", "thalamus", "cerebellum"),
@@ -219,34 +226,12 @@ ggplot(aes(y = YeoNet, x = subcort_NET, fill = Mean)) +
   labs(y = "Cortical RSN Network", x = "Subcortical Subregion")
 
 ```
-```{r plotting-PINT-change-matrix-reduce-match, fig.width=7.5, fig.height=7.5}
-table1m <- results_pheno %>%
-  filter(in_matched_sample) %>%
-  mutate(corr_diff = pvertex_corr - tvertex_corr) %>%
-  gather(corr_type, rval, pvertex_corr, tvertex_corr, tvolume_corr) %>%
-  group_by(corr_type, YeoNet, subcort_ROI, subcort_NET) %>%
-  summarise(n = n(),
-            Mean = mean(rval),
-            SD = sd(rval)) 
-table1m %>%
-  drop_VI_DA_LI() %>%
-  add_corrtype_and_subcortROI_columns() %>%
-ggplot(aes(y = YeoNet, x = subcort_NET, fill = Mean)) + 
-  geom_tile() +
-  geom_text(aes(label = sprintf('%3.2f',Mean))) +
-  scale_fill_distiller(breaks = c(-0.5,0.5), type = "div", palette = 5) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  facet_grid(corrtype~subcortROI) +
-  labs(y = "Cortical RSN Network", x = "Subcortical Subregion")
 
-```
 
 
 ```{r plotting-PINT-change-matrix-hemi, fig.width=12, fig.height=12}
 table1 <- results_pheno %>%
-  mutate(corr_diff = pvertex_corr - tvertex_corr) %>%
-  gather(corr_type, rval, pvertex_corr, tvertex_corr, tvolume_corr) %>%
-  group_by(corr_type, YeoNet, hemisphere, subcort_ROI, subcort_NET, subcort_hemi) %>%
+  group_by(vertex_type, YeoNet, hemisphere, subcort_ROI, subcort_NET, subcort_hemi) %>%
   summarise(n = n(),
             Mean = mean(rval),
             SD = sd(rval)) 
@@ -267,99 +252,25 @@ We see in the above figure that the Yeo 7 Network connectivity strongly shows th
 
 Lower evidence is seen in the striatum and thalamus, although there is a faint increase across the diagonal for the SM, VA and DM especially
 
-```{r paired-ttests-of-PINT-effect, fig.heigth = 2, fig.width=8}
+```{r sub-focus-tstats-matched}
 net_means <- results_pheno %>%
-  mutate(corr_diff = pvertex_corr - tvertex_corr) %>%
-  group_by(YeoNet, subcort_ROI, subcort_NET, conn_type, subject) %>%
-  summarise(netmean_pvertex = mean(pvertex_corr),
-            netmean_tvertex = mean(tvertex_corr),
-            netmean_tvolume = mean(tvolume_corr)) %>%
-  ungroup()
-
-net_means_pint_t <- net_means %>%
-  group_by(YeoNet, subcort_ROI, subcort_NET) %>%
-  do(tidy(t.test(.$netmean_pvertex, .$netmean_tvertex, paired = TRUE))) %>%
-  ungroup() %>% mutate(p_FDR = p.adjust(p.value, method = "fdr"))
-
-net_means_pint_t %>%
-  ungroup() %>%
-  mutate(sig = if_else(p_FDR < 0.05, '*', NA_character_) ) %>%
   drop_VI_DA_LI() %>%
-  mutate(subcortROI = factor(subcort_ROI, 
-                           levels = c("striatum", "thalamus", "cerebellum"),
-                           labels = c("Striatum", "Thalamus", "Cerebellum"))) %>%
-ggplot(aes(x = YeoNet, y = subcort_NET, fill = statistic)) + 
-  geom_tile(color = "black", na.rm = TRUE) +
-  geom_point(aes(shape = sig), na.rm = TRUE) +
-  scale_fill_distiller(breaks = c(-10,10), type = "div", palette = 5) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  facet_wrap(~subcortROI)
+  group_by(YeoNet, subcort_ROI, subcort_NET, conn_type, subject, dataset, vertex_type) %>%
+  summarise(netmean = mean(rval)) %>%
+  ungroup() 
 ```
-Here we plot the paired t-stat camparing personalized to template, we see a very strong increase in correlation along the diagonal (i.e. with the hypothesized regions) and decreases on the off-dignonal (i.e. decreased connectivity with the other network's parcels)
 
 ```{r}
-net_means_vpint_t <- net_means %>%
-  group_by(YeoNet, subcort_ROI, subcort_NET) %>%
-  do(tidy(t.test(.$netmean_pvertex, .$netmean_tvolume, paired = TRUE))) %>%
-  ungroup() %>% mutate(p_FDR = p.adjust(p.value, method = "fdr"))
-
-net_means_vpint_t %>%
-  ungroup() %>%
-  mutate(sig = if_else(p_FDR < 0.05, '*', NA_character_) ) %>%
-  drop_VI_DA_LI() %>%
-  mutate(subcortROI = factor(subcort_ROI, 
-                           levels = c("striatum", "thalamus", "cerebellum"),
-                           labels = c("Striatum", "Thalamus", "Cerebellum"))) %>%
-ggplot(aes(x = YeoNet, y = subcort_NET, fill = statistic)) + 
-  geom_tile(color = "black", na.rm = TRUE) +
-  geom_point(aes(shape = sig), na.rm = TRUE) +
-  scale_fill_distiller(breaks = c(-10,10), type = "div", palette = 5) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  facet_wrap(~subcortROI)
-```
-
-# trying to calculate an vs off diagonal term
-
-In the above table to calcuculated the "focussing" effect as the change (in on person) between in connectivity with the expected parcel subtracted by the change in connectivity from other regions.
-
-Below we plot these values against zero
-
-```{r net-focus-tstats}
-net_focus <- net_means %>%
-  ungroup() %>%
-  mutate(pint_diff = netmean_pvertex - netmean_tvertex,
-         vpint_diff = netmean_pvertex - netmean_tvolume,
-         surf_diff = netmean_tvertex - netmean_tvolume) %>%
-  group_by(subject, subcort_ROI, YeoNet, conn_type) %>%
-  summarise(nets_avg_pint_diff = mean(pint_diff),
-            nets_avg_vpint_diff = mean(vpint_diff),
-            nets_avg_surf_diff = mean(surf_diff)
-            ) %>%
-  ungroup() %>%
-  gather(comparison, nets_avg, nets_avg_pint_diff, nets_avg_vpint_diff, nets_avg_surf_diff) %>%
-  spread(conn_type, nets_avg) %>%
-  mutate(focus_effect = same_net - diff_net)
-
-net_focus %>%
-  ungroup() %>%
-  group_by(subcort_ROI, YeoNet, comparison) %>%
-  do(tidy(t.test(.$focus_effect))) %>%
-  kable()
-```
-
-Another (maybe better) way to test this is to show calculate the "focusing" value in individual subjects THAN compute how this number changes with PINT. Let try that..
-
-```{r sub-focus-tstats}
 subject_focus <- net_means %>%
   drop_VI_DA_LI() %>%
-  gather(vertex_type, nets_avg, netmean_pvertex, netmean_tvertex, netmean_tvolume) %>%
-  ungroup(subcort_NET) %>%
-  group_by(subject, subcort_ROI, YeoNet, vertex_type, conn_type) %>%
-  summarise(nets_type_avg = mean(nets_avg)) %>%
+  group_by(subject, dataset, subcort_ROI, YeoNet, vertex_type, conn_type) %>%
+  summarise(nets_type_avg = mean(netmean)) %>%
   spread(conn_type, nets_type_avg) # %>%
   # ungroup() %>%
   # mutate(focus_effect = same_net - diff_net)
+```
 
+```{r}
 subject_focus %>%
   ungroup() %>%
   group_by(subcort_ROI, YeoNet, vertex_type) %>%
@@ -367,112 +278,138 @@ subject_focus %>%
   mutate(cohenD = statistic/sqrt(parameter + 1)) %>%
   kable()
 ```
-```{r sub-focus-tstats-matched}
-subject_focus <- net_means %>%
-  drop_VI_DA_LI() %>%
-  gather(vertex_type, nets_avg, netmean_pvertex, netmean_tvertex, netmean_tvolume) %>%
-  ungroup(subcort_NET) %>%
-  group_by(subject, subcort_ROI, YeoNet, vertex_type, conn_type) %>%
-  summarise(nets_type_avg = mean(nets_avg)) %>%
-  spread(conn_type, nets_type_avg) # %>%
-  # ungroup() %>%
-  # mutate(focus_effect = same_net - diff_net)
+```{r}
+YeoNet7 <- tribble(
+  ~network, ~hexcode,
+  "VI", "#781286",
+  "SM", "#4682B4",
+  "DA", "#00760E",
+  "VA", "#C43AFA",
+  "FP", "#E69422",
+  "DM", "#CD3E3A",
+  "LI", "#dcf8a4")
 
-subject_focus %>%
-  ungroup() %>%
-  group_by(subcort_ROI, YeoNet, vertex_type) %>%
-  do(tidy(t.test(.$same_net, .$diff_net, paired = TRUE))) %>%
-  mutate(cohenD = statistic/sqrt(parameter + 1)) %>%
-  kable()
+#' Left section of the raincload plots used in sub-cortical cortical change reporting
+samediff_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
+  eff_size_df <- data %>%
+    ungroup() %>%
+    mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
+                             labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+    filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>%
+    group_by(subcort_ROI, YeoNet, corrtype) %>%
+    do(tidy(t.test(.$same_net, .$diff_net, paired = TRUE))) %>%
+    mutate(cohenD = statistic/sqrt(parameter + 1),
+           cohenD_str = str_c("d = ", format(cohenD, digits = 3))) 
+    
+  
+  plt <- data %>%
+    mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
+                             labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+    gather(nettype, gvalue, diff_net, same_net) %>%
+    filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
+    ungroup() %>%
+    ggplot(aes(y = corrtype, x = gvalue)) +
+    geom_density_ridges(aes(fill = nettype, colour = nettype),
+      #jittered_points = TRUE, position = "raincloud",
+      alpha = 0.5, scale = 2,
+      quantile_lines = TRUE, quantiles = 2
+    ) +
+    geom_text(aes(y = corrtype, label = cohenD_str), 
+              x = 0.55, 
+              nudge_y = 0.1, data = eff_size_df) +
+    geom_vline(xintercept = 0) +
+    scale_colour_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_fill_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_x_continuous(limits = c(-0.5, 0.6)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+  if (no_ticks==TRUE) {
+    plt <- plt + theme(axis.title.x=element_blank(),
+                       axis.text.x=element_blank())
+  } else {
+    plt <- plt + labs(x = "Subcortical-Cortical Correlation (Z)")
+  }
+  return(plt)
+  
+}
+
+subcortical_rainclouds <- function(subject_focus, this_subcort) {
+  DM <- samediff_subcort_raincloud(subject_focus, this_subcort, "DM")
+  FP <- samediff_subcort_raincloud(subject_focus,this_subcort, "FP")
+  VA <- samediff_subcort_raincloud(subject_focus,this_subcort, "VA")
+  SM <- samediff_subcort_raincloud(subject_focus,this_subcort, "SM", no_ticks = FALSE)
+  title <- ggdraw() + draw_label(this_subcort, fontface='bold')
+  plt <- plot_grid(title, DM, FP, VA, SM, ncol = 1, rel_heights = c(0.5, 1, 1, 1, 1.5))
+  return(plt)
+}
 ```
+
 
 
 
 ```{r stiatum-rainclouds}
-subcortical_raincloud(subject_focus, "striatum")
+subcortical_rainclouds(subject_focus, "striatum")
 ```
 
 ```{r thalamus-rainclouds}
-subcortical_raincloud(subject_focus, "thalamus")
+subcortical_rainclouds(subject_focus, "thalamus")
 ```
 ```{r cerebellum-raincloud}
+subcortical_rainclouds(subject_focus, "cerebellum")
+```
+```{r cerebellum-raincloud2}
 subcortical_raincloud(subject_focus, "cerebellum")
 ```
 
-
-
-
-
-```{r}
-
-subject_focus %>%
-  ungroup() %>% 
-  mutate(focus_effect = same_net - diff_net) %>%
-  select(subject, YeoNet, vertex_type, subcort_ROI, focus_effect) %>%
-  spread(vertex_type, focus_effect) %>%
-  group_by(subcort_ROI, YeoNet) %>%
-  do(tidy(t.test(.$netmean_pvertex, .$netmean_tvertex, paired = TRUE))) %>%
-  mutate(cohenD = statistic/sqrt(parameter + 1)) %>%
-  kable()
+```{r striatum-raincloud2}
+subcortical_raincloud(subject_focus, "striatum")
 ```
-```{r}
-subject_focus %>%
-  ungroup() %>% 
-  mutate(focus_effect = same_net - diff_net) %>%
-  select(subject, YeoNet, vertex_type, subcort_ROI, focus_effect) %>%
-  spread(vertex_type, focus_effect) %>%
-  group_by(subcort_ROI, YeoNet) %>%
-  do(tidy(t.test(.$netmean_tvertex, .$netmean_tvolume, paired = TRUE))) %>%
-  mutate(cohenD = statistic/sqrt(parameter + 1)) %>%
-  kable()
+
+```{r thalamus-raincloud2}
+subcortical_raincloud(subject_focus, "thalamus")
 ```
 
 
 
 
-
-Recreating the DM plot from the poster to double check
-
-```{r DM-cerebellum-plot-part1, eval = FALSE}
-
-net_means <- results_pheno %>%
-  ungroup() %>%
-  group_by(YeoNet, subcort_ROI, subcort_NET, subject) %>%
-  summarise(netmean_pvertex = mean(pvertex_corr),
-            netmean_tvertex = mean(tvertex_corr),
-            pint_diff = netmean_pvertex - netmean_tvertex) 
-
-pint_diff_sub_DM <- net_means %>%
+```{r}
+subject_focus_wrgl <- subject_focus %>%
   ungroup() %>% 
-  filter(YeoNet == "DM", subcort_ROI == "cerebellum") %>%
-  select(subject, subcort_NET, pint_diff) %>%
-  spread(subcort_NET, pint_diff) %>%
-  mutate(overall_pint_diff = DM - (SM + VA + FP + DA)/4,
-         x_val = '') %>%
-  select(subject, overall_pint_diff, x_val) %>%
-  ggplot(aes(y = overall_pint_diff, x = x_val)) +
-    geom_boxplot(outlier.shape = NA) +
-    geom_jitter(alpha = 0.3, color = YeoNet_colours$DM, fill = "grey") +
-    geom_hline(yintercept = 0) + 
-    labs(y = "Change in correlation after PINT", x = "Cerebellum DM - Others") +
-  scale_y_continuous(limits = c(-0.3, 0.3))
+  mutate(focus_effect = same_net - diff_net) %>%
+  group_by(subject, dataset, subcort_ROI, YeoNet) %>%
+  gather(conntype, netmean, same_net, diff_net, focus_effect) %>% 
+  spread(vertex_type, netmean) %>%
+  ungroup()
 
-DM_submeans_plot <- net_means %>%
-  mutate(is_DM = if_else(subcort_NET == 'DM', TRUE, FALSE),
-         SubCortNET = factor(subcort_NET, levels = c("DM", "SM", "DA", "VA", "FP"))) %>%
-  filter(subcort_ROI == "cerebellum", !is.na(SubCortNET), YeoNet == "DM") %>%
-  ggplot(aes(y = pint_diff, x = SubCortNET, color = is_DM)) +
-  geom_boxplot(color = "black", outlier.shape = NA) + 
-  geom_jitter(alpha = 0.3) +
-  geom_hline(yintercept = 0) +
-  scale_color_manual(values = c('black',YeoNet_colours$DM)) +
-  labs(y = "Change in correlation after PINT", color = NULL, x = "Subregion of Cerebellum") +
-  theme(legend.position = "none") +
-  scale_y_continuous(limits = c(-0.3, 0.3))
+pvertex_vs_tvertex <- subject_focus_wrgl %>%
+  group_by(subcort_ROI, YeoNet, conntype) %>%
+  do(tidy(t.test(.$pvertex, .$tvertex, paired = TRUE))) %>%
+  mutate(cohenD = statistic/sqrt(parameter + 1))
 
-# DM_brain_pic <- ggdraw + draw_image('DM_striatum_pic.png')
+tvertex_vs_tvolume <- subject_focus_wrgl %>%
+  group_by(subcort_ROI, YeoNet, conntype) %>%
+  do(tidy(t.test(.$tvertex, .$tvolume, paired = TRUE))) %>%
+  mutate(cohenD = statistic/sqrt(parameter + 1))
 
-plot_grid(pint_diff_sub_DM, DM_submeans_plot, rel_widths = c(1,2.5))
+focus_results <- bind_rows(pvertex_vs_tvertex = pvertex_vs_tvertex,
+                           tvertex_vs_tvolume = tvertex_vs_tvolume,
+                           .id = "test_vars")
+```
+```{r}
+focus_results %>%
+  mutate(pval_str = ifelse(p.value < 0.001, 
+                           format(p.value, scientific = TRUE, digits = 2),
+                           format(p.value, digits = 3, nsmall = 3))) %>%
+  mutate(report_str = str_c("d = ", format(cohenD, digits = 3, nsmall = 1),
+                            ", t(",parameter, ') =', 
+                            format(statistic, digits = 3, nsmall = 0),
+                            ', p=', pval_str)) %>%
+  select(test_vars, conntype, subcort_ROI, YeoNet, report_str) %>%
+  spread(conntype, report_str) %>%
+  select(test_vars, subcort_ROI, YeoNet, same_net, diff_net, focus_effect) %>%
+  arrange(test_vars, subcort_ROI, YeoNet) %>%
+  knitr::kable()
 ```
 
 

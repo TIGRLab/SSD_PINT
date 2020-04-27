@@ -23,6 +23,12 @@ bookdown::render_book('index.Rmd', output_format = "bookdown::gitbook", output_d
 bookdown::render_book('index.Rmd', output_format = "bookdown::pdf_book", output_dir = '../../reports/Rmd_rendered')
 ```
 
+### to render one chapter
+
+```{r}
+rmarkdown::render('04_cortical-cortical_changes.Rmd', output_format = "html_document", output_file = here::here('reports','Rmd_rendered','04_cortical-cortical_changes.html')) 
+```
+
 To clean after rendering book
 
 ```sh
