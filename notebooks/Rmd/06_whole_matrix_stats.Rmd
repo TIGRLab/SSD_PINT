@@ -26,13 +26,19 @@ library(here)
 ```{r setting paths}
 # These functions are for reading timeseries files
 source(here('code/R/settings_helpers.R'))
-source(here('code/R/file_reading_helpers.R'))
+#
 
 pheno <- read_pheno_file()%>%
   drop_na(DX) %>%
   filter(in_matched_sample)
 YeoNet_colours <- define_Yeo7_colours()
-Yeo7_2011_80verts <- read_Yeo72011_template()  
+Yeo7_2011_80verts <- read_Yeo72011_template() 
+
+lm_predictor_col = c("DX")
+lm_covar_cols <- c("Age_match_pt", 
+                    "Sex",
+                    "fd_mean_match_pt",
+                    "Site")
 
 ```
 
@@ -90,35 +96,41 @@ node_annotations <- get_node_annotations(Yeo7_2011_80verts, the_subcortical_guid
 
 Write a func_base and outputprefix cols into the pheno file for the file reading step
 
-```{r}
-pheno <- pheno %>%
-  mutate(func_base = get_func_base_from_pint_summary_filename(filename,subject, session), 
-         outputprefix = construct_output_prefix(subject, session, func_base)) 
-```
-
-
 
 ```{r eval = FALSE}
+source(here('code/R/file_reading_helpers.R'))
+pheno <- pheno %>%
+  mutate(func_base = get_func_base_from_pint_summary_filename(filename,subject, session), 
+         outputprefix = construct_output_prefix(subject, session, func_base))
 map2(pheno$outputprefix[1], pheno$dataset[1],
                               ~run_read_all_subject_timeseries_and_wholebrain_corZ(.x, .y))
 ```
 
 
-```{r read all the data}
-
+```{r read all the data, eval = FALSE}
+source(here('code/R/file_reading_helpers.R'))
+pheno <- pheno %>%
+  mutate(func_base = get_func_base_from_pint_summary_filename(filename,subject, session), 
+         outputprefix = construct_output_prefix(subject, session, func_base))
 all_corZ_results <- pheno %>%
   select(subject, outputprefix, dataset) %>%
   mutate(the_corrs = map2(.$outputprefix, .$dataset,
                               ~run_read_all_subject_timeseries_and_wholebrain_corZ(.x, .y)))
-```
 
-```{r cache-subcort-Rdata}
 save(all_corZ_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
+saveRDS(all_corZ_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_cache.rds"))
 ```
 
-```{r load-cached-results, eval=FALSE}
+```{r old-load-cached-results, eval=FALSE}
 load(file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
 ```
+
+
+
+```{r load-cached-results}
+all_corZ_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_cache.rds"))
+```
+
 
 
 ### merge with the phenotypic data
@@ -130,9 +142,7 @@ results_pheno <- all_corZ_results %>%
 
 ```
 
-```{r drop_the_unmatched}
-results_pheno <- results_pheno %>% filter(in_matched_sample)
-```
+
 
 
 
@@ -140,18 +150,19 @@ results_pheno <- results_pheno %>% filter(in_matched_sample)
 results_pheno
 ```
 
-
+## calcualate cohen's D for Diagnosis Effect
 
 ```{r}
 library(modelr)
 library(effsize)
 
 
-calc_DX_cohenD <- function(df) { 
-m1 <- lm(corZ ~ Age_match_pt + Sex + fd_mean_match_pt + Scanner, data = df)
+calc_DX_cohenD <- function(df, outcome, predictor, covars) { 
+m1 <- lm(formula(paste(outcome, '~', paste(covars, collapse = " + "))),
+         data = df)
 result <-df %>% 
   add_residuals(m1) %>%
-  cohen.d(resid ~ DX, data = .) %>% 
+  cohen.d(formula(paste("resid ~", predictor)), data = .) %>% 
   .$estimate
 return(result)
 }
@@ -162,28 +173,83 @@ rm(all_corZ_results)
 
 
 
-```{r}
-results_pheno_plus_DXd <- results_pheno %>%
+```{r calc-DX-cohensD}
+results_pheno_plus_DXd <- function(results_pheno) {
+  results_pheno %>%
   semi_join(node_annotations, by = c("to"="node_name")) %>%
   semi_join(node_annotations, by = c("from"="node_name")) %>%
   mutate(corZ = weight) %>%
   group_by(vertex_type, to, from) %>%
   nest() %>%
   #slice(1:3) %>%
-  mutate(DX_cohenD = map(data, ~calc_DX_cohenD(.x))) %>%
+  mutate(DX_cohenD = map(data, ~calc_DX_cohenD(.x, 
+                                               outcome = "corZ", 
+                                               predictor = "DX",
+                                               covars = lm_covar_cols))) %>%
   unnest(DX_cohenD) %>%
   ungroup() %>%
   select(vertex_type, to, from, DX_cohenD)
+}
+
+## had to split this by vertex because of RAM issues on laptop
+pvertex_DXd <- results_pheno %>%
+  filter(vertex_type == "pvertex") %>%
+  results_pheno_plus_DXd()
+tvertex_DXd <- results_pheno %>%
+  filter(vertex_type == "tvertex") %>%
+  results_pheno_plus_DXd()
+tvolume_DXd <- results_pheno %>%
+  filter(vertex_type == "tvolume") %>%
+  results_pheno_plus_DXd()
+
+DX_cohensD_results <- bind_rows(
+  pvertex_DXd,
+  tvertex_DXd,
+  tvolume_DXd
+) 
+
+
 ```
 
 ```{r}
-DX_lm_model_full <- results_pheno %>%
+DX_lm_formula <- formula(paste("corZ ~ ", lm_predictor_col, "+",
+                               paste(lm_covar_cols, collapse = " + ")))
+
+print(str_glue("fitting: lm formula {DX_lm_formula}"))
+
+DX_lm_model_fit <- function(results_pheno) {
+  results_pheno %>%
   semi_join(node_annotations, by = c("to"="node_name")) %>%
   semi_join(node_annotations, by = c("from"="node_name")) %>%
   mutate(corZ = weight) %>%
   group_by(vertex_type, to, from) %>%
-  do(tidy(lm(corZ ~ DX + Age_match_pt + Sex + fd_mean_match_pt + Scanner,.))) 
+  do(tidy(lm(DX_lm_formula,.))) 
+}
+
+## had to split this by vertex because of RAM issues on laptop
+pvertex_DX_lm <- results_pheno %>%
+  filter(vertex_type == "pvertex") %>%
+  DX_lm_model_fit()
+tvertex_DX_lm <- results_pheno %>%
+  filter(vertex_type == "tvertex") %>%
+  DX_lm_model_fit()
+tvolume_DX_lm <- results_pheno %>%
+  filter(vertex_type == "tvolume") %>%
+  DX_lm_model_fit()
+
+DX_lm_model_full <- bind_rows(
+  pvertex_DX_lm,
+  tvertex_DX_lm,
+  tvolume_DX_lm
+) 
+
+
+
 ```
+```{r}
+DX_lm_formula
+```
+
 
 ```{r}
 annotated_graph_edges <- DX_lm_model_full %>%
@@ -218,15 +284,30 @@ DX_lm_model <- DX_lm_model_full %>%
 ```{r}
 DX_lm_model_DXcohenD <- DX_lm_model %>%
   filter(term == "DXSSD") %>%
-  inner_join(results_pheno_plus_DXd, by = c("vertex_type", "to", "from")) %>%
+  inner_join(DX_cohensD_results, by = c("vertex_type", "to", "from")) %>%
   mutate(cohenD_DX_tstatdir = -1 * DX_cohenD)
 DX_lm_model_DXcohenD %>%
   ggplot(aes(cohenD_DX_tstatdir, statistic, color = (p_FDR < 0.05))) +
   geom_point()
 ```
 ```{r}
-
+DX_lm_model_DXcohenD %>%
+  filter(p_FDR < 0.05) %>%
+  arrange(desc(p.value)) %>%
+  slice(1:5)
 ```
+
+
+```{r}
+saveRDS(DX_lm_model_DXcohenD, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_DXlmfits.rds"))
+```
+
+can get the model fit back from here..
+
+```{r eval = FALSE}
+DX_lm_model_DXcohenD <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_DXlmfits.rds"))
+```
+
 
 
 ## Make co
@@ -273,7 +354,7 @@ DX_lm_model_DXcohenD %>%
 ## make table FDR corrected Edges that survive correction
 
 ```{r}
-DX_lm_model %>%
+DX_lm_model_DXcohenD %>%
   inner_join(annotated_graph_edges, by = c("to", "from")) %>%
   mutate(sig_edge = if_else(p_FDR < 0.05, "sig", "ns"),
          stat_pos = if_else(statistic > 0, "pos", "neg")) %>%
@@ -282,6 +363,61 @@ DX_lm_model %>%
   spread(sig_edge, n) %>%
   mutate(perc_sig = sig/(ns + sig)*100)
 
+```
+```{r}
+YeoNet7 <- define_YeoNet7_colours()
+node_annotations1 <- node_annotations %>%
+  mutate(node_grouping  = if_else(etype == "Cort",
+                                  str_c("Cort", cort_NET),
+                                  as.character(subcort_ROI))) 
+
+node_groupings <- factor(1:9, 
+                         levels = c(1:9),
+                         labels = c(levels(node_annotations$subcort_ROI),
+                                    str_c("Cort",YeoNet7$network[1:6])))
+edge_grouping_guide <- matrix(1, 
+                  nrow = length(node_groupings),
+                  ncol = length(node_groupings),
+                  dimnames = list(node_groupings,
+                                  node_groupings)) %>%
+    graph_from_adjacency_matrix(mode="upper", 
+                                weighted=T, diag=T) %>%
+    as_data_frame() %>%
+  filter(!(from %in% c("striatum", "thalamus", "cerebellum") & to == from)) %>%
+  select(to, from)
+
+
+```
+
+
+
+
+
+```{r, fig.width=6, fig.height = 8}
+
+DX_lm_model_DXcohenD %>%
+      ungroup() %>%
+      inner_join(node_annotations1, by = c("from"="node_name")) %>%
+      inner_join(node_annotations1, by = c("to"="node_name")) %>%
+      mutate(sig_edge = if_else(p_FDR < 0.05, "sig", "ns"),
+      stat_pos = if_else(statistic > 0, "pos", "neg")) %>%
+      filter(term == "DXSSD") %>% 
+      count(vertex_type, node_grouping.x, node_grouping.y, stat_pos, sig_edge) %>%
+      group_by(vertex_type, node_grouping.x, node_grouping.y, stat_pos) %>%
+      spread(sig_edge, n, fill = 0) %>%
+      mutate(sig_signed = if_else(stat_pos == "pos", sig, sig*-1),
+             node_grouping_x = factor(node_grouping.x, levels = node_groupings),
+             node_grouping_y = factor(node_grouping.y, levels = node_groupings)) %>%
+      mutate(node_grouping_fx = if_else(node_grouping_x == "CortDA" & node_grouping_y %in% c("CortVA", "CortFP", "CortDM"), 
+                                        node_grouping_y, node_grouping_x),
+             node_grouping_fy = if_else(node_grouping_x == "CortDA" & node_grouping_y %in% c("CortVA", "CortFP", "CortDM"), 
+                                        node_grouping_x, node_grouping_y)) %>%
+  ggplot(aes(x = node_grouping_fx, y = node_grouping_fy, fill = sig_signed)) +
+  geom_tile() +
+  geom_text(aes(label = sig)) +
+  scale_fill_distiller(breaks = c(-0.5,0.5), type = "div", palette = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_grid(vertex_type ~ stat_pos)
 ```
 
 
@@ -314,7 +450,7 @@ return(result)
 
 
 ```{r fig.height=20, fig.width= 12}
-DX_lm_model %>%
+DX_lm_model_DXcohenD %>%
   filter(term == "DXSSD") %>%
   mutate(t_filtered = if_else(p_FDR < 0.1, statistic, 0)) %>%
   ungroup() %>%
@@ -349,7 +485,7 @@ DX_lm_model %>%
 
 
 ```{r fig.height=12, fig.width= 12}
-full_DX_mat <- DX_lm_model %>%
+full_DX_mat <- DX_lm_model_DXcohenD %>%
   filter(term == "DXSSD", vertex_type == "pvertex") %>%
   ungroup() %>%
   select(to, from, statistic) %>%
@@ -365,6 +501,260 @@ full_DX_mat %>%
   labs(title = "T statistic for effect of DX",
        x = NULL, y = NULL, fill = "T statistic for DX")
 ```
+### trying to plot edges in subgroups
+
+Plotting Subcortical to Cortical Edges
+
+```{r fig.height=8, fig.width=5}
+library(ggridges)
+
+make_subcortcort_edges_raincloud <- function(data,D_threshold) {
+
+get_subcort_net_edges <- function(data, this_YeoNet, D_threshold) {
+      data %>%
+      ungroup() %>%
+      select(to, from, cohenD_DX_tstatdir) %>%
+      uppertri_df_to_full() %>%
+      inner_join(node_annotations, by = c("to"="node_name")) %>%
+      inner_join(node_annotations, by = c("from"="node_name")) %>%
+      filter(etype.x == "SubCort") %>%
+      filter(etype.y == "Cort")
+      
+}
+
+DXweigths_pvertex <- data %>%
+  filter(term == "DXSSD", vertex_type == "pvertex") %>%
+  ungroup() %>%
+  get_subcort_net_edges(.,this_YeoNet) 
+
+DXweigths_tvertex <- data %>%
+  filter(term == "DXSSD", vertex_type == "tvertex") %>%
+  ungroup() %>%
+  get_subcort_net_edges(.,this_YeoNet)
+
+DXweigths_tvolume <- data %>%
+  filter(term == "DXSSD", vertex_type == "tvolume") %>%
+  ungroup() %>%
+  get_subcort_net_edges(.,this_YeoNet)
+
+Fz_DXweigths <- bind_rows(pvertex = DXweigths_pvertex,
+                     tvertex = DXweigths_tvertex,
+                     tvolume = DXweigths_tvolume,
+                     .id = "vertex_type") %>%
+      mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
+                             labels = c("Surface Personalized", 
+                                        "Surface Template", 
+                                        "Volume Template")),
+           hyper_hypo = case_when(value < -D_threshold ~ "hypo",
+                                  value > D_threshold ~ "hyper",
+                                  TRUE ~ "notsig"))
+
+plt_counts <- Fz_DXweigths %>%
+  count(corrtype, network.y, hyper_hypo) %>%
+  spread(hyper_hypo, n, fill = 0)
+
+
+make_one_net_ridgelines <- function(plt_data, plt_counts, this_YeoNet, D_threshold, no_ticks = TRUE) {
+    plt <- plt_data %>%
+    filter(as.character(network.y) %in% c(this_YeoNet)) %>%
+    ggplot(aes(y = corrtype, x = value)) +
+    geom_density_ridges(
+      #jittered_points = TRUE, position = "raincloud",
+      alpha = 0.5, scale = 2,
+      quantile_lines = TRUE, quantiles = 2,
+      color = YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode)
+    ) +
+    geom_text(aes(y = corrtype, label = hyper), 
+          x = 0.5, 
+          nudge_y = 0.2, data = plt_counts %>% filter(as.character(network.y) %in% c(this_YeoNet))) +
+    geom_text(aes(y = corrtype, label = hypo), 
+          x = -0.5, 
+          nudge_y = 0.2, data = plt_counts %>% filter(as.character(network.y) %in% c(this_YeoNet))) +
+    geom_vline(xintercept = 0) +
+    geom_vline(xintercept = D_threshold, linetype = "dashed") +
+    geom_vline(xintercept = -D_threshold, linetype = "dashed") +
+    scale_colour_manual(values = c(YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_x_continuous(limits = c(-0.5, 0.6)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+
+if (no_ticks==TRUE) {
+    plt <- plt + theme(axis.title.x=element_blank(),
+                       axis.text.x=element_blank())
+  } else {
+    plt <- plt + labs(x = "Subcortical to Cortical Edges")
+  }
+  return(plt)
+  
+}
+
+
+  DM <- make_one_net_ridgelines(Fz_DXweigths, plt_counts, "DM", D_threshold)
+  FP <- make_one_net_ridgelines(Fz_DXweigths, plt_counts, "FP", D_threshold)
+  VA <- make_one_net_ridgelines(Fz_DXweigths, plt_counts, "VA", D_threshold)
+  DA <- make_one_net_ridgelines(Fz_DXweigths, plt_counts, "DA", D_threshold)
+  SM <- make_one_net_ridgelines(Fz_DXweigths, plt_counts, "SM", D_threshold)
+  VI <- make_one_net_ridgelines(Fz_DXweigths, plt_counts, "VI", D_threshold, no_ticks = FALSE)
+
+  title <- ggdraw() + draw_label("Subcortical to Cortical", fontface='bold')
+  full_plt <- plot_grid(title, DM, FP, VA, DA, SM, VI,
+                   ncol = 1, rel_heights = c(0.5, 1, 1, 1, 1, 1, 1.5))
+  return(full_plt)
+}
+
+
+make_subcortcort_edges_raincloud(DX_lm_model_DXcohenD,D_threshold = 0.2678)
+```
+
+```{r fig.height=5, fig.width=5}
+library(ggridges)
+
+make_cortcort_edges_raincloud <- function(data,D_threshold) {
+
+get_cortcort_net_edges <- function(data) {
+      data %>%
+      ungroup() %>%
+      select(to, from, cohenD_DX_tstatdir) %>%
+      uppertri_df_to_full() %>%
+      inner_join(node_annotations, by = c("to"="node_name")) %>%
+      inner_join(node_annotations, by = c("from"="node_name")) %>%
+      filter(etype.x == "Cort") %>%
+      filter(etype.y == "Cort")
+      
+}
+
+DXweigths_pvertex <- data %>%
+  filter(term == "DXSSD", vertex_type == "pvertex") %>%
+  ungroup() %>%
+  get_cortcort_net_edges() 
+
+DXweigths_tvertex <- data %>%
+  filter(term == "DXSSD", vertex_type == "tvertex") %>%
+  ungroup() %>%
+  get_cortcort_net_edges()
+
+DXweigths_tvolume <- data %>%
+  filter(term == "DXSSD", vertex_type == "tvolume") %>%
+  ungroup() %>%
+  get_cortcort_net_edges()
+
+Fz_DXweigths <- bind_rows(pvertex = DXweigths_pvertex,
+                     tvertex = DXweigths_tvertex,
+                     tvolume = DXweigths_tvolume,
+                     .id = "vertex_type") %>%
+      mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
+                             labels = c("Surface Personalized", 
+                                        "Surface Template", 
+                                        "Volume Template")),
+           hyper_hypo = case_when(value < -D_threshold ~ "hypo",
+                                  value > D_threshold ~ "hyper",
+                                  TRUE ~ "notsig"))
+
+all_plt_counts <- Fz_DXweigths %>%
+  count(corrtype, network.y, network.x, hyper_hypo) %>%
+  spread(hyper_hypo, n, fill = 0)
+
+
+make_two_net_ridgelines <- function(plt_data, all_plt_counts, network_x, network_y, D_threshold, no_ticks = TRUE) {
+    plt_counts <- all_plt_counts %>%
+      filter(as.character(network.x)== network_x,
+           as.character(network.y)== network_y,)
+  
+    plt <- plt_data %>%
+    filter(as.character(network.x)== network_x,
+           as.character(network.y)== network_y,) %>%
+    ggplot(aes(y = corrtype, x = value)) +
+    geom_density_ridges(
+      #jittered_points = TRUE, position = "raincloud",
+      alpha = 0.5, scale = 2,
+      quantile_lines = TRUE, quantiles = 2,
+      color = YeoNet7 %>% filter(network==network_x) %>% pull(hexcode),
+      fill = YeoNet7 %>% filter(network==network_y) %>% pull(hexcode)
+    ) +
+    geom_text(aes(y = corrtype, label = hyper), 
+          x = 0.5, 
+          nudge_y = 0.2, data = plt_counts) +
+    geom_text(aes(y = corrtype, label = hypo), 
+          x = -0.5, 
+          nudge_y = 0.2, data = plt_counts) +
+    geom_vline(xintercept = 0) +
+    geom_vline(xintercept = D_threshold, linetype = "dashed") +
+    geom_vline(xintercept = -D_threshold, linetype = "dashed") +
+    scale_x_continuous(limits = c(-0.5, 0.6)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+
+if (no_ticks==TRUE) {
+    plt <- plt + theme(axis.title.x=element_blank(),
+                       axis.text.x=element_blank())
+  } else {
+    plt <- plt + labs(x = "Cortical to Cortical Edges")
+  }
+  return(plt)
+  
+}
+
+  DM_DA <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DM", "DA", D_threshold)
+  DM_VA <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DM", "VA", D_threshold)
+  DM_SM <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DM", "SM", D_threshold)
+  FP_SM <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "FP", "SM", D_threshold)
+  VA_DA <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DA", "VA", D_threshold)
+  DA_SM <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DA", "SM", D_threshold)
+  VI_VI <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "VI", "VI", D_threshold, no_ticks = FALSE)
+
+  title <- ggdraw() + draw_label("Subcortical to Cortical", fontface='bold')
+  full_plt <- plot_grid(title, DM_DA, DM_VA, FP_SM, VA_DA, DA_SM, VI_VI,
+                   ncol = 1, rel_heights = c(0.5, 1,  1, 1, 1, 1,1.5))
+  return(full_plt)
+}
+
+
+make_cortcort_edges_raincloud(DX_lm_model_DXcohenD,D_threshold = 0.2678)
+```
+
+```{r fig.height=2, fig.width=5}
+hypo_cerebullum_to <- DX_lm_model_DXcohenD %>%
+      ungroup() %>%
+      select(to, from, cohenD_DX_tstatdir) %>%
+      uppertri_df_to_full() %>%
+      inner_join(node_annotations, by = c("to"="node_name")) %>%
+      inner_join(node_annotations, by = c("from"="node_name")) %>% 
+    filter(subcort_ROI.x == "cerebellum") %>%
+    filter(subcort_ROI.y %in% c("striatum", "thalamus")) %>%
+    mutate(hyper_hypo = case_when(value < -D_threshold ~ "hypo",
+                                  value > D_threshold ~ "hyper",
+                                  TRUE ~ "notsig"),
+           corrtype = str_c(subcort_ROI.y, " to cerebellum"))
+
+plt_counts <- hypo_cerebullum_to %>%
+  count(corrtype, hyper_hypo) %>%
+  spread(hyper_hypo, n, fill = 0) %>%
+  mutate(hyper = 0) # note this only works because there is no hyper
+
+hypo_cerebullum_to %>%
+    ggplot(aes(y = corrtype, x = value)) +
+    geom_density_ridges(
+      #jittered_points = TRUE, position = "raincloud",
+      alpha = 0.5, scale = 2,
+      quantile_lines = TRUE, quantiles = 2
+    ) +
+    geom_text(aes(y = corrtype, label = hyper), 
+          x = 0.5, 
+          nudge_y = 0.2, data = plt_counts) +
+    geom_text(aes(y = corrtype, label = hypo), 
+          x = -2.5, 
+          nudge_y = 0.2, data = plt_counts) +
+    geom_vline(xintercept = 0) +
+    geom_vline(xintercept = D_threshold, linetype = "dashed") +
+    geom_vline(xintercept = -D_threshold, linetype = "dashed") +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+```
+
+
 
 ```{r}
 
@@ -383,6 +773,12 @@ hypo_cerebullum_to_striatum <- full_DX_mat %>%
     filter(value < -t_threshold) %>%
     select(to, from, value) 
 
+hypo_cerebullum_to_thalamus <- full_DX_mat %>%
+    filter(subcort_ROI.x == "cerebellum") %>%
+    filter(subcort_ROI.y == "thalamus") %>%
+    filter(value < -t_threshold) %>%
+    select(to, from, value)
+
 hyper_subcort_to_SM <- full_DX_mat %>%
     filter(etype.x == "SubCort") %>%
     filter(etype.y == "Cort") %>%
@@ -394,6 +790,13 @@ hyper_subcort_to_VI <- full_DX_mat %>%
     filter(etype.x == "SubCort") %>%
     filter(etype.y == "Cort") %>%
     filter(as.character(network.y) %in% c("VI")) %>%
+    filter(value > t_threshold) %>%
+    select(to, from, value)
+
+hyper_subcort_to_DA <- full_DX_mat %>%
+    filter(etype.x == "SubCort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.y) %in% c("DA")) %>%
     filter(value > t_threshold) %>%
     select(to, from, value)
 
@@ -418,11 +821,11 @@ hypo_subcort_to_VA <- full_DX_mat %>%
     filter(value < -t_threshold) %>%
     select(to, from, value)
 
-hyper_cortSMVI_to_rest <- full_DX_mat %>%
+hyper_cortDA_to_SM <- full_DX_mat %>%
     filter(etype.x == "Cort") %>%
     filter(etype.y == "Cort") %>%
-    filter(as.character(network.x) %in% c("SM", "VI")) %>%
-    filter(as.character(network.y) %in% c("FP","DA", "VA", "DM")) %>%
+    filter(as.character(network.x) %in% c("DA")) %>%
+    filter(as.character(network.y) %in% c("SM")) %>%
     filter(value > t_threshold) %>%
     select(to, from, value)
 
@@ -434,23 +837,52 @@ hyper_cortVA_to_DA <- full_DX_mat %>%
     filter(value > t_threshold) %>%
     select(to, from, value)
 
-hypo_cortDM_to_rest <- full_DX_mat %>%
+hyper_cortFP_to_SM <- full_DX_mat %>%
+    filter(etype.x == "Cort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.x) %in% c("FP")) %>%
+    filter(!(as.character(network.y) %in% c("SM"))) %>%
+    filter(value > t_threshold) %>%
+    select(to, from, value)
+
+hypo_cortDM_to_DA <- full_DX_mat %>%
     filter(etype.x == "Cort") %>%
     filter(etype.y == "Cort") %>%
     filter(as.character(network.x) %in% c("DM")) %>%
-    filter(!(as.character(network.y) %in% c("DM"))) %>%
+    filter(!(as.character(network.y) %in% c("DA"))) %>%
     filter(value < -t_threshold) %>%
     select(to, from, value)
 
-Fz_weigths <-bind_rows(hypo_cortDM_to_rest = hypo_cortDM_to_rest,
-                       hyper_cortSMVI_to_rest = hyper_cortSMVI_to_rest,
+hypo_cortDM_to_VA <- full_DX_mat %>%
+    filter(etype.x == "Cort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.x) %in% c("DM")) %>%
+    filter(!(as.character(network.y) %in% c("VA"))) %>%
+    filter(value < -t_threshold) %>%
+    select(to, from, value)
+
+hypo_cortVI_to_VI <- full_DX_mat %>%
+    filter(etype.x == "Cort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.x) %in% c("VI")) %>%
+    filter(!(as.character(network.y) %in% c("VI"))) %>%
+    filter(value < -t_threshold) %>%
+    select(to, from, value)
+
+Fz_weigths <-bind_rows(hyper_cortDA_to_SM = hyper_cortDA_to_SM,
+                       hyper_cortFP_to_SM = hyper_cortFP_to_SM,
                        hyper_cortVA_to_DA = hyper_cortVA_to_DA,
+                       hypo_cortDM_to_DA = hypo_cortDM_to_DA,
+                       hypo_cortDM_to_VA = hypo_cortDM_to_VA,
+                       hypo_cortVI_to_VI = hypo_cortVI_to_VI,
                        hyper_subcort_to_DM = hyper_subcort_to_DM,
                        hypo_subcort_to_FP = hypo_subcort_to_FP,
                        hypo_subcort_to_VA = hypo_subcort_to_VA,
+                       hyper_subcort_to_DA = hyper_subcort_to_DA,
                        hyper_subcort_to_SM = hyper_subcort_to_SM,
                        hyper_subcort_to_VI = hyper_subcort_to_VI,
                        hypo_cerebullum_to_striatum = hypo_cerebullum_to_striatum,
+                       hypo_cerebullum_to_thalamus = hypo_cerebullum_to_thalamus,
                        .id = "direction_edge_group") %>%
   separate(direction_edge_group, into = c("effect_direction", "edge_group"), extra = "merge") %>%
   rename(edge_FC_weight = value)
@@ -464,7 +896,8 @@ Fz_weigths <-bind_rows(hypo_cortDM_to_rest = hypo_cortDM_to_rest,
 
 
 ```{r}
-cohenD_threshold = 0.1
+cohenD_threshold = 0.2678
+cohenD_thresname = "pFDR"
 
 Fz_DXweigths_pvertex <- DX_lm_model_DXcohenD %>%
   filter(term == "DXSSD", vertex_type == "pvertex") %>%
@@ -485,6 +918,13 @@ Fz_DXweigths <- bind_rows(pvertex = Fz_DXweigths_pvertex,
                      tvertex = Fz_DXweigths_tvertex,
                      tvolume = Fz_DXweigths_tvolume,
                      .id = "vertex_type") 
+
+write_csv(Fz_DXweigths, file.path(output_base, 
+                                  "all_clinicalplusqa_group", 
+                                  "weighted_subject_FC_weigths",
+                                  str_c("SSD4cohorts_DXtweigths_", 
+                                        cohenD_thresname, ".csv")))
+
 Fz_DXweigths %>% 
   group_by(vertex_type, edge_group, effect_direction) %>%
   summarise(mean_weight = mean(edge_FC_weight)) %>%
@@ -506,11 +946,7 @@ Fz_DXweigths %>%
   summarise(median_weight = median(edge_FC_weight)) %>%
   spread(vertex_type, median_weight)
 ```
-```{r}
-write_csv(Fz_DXweigths_pvertex, file.path(output_base, "all_clinicalplusqa_group", "weighted_subject_FC_weigths", "SSD4cohorts_DXtweigths_pvertex.csv"))
-write_csv(Fz_DXweigths_tvertex, file.path(output_base, "all_clinicalplusqa_group", "weighted_subject_FC_weigths", "SSD4cohorts_DXtweigths_tvertex.csv"))
-write_csv(Fz_DXweigths_tvolume, file.path(output_base, "all_clinicalplusqa_group", "weighted_subject_FC_weigths", "SSD4cohorts_DXtweigths_tvolume.csv"))
-```
+
 
 ```{r}
 
@@ -688,7 +1124,9 @@ fplot <- FC_scores_together %>%
 
 ```
 
-
+```{r, fig.width=5, fig.height = 4}
+ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_subcort_to_VI, y = hypo_subcort_to_FP))
+```
 
 
 ```{r, fig.width=5, fig.height = 4}
@@ -732,30 +1170,8 @@ fig1
 # calculate weighted subject scores by chopping up the matrix
 
 
-```{r}
-YeoNet7 <- define_YeoNet7_colours()
-node_annotations1 <- node_annotations %>%
-  mutate(node_grouping  = if_else(etype == "Cort",
-                                  str_c("Cort", cort_NET),
-                                  as.character(subcort_ROI))) 
-
-node_groupings <- factor(1:9, 
-                         levels = c(1:9),
-                         labels = c(levels(node_annotations$subcort_ROI),
-                                    str_c("Cort",YeoNet7$network[1:6])))
-edge_grouping_guide <- matrix(1, 
-                  nrow = length(node_groupings),
-                  ncol = length(node_groupings),
-                  dimnames = list(node_groupings,
-                                  node_groupings)) %>%
-    graph_from_adjacency_matrix(mode="upper", 
-                                weighted=T, diag=T) %>%
-    as_data_frame() %>%
-  filter(!(from %in% c("striatum", "thalamus", "cerebellum") & to == from)) %>%
-  select(to, from)
 
 
-```
 
 ```{r}
 define_hypohyper_weights <- function(lm_df, cohenD_threshold, node_annotations, edge_guide) {
@@ -797,14 +1213,19 @@ define_vertex_hypohyper_weights <- function(lm_df, v_type, cohenD_threshold) {
   return(groupwise_weights)
 }
 
-groupwise_weights <- tibble(vertex_type = c("pvertex", "tvertex", "tvolume")) %>%
-  mutate(result = map(vertex_type, 
-                      ~ define_vertex_hypohyper_weights(DX_lm_model_DXcohenD, .x, cohenD_threshold))) %>%
-  unnest()
+
 ```
 
 ```{r}
-size_threshold = 30
+size_threshold = 8
+cohenD_threshold = 0.26
+
+groupwise_weights <- tibble(vertex_type = c("pvertex", "tvertex", "tvolume")) %>%
+  mutate(result = map(vertex_type, 
+                      ~ define_vertex_hypohyper_weights(DX_lm_model_DXcohenD, 
+                                                        .x, 
+                                                        cohenD_threshold))) %>%
+  unnest(cols = c(result))
 
 groupwise_weights_table <- groupwise_weights %>%
   count(vertex_type, effect_direction, edge_group) %>%
@@ -822,8 +1243,13 @@ groupwise_weights_table <- groupwise_weights %>%
   # unite(vertex_meas, tmp_col, vertex_type) %>%
   # spread(vertex_meas, tmp_vals) %>%
   # arrange(-abs(hyperhypo_diff_tvolume))
-
+groupwise_weights_table
 ```
+
+
+
+
+
 
 ```{r}
 edge_groups_to_use <- groupwise_weights_table %>%
@@ -831,6 +1257,8 @@ edge_groups_to_use <- groupwise_weights_table %>%
   select(use_hypo, use_hyper, edge_group) %>%
   distinct() %>%
   filter(use_hypo | use_hyper)
+
+edge_groups_to_use
 ```
 
 ```{r}
@@ -857,6 +1285,7 @@ groupwise_weights_both %>%
   geom_line(aes(group = edge_group)) +
   facet_wrap(~effect_direction)
 ```
+
 
 
 
@@ -895,7 +1324,7 @@ return(result)
 all_subject_FC_weights <- tibble(vertex_type = c("pvertex", "tvertex", "tvolume")) %>%
   mutate(result = map(vertex_type, 
                       ~all_subject_FC_weights_by_vertex(results_pheno, groupwise_weights_both, .x))) %>%
-  unnest()
+  unnest(cols = c(result))
 ```
 
 ```{r}
@@ -903,7 +1332,7 @@ all_subject_FC_weights <- tibble(vertex_type = c("pvertex", "tvertex", "tvolume"
 write_csv(all_subject_FC_weights, file.path(output_base, 
                                         "all_clinicalplusqa_group", 
                                         "weighted_subject_FC_scores",
-                                        'SSD4cohorts_DXweighted_moregroups_subject_scores.csv'))
+                                    'SSD4cohorts_DXweighted_edgegroupwise_subject_scores.csv'))
 ```
 
 ```{r}

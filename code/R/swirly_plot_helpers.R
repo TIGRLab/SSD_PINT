@@ -73,24 +73,36 @@ make_swirly_results_plot <- function(lm_df, pos_label, neg_label, plot_title, no
     mutate(effect_cat = factor(effect_cat, 
                                levels = c("pos","neg"),
                                labels = c(pos_label, neg_label)))
-  
-  plt <- ggraph(tg_lm, layout = 'linear', circular = FALSE, 
-                sort.by = "custom_order", use.numeric = TRUE,
-                offset = pi) +
-    geom_edge_arc(aes(color = effect_cat, 
-                      #width = abs(DX), 
-                      alpha = abs(DX_cohenD))) +
-    geom_node_point(aes(color = network), size = 2) +
-    scale_color_manual(values = rev(YeoNet7$hexcode)) +
-    coord_flip() +
-    theme_minimal() +
-    theme(panel.border = element_blank(), 
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(), 
-          axis.line = element_blank(),
-          axis.text.x  = element_blank(),
-          axis.text.y  = element_blank()) +
-    labs(title = plot_title, x = NULL, y = NULL, 
-         color = "RSN Network", edge_color = "p < 0.05")
+
+    plt <- ggraph(tg_lm, layout = "linear", 
+                  sort.by = custom_order,
+                  use.numeric = TRUE) +
+      # add the edge arcs
+      geom_edge_arc(aes(color = effect_cat,
+                        alpha = abs(DX_cohenD),
+                        width = abs(DX_cohenD))) +
+      
+      # add the roi node points
+      geom_node_point(aes(color = network), size = 1.5) +
+      scale_color_manual(values = rev(YeoNet7$hexcode)) +
+      
+      # play with be max width of the scales
+      scale_edge_width_continuous(range = c(1,3)) +
+      
+      # flip the layout and clear the backgroup
+      coord_flip() +
+      theme_minimal() +  
+      theme(panel.border = element_blank(),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(),
+            axis.line = element_blank(),
+            axis.text.x  = element_blank(),
+            axis.text.y  = element_blank()) +
+      
+      labs(title = "test",
+           x = NULL, y = NULL, 
+           color = "RSN Network", 
+           edge_color = "p < 0.05")
+    
   return(plt)
 }

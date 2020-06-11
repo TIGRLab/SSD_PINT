@@ -27,7 +27,9 @@ library(ggridges)
 library(here)
 ```
 
-
+```{r}
+knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
+```
 ## The paths to data
 
 ```{r setting paths}
@@ -374,6 +376,9 @@ subcortical_raincloud(subject_focus, "thalamus")
 
 
 ```{r}
+# note that the bonferronni corrective factor are 4 network times 3 subregions = 12
+bonf_cor_factor = 4*3
+
 subject_focus_wrgl <- subject_focus %>%
   ungroup() %>% 
   mutate(focus_effect = same_net - diff_net) %>%
@@ -385,12 +390,14 @@ subject_focus_wrgl <- subject_focus %>%
 pvertex_vs_tvertex <- subject_focus_wrgl %>%
   group_by(subcort_ROI, YeoNet, conntype) %>%
   do(tidy(t.test(.$pvertex, .$tvertex, paired = TRUE))) %>%
-  mutate(cohenD = statistic/sqrt(parameter + 1))
+  mutate(cohenD = statistic/sqrt(parameter + 1),
+         p_bonf = p.value*bonf_cor_factor)
 
 tvertex_vs_tvolume <- subject_focus_wrgl %>%
   group_by(subcort_ROI, YeoNet, conntype) %>%
   do(tidy(t.test(.$tvertex, .$tvolume, paired = TRUE))) %>%
-  mutate(cohenD = statistic/sqrt(parameter + 1))
+  mutate(cohenD = statistic/sqrt(parameter + 1),
+         p_bonf = p.value*bonf_cor_factor) 
 
 focus_results <- bind_rows(pvertex_vs_tvertex = pvertex_vs_tvertex,
                            tvertex_vs_tvolume = tvertex_vs_tvolume,
@@ -398,19 +405,51 @@ focus_results <- bind_rows(pvertex_vs_tvertex = pvertex_vs_tvertex,
 ```
 ```{r}
 focus_results %>%
-  mutate(pval_str = ifelse(p.value < 0.001, 
+  mutate(pval_str = ifelse(p_bonf < 0.001, 
                            format(p.value, scientific = TRUE, digits = 2),
-                           format(p.value, digits = 3, nsmall = 3))) %>%
-  mutate(report_str = str_c("d = ", format(cohenD, digits = 3, nsmall = 1),
+                           specify_decimal(p_bonf,3))) %>%
+  mutate(report_str = str_c("d = ", specify_decimal(cohenD, 2),
                             ", t(",parameter, ') =', 
-                            format(statistic, digits = 3, nsmall = 0),
+                            specify_decimal(statistic, 2),
                             ', p=', pval_str)) %>%
   select(test_vars, conntype, subcort_ROI, YeoNet, report_str) %>%
   spread(conntype, report_str) %>%
   select(test_vars, subcort_ROI, YeoNet, same_net, diff_net, focus_effect) %>%
-  arrange(test_vars, subcort_ROI, YeoNet) %>%
+  ungroup() %>%
+  mutate(test_vars = factor(test_vars, levels = c("tvertex_vs_tvolume","pvertex_vs_tvertex")),
+         subcort_ROI = factor(subcort_ROI, levels = c("cerebellum", "thalamus", "striatum")),
+         YeoNet = factor(YeoNet, levels = c("DM", "FP", "VA", "SM"))) %>%
+  arrange(test_vars, desc(subcort_ROI), YeoNet) %>%
   knitr::kable()
 ```
+
+```{r}
+focus_results_ranges <- focus_results %>% 
+  ungroup() %>%
+  group_by(test_vars, conntype) %>%
+  summarise(d_min = specify_decimal(min(cohenD),2),
+            d_max = specify_decimal(max(cohenD),2),
+            d_str = str_glue('{d_min}-{d_max}'))
+
+focus_results_ranges %>% filter(test_vars=="pvertex_vs_tvertex", conntype=="focus_effect")  %>% pull(d_str)
+```
+```{r}
+pvertex_vs_tvolume <- subject_focus_wrgl %>%
+  group_by(subcort_ROI, YeoNet, conntype) %>%
+  do(tidy(t.test(.$pvertex, .$tvolume, paired = TRUE))) %>%
+  mutate(cohenD = statistic/sqrt(parameter + 1))
+
+pvertex_vs_tvolume_ranges <- pvertex_vs_tvolume %>% filter(conntype == "same_net") %>%
+    ungroup() %>%
+    summarise(est_min = specify_decimal(min(estimate),2),
+            est_max = specify_decimal(max(estimate),2), 
+            est_str = str_glue('{est_min}-{est_max}'),
+            d_min = specify_decimal(min(cohenD),2),
+            d_max = specify_decimal(max(cohenD),2),
+            d_str = str_glue('{d_min}-{d_max}'))
+```
+
+While subcortical-cortical correlations are noticeably weaker than the cortical-cortical correlations plotted in Figure 1, for all cortical-timeseries extraction methods, for all four networks, we observed that the correlation to the expected subregions of the striatum, thalamus and striatum are positive, and greater than the correlations of these cortical networks to other subregions. Moreover, we observed that this expected pattern is strengthened when using a surface-based cortical timeseries extraction approach, as compared to the volume-based approach (cohen D (min-max) = `r focus_results_ranges %>% filter(test_vars=="tvertex_vs_tvolume", conntype=="focus_effect")  %>% pull(d_str)`). The pattern is again strengthened when using PINT, the personalized surface-based approach, as opposed to the template surface-based approach (cohen D (min-max) = `r focus_results_ranges %>% filter(test_vars=="pvertex_vs_tvertex", conntype=="focus_effect")  %>% pull(d_str)`). In total, moving from a volume-based cortical timeseries extract methods to PINT increased the correlation with the expected cortical subregions by an effect size of `r pvertex_vs_tvolume_ranges %>% pull(d_str)`, across the four cortical networks and subregions tested (see suppl Table 3). 
 
 
 
