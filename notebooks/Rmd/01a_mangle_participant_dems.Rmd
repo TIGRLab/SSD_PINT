@@ -7,9 +7,15 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 
 #### Note: this chapter uses the resticted (unshared) phenotypic data. So can only be run on a CAMH computer..
 
-We output the file `data/processed/pheno/simple_pheno_20200214.csv` which is carrier forward to the next script..
+We output the file `data/processed/pheno/simple_pheno_20200221.csv` which is carrier forward to the next script..
 
 The code chunks below where run on the kimel lab system and not only echo when rest of the notebooks are run.. (i.e. eval = FALSE)
+
+##### all computations here are locked on Feb 21, 2020 (they are not repeated as when this book is rerun)
+
+```{r}
+knitr::opts_chunk$set(eval = FALSE)
+```
 
 ----
 
