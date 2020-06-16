@@ -364,6 +364,22 @@ DX_lm_model_DXcohenD %>%
   mutate(perc_sig = sig/(ns + sig)*100)
 
 ```
+
+```{r}
+DX_sig_edge_table <- DX_lm_model_DXcohenD %>%
+  inner_join(annotated_graph_edges, by = c("to", "from")) %>%
+  mutate(sig_edge = if_else(p_FDR < 0.05, "sig", "ns"),
+         stat_pos = if_else(statistic > 0, "pos", "neg")) %>%
+  filter(term == "DXSSD", from_to_type != "SubCort_SubCort") %>% 
+  count(vertex_type,  sig_edge) %>%
+  spread(sig_edge, n) %>%
+  mutate(perc_sig = sig/(ns + sig)*100)
+
+DX_sig_edge_table
+
+```
+
+
 ```{r}
 YeoNet7 <- define_YeoNet7_colours()
 node_annotations1 <- node_annotations %>%
@@ -714,7 +730,8 @@ if (no_ticks==TRUE) {
 make_cortcort_edges_raincloud(DX_lm_model_DXcohenD,D_threshold = 0.2678)
 ```
 
-```{r fig.height=2, fig.width=5}
+```{r fig.height=1.5, fig.width=5}
+D_threshold = 0.2678
 hypo_cerebullum_to <- DX_lm_model_DXcohenD %>%
       ungroup() %>%
       select(to, from, cohenD_DX_tstatdir) %>%
@@ -737,7 +754,7 @@ hypo_cerebullum_to %>%
     ggplot(aes(y = corrtype, x = value)) +
     geom_density_ridges(
       #jittered_points = TRUE, position = "raincloud",
-      alpha = 0.5, scale = 2,
+      alpha = 0.5, scale = 1.5,
       quantile_lines = TRUE, quantiles = 2
     ) +
     geom_text(aes(y = corrtype, label = hyper), 
@@ -841,7 +858,7 @@ hyper_cortFP_to_SM <- full_DX_mat %>%
     filter(etype.x == "Cort") %>%
     filter(etype.y == "Cort") %>%
     filter(as.character(network.x) %in% c("FP")) %>%
-    filter(!(as.character(network.y) %in% c("SM"))) %>%
+    filter(as.character(network.y) %in% c("SM")) %>%
     filter(value > t_threshold) %>%
     select(to, from, value)
 
@@ -849,7 +866,7 @@ hypo_cortDM_to_DA <- full_DX_mat %>%
     filter(etype.x == "Cort") %>%
     filter(etype.y == "Cort") %>%
     filter(as.character(network.x) %in% c("DM")) %>%
-    filter(!(as.character(network.y) %in% c("DA"))) %>%
+    filter(as.character(network.y) %in% c("DA")) %>%
     filter(value < -t_threshold) %>%
     select(to, from, value)
 
@@ -857,7 +874,7 @@ hypo_cortDM_to_VA <- full_DX_mat %>%
     filter(etype.x == "Cort") %>%
     filter(etype.y == "Cort") %>%
     filter(as.character(network.x) %in% c("DM")) %>%
-    filter(!(as.character(network.y) %in% c("VA"))) %>%
+    filter(as.character(network.y) %in% c("VA")) %>%
     filter(value < -t_threshold) %>%
     select(to, from, value)
 
@@ -865,7 +882,7 @@ hypo_cortVI_to_VI <- full_DX_mat %>%
     filter(etype.x == "Cort") %>%
     filter(etype.y == "Cort") %>%
     filter(as.character(network.x) %in% c("VI")) %>%
-    filter(!(as.character(network.y) %in% c("VI"))) %>%
+    filter(as.character(network.y) %in% c("VI")) %>%
     filter(value < -t_threshold) %>%
     select(to, from, value)
 
@@ -893,7 +910,7 @@ Fz_weigths <-bind_rows(hyper_cortDA_to_SM = hyper_cortDA_to_SM,
   
 ```
 
-
+### calculated extract edge weights for per participant scores
 
 ```{r}
 cohenD_threshold = 0.2678
@@ -924,13 +941,6 @@ write_csv(Fz_DXweigths, file.path(output_base,
                                   "weighted_subject_FC_weigths",
                                   str_c("SSD4cohorts_DXtweigths_", 
                                         cohenD_thresname, ".csv")))
-
-Fz_DXweigths %>% 
-  group_by(vertex_type, edge_group, effect_direction) %>%
-  summarise(mean_weight = mean(edge_FC_weight)) %>%
-  ggplot(aes(y = abs(mean_weight), x = vertex_type, color = edge_group)) +
-    geom_point() +
-    geom_line(aes(group = edge_group))
   
 ```
 ```{r}
@@ -940,12 +950,7 @@ Fz_DXweigths %>%
 
 
 ```
-```{r}
-Fz_DXweigths %>% 
-  group_by(vertex_type, edge_group, effect_direction) %>%
-  summarise(median_weight = median(edge_FC_weight)) %>%
-  spread(vertex_type, median_weight)
-```
+### calculated scores per participant
 
 
 ```{r}
@@ -968,7 +973,7 @@ calc_subjects_wFC_score <- function(subject_edges_df, edge_weights) {
   inner_join(edge_weights, by = c("to", "from")) %>%
   ungroup() %>%
   group_by(subject, dataset, effect_direction, edge_group) %>%
-  summarise(wFC_score = mean(value, w = edge_FC_weight),
+  summarise(wFC_score = weighted.mean(value, w = edge_FC_weight),
             mFC_score = mean(value)) %>%
   ungroup()
   return(result)
@@ -1007,6 +1012,17 @@ write_csv(FC_scores_together, file.path(output_base,
                                         "weighted_subject_FC_scores",
                                         "SSD4cohorts_DXweighted_subject_scores.csv"))
 ```
+
+```{r}
+DX_sig_edge_table %>% filter(vertex_type == "pvertex") %>% pull(sig)
+```
+
+
+## write up to this point..
+
+We observed robust patterns of dysconnectivity that were strengthened using a surface-based approach and PINT (Number of differing pairwise-correlations: volume: {`r DX_sig_edge_table %>% filter(vertex_type == "tvolume") %>% pull(sig)`}, surface: {`r DX_sig_edge_table %>% filter(vertex_type == "tvertex") %>% pull(sig)`},  PINT: {`r DX_sig_edge_table %>% filter(vertex_type == "pvertex") %>% pull(sig)`}, FDR corrected). Moreover, patterns of dyscnnectivity became more interpretable in terms of individual resting state networks and cortical heirarchy (see Supplemental Figure 2 for breakdown by cortical network). Overall, regardless of cortical mapping approach, hypoconnectivity, that is decreased connectivity in participants with schizophrenia relative to controls as observed for edges connecting subcortical regions to the fronto-parietal network. Hyperconnectivity, or increased connectivity in participants with SSD relative to controls was observed for subcortical connections to those visual, somatomor, and dorsal attention networks, which increased when moving from volume-to-surface, and again from surface-to-PINT. Additional patterns of hypoconnectivity where observed between the cortical default-mode network and the dorsal and ventral attention netoworks, as well as within visual network edges. Cortical hyperconnectivity was observed between the dorsal and ventral attenetion networks, as well as the frontoparietal network to the somatomotor network. Moreover, hypoconnectivity was observed for nearly half of edges connecting the cerebellum to the striatum and the cerebellum to the thalamus.
+
+To investigate these patterns further, sub-scored for these groups of edges were calculated to for each participants by taking the weighted-mean of all edges with that survived FDR corretion (Cohen's D threshold = {`r cohenD_threshold`}, means were weighted by the SSD diagnosis effect size).
 
 
 
