@@ -9,7 +9,14 @@ This section of the code checks to make sure that we have preprocessed data avai
 
 Then, for participants with more than one run/session of bold data it picks the best run per participant for the next analysis
 
-The final output is the QAed phenotypic file is `data/processed/pheno/simple_pheno_20200214.csv` which is the input for all of the rest of the analyses.
+The final output is the QAed phenotypic file is `data/processed/pheno/simple_pheno_20200221.csv` which is the input for all of the rest of the analyses.
+
+#### Note: all computations here are locked on Feb 21, 2020 (they are not repeated as when this book is rerun)
+
+```{r}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
 
 ```{r}
 library(tidyverse)
