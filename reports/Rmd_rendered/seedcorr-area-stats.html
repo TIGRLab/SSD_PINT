@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html >
+
+<head>
+
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Chapter 6 Seedcorr Area Stats | SSD PINT analyses</title>
+  <meta name="description" content="This contains the analysis reported with the SSD pint paper">
+  <meta name="generator" content="bookdown  and GitBook 2.6.7">
+
+  <meta property="og:title" content="Chapter 6 Seedcorr Area Stats | SSD PINT analyses" />
+  <meta property="og:type" content="book" />
+  
+  
+  <meta property="og:description" content="This contains the analysis reported with the SSD pint paper" />
+  <meta name="github-repo" content="https://github.com/TIGRLab/STOP-PD_ACNP" />
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Chapter 6 Seedcorr Area Stats | SSD PINT analyses" />
+  
+  <meta name="twitter:description" content="This contains the analysis reported with the SSD pint paper" />
+  
+
+<meta name="author" content="Erin Dickie">
+
+
+<meta name="date" content="2020-02-13">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  
+  
+<link rel="prev" href="multi-dimensional-scaling-stats-on-pint-roi-locations.html">
+<link rel="next" href="sub-cortical-cortical-stats-left-and-right.html">
+<script src="libs/jquery-2.2.3/jquery.min.js"></script>
+<link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code > span.dt { color: #902000; } /* DataType */
+code > span.dv { color: #40a070; } /* DecVal */
+code > span.bn { color: #40a070; } /* BaseN */
+code > span.fl { color: #40a070; } /* Float */
+code > span.ch { color: #4070a0; } /* Char */
+code > span.st { color: #4070a0; } /* String */
+code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code > span.ot { color: #007020; } /* Other */
+code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code > span.fu { color: #06287e; } /* Function */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #880000; } /* Constant */
+code > span.sc { color: #4070a0; } /* SpecialChar */
+code > span.vs { color: #4070a0; } /* VerbatimString */
+code > span.ss { color: #bb6688; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #19177c; } /* Variable */
+code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #666666; } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #bc7a00; } /* Preprocessor */
+code > span.at { color: #7d9029; } /* Attribute */
+code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+</style>
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+</head>
+
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+
+<ul class="summary">
+<li><a href="./">R-stats in SSD PINT paper</a></li>
+
+<li class="divider"></li>
+<li class="chapter" data-level="1" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i><b>1</b> The index page</a></li>
+<li class="chapter" data-level="2" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html"><i class="fa fa-check"></i><b>2</b> Mangle participant demographics</a><ul>
+<li class="chapter" data-level="2.1" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#coding-zhh-data-by-session"><i class="fa fa-check"></i><b>2.1</b> Coding ZHH data by session</a></li>
+<li class="chapter" data-level="2.2" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#note---re-picking-motion-cutoffs"><i class="fa fa-check"></i><b>2.2</b> Note - re picking motion cutoffs</a></li>
+<li class="chapter" data-level="2.3" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#now-looking-at-what-we-have-from-cobre"><i class="fa fa-check"></i><b>2.3</b> Now looking at what we have from COBRE</a></li>
+<li class="chapter" data-level="2.4" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#now-looking-at-the-cnp-we-have.."><i class="fa fa-check"></i><b>2.4</b> Now looking at the CNP we have..</a></li>
+<li class="chapter" data-level="2.5" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#add-where-are-is-the-cmh-demographic-info.."><i class="fa fa-check"></i><b>2.5</b> add where are is the CMH demographic info..</a></li>
+<li class="chapter" data-level="2.6" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#extra-little-bit-for-traking-down-missing-cobre"><i class="fa fa-check"></i><b>2.6</b> extra little bit for traking down “missing” COBRE</a></li>
+</ul></li>
+<li class="chapter" data-level="3" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html"><i class="fa fa-check"></i><b>3</b> Check completion and add MR QA</a><ul>
+<li class="chapter" data-level="3.1" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#get-a-list-of-available-bold-and-t1w-files-from-the-mriqc-outputs"><i class="fa fa-check"></i><b>3.1</b> Get a list of available bold and T1w files (from the mriqc outputs)</a><ul>
+<li class="chapter" data-level="3.1.1" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#the-list-of-usable-scans-is-all-participants-with-both-t1w-and-bold-data"><i class="fa fa-check"></i><b>3.1.1</b> the list of usable scans is all participants with both T1w and bold data</a></li>
+</ul></li>
+<li class="chapter" data-level="3.2" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#now-glob-for-all-of-the-pint-outputs"><i class="fa fa-check"></i><b>3.2</b> now glob for all of the PINT outputs</a></li>
+<li class="chapter" data-level="3.3" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#read-in-the-combined-demographics-from-the-last-chapter"><i class="fa fa-check"></i><b>3.3</b> read in the combined demographics from the last chapter</a></li>
+<li class="chapter" data-level="3.4" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#also-read-in-an-concatenate-all-the-surface-area-info-from-freesurfer"><i class="fa fa-check"></i><b>3.4</b> also read in an concatenate all the surface area info from freesurfer</a></li>
+<li class="chapter" data-level="3.5" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#anti-join-the-pheno-data-with-the-usable-scan-data-to-see-if-we-have-everything.."><i class="fa fa-check"></i><b>3.5</b> anti-join the pheno data with the usable scan data to see if we have everything..</a></li>
+<li class="chapter" data-level="3.6" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#setting-the-motion-threshold"><i class="fa fa-check"></i><b>3.6</b> Setting the motion threshold:</a></li>
+<li class="chapter" data-level="3.7" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#who-is-still-missing-a-pint-output"><i class="fa fa-check"></i><b>3.7</b> who is still missing a PINT output?</a></li>
+<li class="chapter" data-level="3.8" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#selecting-scans-with-least-motion"><i class="fa fa-check"></i><b>3.8</b> Selecting scans with least motion</a></li>
+<li class="chapter" data-level="3.9" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#final-mangle-of-the-phenotypic-data-transforming-variables"><i class="fa fa-check"></i><b>3.9</b> final mangle of the phenotypic data (transforming variables)</a></li>
+</ul></li>
+<li class="chapter" data-level="4" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html"><i class="fa fa-check"></i><b>4</b> Stats on the PINT summary displacement values</a><ul>
+<li class="chapter" data-level="4.1" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#the-paths-to-data"><i class="fa fa-check"></i><b>4.1</b> The paths to data</a></li>
+<li class="chapter" data-level="4.2" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#run-for-the-whole-head"><i class="fa fa-check"></i><b>4.2</b> run for the whole head</a></li>
+<li class="chapter" data-level="4.3" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#run-linear-model-per-edge"><i class="fa fa-check"></i><b>4.3</b> run linear model per edge</a></li>
+</ul></li>
+<li class="chapter" data-level="5" data-path="multi-dimensional-scaling-stats-on-pint-roi-locations.html"><a href="multi-dimensional-scaling-stats-on-pint-roi-locations.html"><i class="fa fa-check"></i><b>5</b> Multi-Dimensional Scaling Stats on PINT ROI locations</a></li>
+<li class="chapter" data-level="6" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html"><i class="fa fa-check"></i><b>6</b> Seedcorr Area Stats</a><ul>
+<li class="chapter" data-level="6.1" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html#the-paths-to-data-1"><i class="fa fa-check"></i><b>6.1</b> The paths to data</a></li>
+<li class="chapter" data-level="6.2" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html#known-issues"><i class="fa fa-check"></i><b>6.2</b> Known issues</a></li>
+</ul></li>
+<li class="chapter" data-level="7" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html"><i class="fa fa-check"></i><b>7</b> Sub-cortical Cortical Stats Left and Right</a><ul>
+<li class="chapter" data-level="7.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#the-paths-to-data-2"><i class="fa fa-check"></i><b>7.1</b> The paths to data</a><ul>
+<li class="chapter" data-level="7.1.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#this-reads-all-the-subcortical-files-it-can-find"><i class="fa fa-check"></i><b>7.1.1</b> This reads all the subcortical files it can find</a></li>
+<li class="chapter" data-level="7.1.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#merge-with-the-phenotypic-data"><i class="fa fa-check"></i><b>7.1.2</b> merge with the phenotypic data</a></li>
+</ul></li>
+<li class="chapter" data-level="7.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#make-a-subject-table-from-resuts-pheno"><i class="fa fa-check"></i><b>7.2</b> make a subject table from resuts pheno</a></li>
+</ul></li>
+<li class="chapter" data-level="8" data-path="is-pint-focusing-cortical-subcortical-connectivity.html"><a href="is-pint-focusing-cortical-subcortical-connectivity.html"><i class="fa fa-check"></i><b>8</b> Is PINT “focusing” cortical subcortical connectivity</a></li>
+<li class="chapter" data-level="9" data-path="trying-to-calculate-an-vs-off-diagonal-term.html"><a href="trying-to-calculate-an-vs-off-diagonal-term.html"><i class="fa fa-check"></i><b>9</b> trying to calculate an vs off diagonal term</a></li>
+<li class="chapter" data-level="10" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html"><i class="fa fa-check"></i><b>10</b> Cortical-cortical results</a><ul>
+<li class="chapter" data-level="10.1" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html#to-do---rainclouds-for-withing-between-changes-in-cortical-cortical"><i class="fa fa-check"></i><b>10.1</b> To do - rainclouds for withing between changes in cortical cortical??</a></li>
+</ul></li>
+<li class="chapter" data-level="11" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html"><i class="fa fa-check"></i><b>11</b> Whole Connectome Results</a><ul>
+<li class="chapter" data-level="11.1" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html#the-paths-to-data-3"><i class="fa fa-check"></i><b>11.1</b> The paths to data</a></li>
+</ul></li>
+<li class="chapter" data-level="12" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html"><i class="fa fa-check"></i><b>12</b> Code for reading in all the timeseries..</a><ul>
+<li class="chapter" data-level="12.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-was-run-once-in-order-to-detemine-the-too-small-subcortical-rois"><i class="fa fa-check"></i><b>12.1</b> This was run once in order to detemine the too small subcortical ROIs</a><ul>
+<li class="chapter" data-level="12.1.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-reads-all-the-subcortical-files-it-can-find-1"><i class="fa fa-check"></i><b>12.1.1</b> This reads all the subcortical files it can find</a></li>
+<li class="chapter" data-level="12.1.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#merge-with-the-phenotypic-data-1"><i class="fa fa-check"></i><b>12.1.2</b> merge with the phenotypic data</a></li>
+</ul></li>
+<li class="chapter" data-level="12.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#filters-out-some-unwanted-edges-before-fdr-correction"><i class="fa fa-check"></i><b>12.2</b> filters out some unwanted edges before FDR correction</a></li>
+<li class="chapter" data-level="12.3" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-co"><i class="fa fa-check"></i><b>12.3</b> Make co</a></li>
+<li class="chapter" data-level="12.4" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-table-fdr-corrected-edges-that-survive-correction"><i class="fa fa-check"></i><b>12.4</b> make table FDR corrected Edges that survive correction</a></li>
+</ul></li>
+<li class="chapter" data-level="13" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><i class="fa fa-check"></i><b>13</b> calculate weighted subject scores by chopping up the matrix</a></li>
+<li class="divider"></li>
+<li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
+
+</ul>
+
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">SSD PINT analyses</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<div id="seedcorr-area-stats" class="section level1">
+<h1><span class="header-section-number">Chapter 6</span> Seedcorr Area Stats</h1>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(tidyverse)</code></pre></div>
+<pre><code>## ── Attaching packages ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse 1.2.1 ──</code></pre>
+<pre><code>## ✔ ggplot2 3.1.0       ✔ purrr   0.2.5  
+## ✔ tibble  2.0.1       ✔ dplyr   0.8.0.1
+## ✔ tidyr   0.8.2       ✔ stringr 1.3.1  
+## ✔ readr   1.3.0       ✔ forcats 0.3.0</code></pre>
+<pre><code>## ── Conflicts ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+## ✖ dplyr::filter() masks stats::filter()
+## ✖ dplyr::lag()    masks stats::lag()</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(broom)
+<span class="kw">library</span>(here)</code></pre></div>
+<pre><code>## here() starts at /mnt/tigrlab/projects/edickie/code/SZ_PINT</code></pre>
+<div id="the-paths-to-data-1" class="section level2">
+<h2><span class="header-section-number">6.1</span> The paths to data</h2>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">source</span>(<span class="kw">here</span>(<span class="st">&#39;code/R/settings_helpers.R&#39;</span>))
+
+Yeo7_2011_80verts &lt;-<span class="st"> </span><span class="kw">read_Yeo72011_template</span>()
+YeoNet_colours =<span class="st"> </span><span class="kw">define_Yeo7_colours</span>()
+pheno &lt;-<span class="st"> </span><span class="kw">read_pheno_file</span>() <span class="op">%&gt;%</span><span class="st">  </span><span class="kw">drop_na</span>(DX)</code></pre></div>
+<pre><code>## Parsed with column specification:
+## cols(
+##   .default = col_double(),
+##   dataset = col_character(),
+##   subject_id = col_character(),
+##   session_id = col_character(),
+##   task_id = col_character(),
+##   run_id = col_character(),
+##   acq_id = col_character(),
+##   subject = col_character(),
+##   session = col_character(),
+##   cmh_session_id = col_character(),
+##   DX = col_character(),
+##   Sex = col_character(),
+##   Site = col_character(),
+##   Scanner = col_character(),
+##   isFEP = col_character(),
+##   ghost_NoGhost = col_character(),
+##   filename = col_character()
+## )</code></pre>
+<pre><code>## See spec(...) for full column specifications.</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pint_sc &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="kw">file.path</span>(output_base, <span class="st">&#39;qa_passes_seedcor_counts_20181116.csv&#39;</span>))</code></pre></div>
+<pre><code>## Warning: Missing column names filled in: &#39;X1&#39; [1]</code></pre>
+<pre><code>## Warning: Duplicated column names deduplicated: &#39;index&#39; =&gt; &#39;index_1&#39; [7]</code></pre>
+<pre><code>## Parsed with column specification:
+## cols(
+##   .default = col_double(),
+##   dataset = col_character(),
+##   subject = col_character(),
+##   session = col_character(),
+##   filename = col_character()
+## )
+## See spec(...) for full column specifications.</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pint_sc <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">anti_join</span>(pheno, <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;dataset&quot;</span>))</code></pre></div>
+<pre><code>## # A tibble: 12 x 29
+##       X1 index dataset subject session filename index_1 NETWORK gt_0.30
+##    &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;   &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+##  1  2292   382 COBRE   sub-A0… ses-20… sub-A00…    2292       2   15241
+##  2  2293   382 COBRE   sub-A0… ses-20… sub-A00…    2293       3   10223
+##  3  2294   382 COBRE   sub-A0… ses-20… sub-A00…    2294       4   16854
+##  4  2295   382 COBRE   sub-A0… ses-20… sub-A00…    2295       5   18930
+##  5  2296   382 COBRE   sub-A0… ses-20… sub-A00…    2296       6   15772
+##  6  2297   382 COBRE   sub-A0… ses-20… sub-A00…    2297       7   13304
+##  7  2298   383 COBRE   sub-A0… ses-20… sub-A00…    2298       2   12894
+##  8  2299   383 COBRE   sub-A0… ses-20… sub-A00…    2299       3   19799
+##  9  2300   383 COBRE   sub-A0… ses-20… sub-A00…    2300       4   16902
+## 10  2301   383 COBRE   sub-A0… ses-20… sub-A00…    2301       5   20600
+## 11  2302   383 COBRE   sub-A0… ses-20… sub-A00…    2302       6   19045
+## 12  2303   383 COBRE   sub-A0… ses-20… sub-A00…    2303       7   19976
+## # … with 20 more variables: gt_0.32 &lt;dbl&gt;, gt_0.34 &lt;dbl&gt;, gt_0.36 &lt;dbl&gt;,
+## #   gt_0.38 &lt;dbl&gt;, gt_0.40 &lt;dbl&gt;, gt_0.42 &lt;dbl&gt;, gt_0.44 &lt;dbl&gt;,
+## #   gt_0.46 &lt;dbl&gt;, gt_0.48 &lt;dbl&gt;, gt_0.50 &lt;dbl&gt;, gt_0.52 &lt;dbl&gt;,
+## #   gt_0.54 &lt;dbl&gt;, gt_0.56 &lt;dbl&gt;, gt_0.58 &lt;dbl&gt;, gt_0.60 &lt;dbl&gt;,
+## #   gt_0.62 &lt;dbl&gt;, gt_0.64 &lt;dbl&gt;, gt_0.66 &lt;dbl&gt;, gt_0.68 &lt;dbl&gt;,
+## #   gt_0.70 &lt;dbl&gt;</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">anti_join</span>(pint_sc, <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;dataset&quot;</span>))</code></pre></div>
+<pre><code>## # A tibble: 3 x 37
+##   dataset subject_id session_id task_id run_id acq_id fd_mean fd_num
+##   &lt;chr&gt;   &lt;chr&gt;      &lt;chr&gt;      &lt;chr&gt;   &lt;chr&gt;  &lt;chr&gt;    &lt;dbl&gt;  &lt;dbl&gt;
+## 1 ds0000… 10365      &lt;NA&gt;       rest    &lt;NA&gt;   &lt;NA&gt;     0.118     17
+## 2 ZHH     10523      01         rest    &lt;NA&gt;   &lt;NA&gt;     0.127     11
+## 3 ds0000… 10570      &lt;NA&gt;       rest    &lt;NA&gt;   &lt;NA&gt;     0.178     48
+## # … with 29 more variables: fd_perc &lt;dbl&gt;, size_t &lt;dbl&gt;, size_z &lt;dbl&gt;,
+## #   spacing_tr &lt;dbl&gt;, spacing_z &lt;dbl&gt;, subject &lt;chr&gt;, session &lt;chr&gt;,
+## #   num_rest &lt;dbl&gt;, num_t1w &lt;dbl&gt;, num_scans &lt;dbl&gt;, cmh_session_id &lt;chr&gt;,
+## #   DX &lt;chr&gt;, Age &lt;dbl&gt;, Sex &lt;chr&gt;, Site &lt;chr&gt;, Scanner &lt;chr&gt;, GRID &lt;dbl&gt;,
+## #   zhh_session_id &lt;dbl&gt;, MRI_Date &lt;dbl&gt;, Edu &lt;dbl&gt;, isFEP &lt;chr&gt;,
+## #   ghost_NoGhost &lt;chr&gt;, LSurfArea &lt;dbl&gt;, RSurfArea &lt;dbl&gt;, SurfArea &lt;dbl&gt;,
+## #   filename &lt;chr&gt;, Age_pt &lt;dbl&gt;, fd_mean_pt &lt;dbl&gt;, SurfArea_pt &lt;dbl&gt;</code></pre>
+<p>Write a func_base and outputprefix cols into the pheno file for the file reading step</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">combined_df &lt;-<span class="st"> </span>pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">inner_join</span>(pint_sc, <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;dataset&quot;</span>, <span class="st">&quot;subject&quot;</span>, <span class="st">&quot;session&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">gather</span>(gt_name, num_sc_vx_gt, <span class="kw">starts_with</span>(<span class="st">&#39;gt_&#39;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">vx_gt_thres =</span> gt_name <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">str_replace</span>(<span class="st">&#39;gt_&#39;</span>,<span class="st">&#39;&#39;</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">parse_double</span>()) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_na</span>(num_sc_vx_gt)
+
+combined_df <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">count</span>(subject) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">nrow</span>()</code></pre></div>
+<pre><code>## [1] 492</code></pre>
+</div>
+<div id="known-issues" class="section level2">
+<h2><span class="header-section-number">6.2</span> Known issues</h2>
+<p>Looks like two people might need to be reprocessed if this works out.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">combined_df <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_na</span>(DX) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(NETWORK, vx_gt_thres) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">filter</span>(Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">17</span>, Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">51</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">filter</span>(vx_gt_thres <span class="op">&lt;</span><span class="st"> </span><span class="fl">0.6</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">do</span>(<span class="kw">tidy</span>(<span class="kw">aov</span>(<span class="kw">lm</span>(num_sc_vx_gt <span class="op">~</span><span class="st"> </span>DX<span class="op">*</span>Age_pt <span class="op">+</span><span class="st"> </span>Sex <span class="op">+</span><span class="st"> </span>fd_mean_pt <span class="op">+</span><span class="st"> </span>Scanner <span class="op">+</span><span class="st"> </span>SurfArea_pt,.)))) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">group_by</span>(term) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">p_FDR =</span> <span class="kw">p.adjust</span>(p.value, <span class="dt">method =</span> <span class="st">&quot;fdr&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">filter</span>(term <span class="op">!=</span><span class="st"> &quot;(Intercept)&quot;</span>, term <span class="op">!=</span><span class="st"> &quot;Scanner&quot;</span>, p_FDR <span class="op">&lt;</span><span class="st"> </span><span class="fl">0.06</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">arrange</span>(NETWORK, term) </code></pre></div>
+<pre><code>## # A tibble: 43 x 9
+## # Groups:   term [1]
+##    NETWORK vx_gt_thres term      df  sumsq meansq statistic p.value   p_FDR
+##      &lt;dbl&gt;       &lt;dbl&gt; &lt;chr&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;     &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+##  1       4        0.3  Age_pt     1 1.53e8 1.53e8      8.86 3.07e-3 1.11e-2
+##  2       4        0.32 Age_pt     1 1.60e8 1.60e8      9.96 1.70e-3 8.06e-3
+##  3       4        0.34 Age_pt     1 1.68e8 1.68e8     11.2  8.65e-4 5.19e-3
+##  4       4        0.36 Age_pt     1 1.72e8 1.72e8     12.5  4.59e-4 3.45e-3
+##  5       4        0.38 Age_pt     1 1.74e8 1.74e8     13.8  2.30e-4 1.88e-3
+##  6       4        0.4  Age_pt     1 1.76e8 1.76e8     15.3  1.04e-4 9.33e-4
+##  7       4        0.42 Age_pt     1 1.74e8 1.74e8     16.8  4.83e-5 4.83e-4
+##  8       4        0.44 Age_pt     1 1.72e8 1.72e8     18.5  2.13e-5 2.39e-4
+##  9       4        0.46 Age_pt     1 1.68e8 1.68e8     20.1  9.17e-6 1.18e-4
+## 10       4        0.48 Age_pt     1 1.62e8 1.62e8     21.9  3.75e-6 5.63e-5
+## # … with 33 more rows</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">combined_df <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_na</span>(DX) <span class="op">%&gt;%</span>
+<span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">y =</span> num_sc_vx_gt, <span class="dt">x =</span> vx_gt_thres, <span class="dt">color =</span> <span class="kw">as.factor</span>(NETWORK))) <span class="op">+</span>
+<span class="st">  </span><span class="co"># geom_line(aes(group = subject), alpha = 0.1) + </span>
+<span class="st">  </span><span class="kw">geom_smooth</span>() <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_wrap</span>(<span class="op">~</span>Site, <span class="dt">ncol =</span> <span class="dv">4</span>)</code></pre></div>
+<pre><code>## `geom_smooth()` using method = &#39;gam&#39; and formula &#39;y ~ s(x, bs = &quot;cs&quot;)&#39;</code></pre>
+<p><img src="02c_seedcorr_area_stats_files/figure-html/unnamed-chunk-6-1.png" width="720" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">combined_df <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_na</span>(DX) <span class="op">%&gt;%</span>
+<span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">y =</span> num_sc_vx_gt, <span class="dt">x =</span> vx_gt_thres, <span class="dt">color =</span> <span class="kw">as.factor</span>(DX))) <span class="op">+</span>
+<span class="st">  </span><span class="co"># geom_line(aes(group = subject), alpha = 0.1) + </span>
+<span class="st">  </span><span class="kw">geom_smooth</span>() <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_wrap</span>(<span class="op">~</span>NETWORK<span class="op">*</span>Site, <span class="dt">ncol =</span> <span class="dv">4</span>)</code></pre></div>
+<pre><code>## `geom_smooth()` using method = &#39;gam&#39; and formula &#39;y ~ s(x, bs = &quot;cs&quot;)&#39;</code></pre>
+<p><img src="02c_seedcorr_area_stats_files/figure-html/unnamed-chunk-7-1.png" width="720" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">combined_df <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_na</span>(DX) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">filter</span>(NETWORK <span class="op">==</span><span class="st"> </span><span class="dv">5</span>) <span class="op">%&gt;%</span>
+<span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">y =</span> num_sc_vx_gt, <span class="dt">x =</span> vx_gt_thres, <span class="dt">color =</span> Sex)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">geom_line</span>(<span class="kw">aes</span>(<span class="dt">group =</span> subject), <span class="dt">alpha =</span> <span class="fl">0.1</span>) <span class="op">+</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">geom_smooth</span>() <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_wrap</span>(<span class="op">~</span>NETWORK<span class="op">*</span>Site, <span class="dt">ncol =</span> <span class="dv">4</span>)</code></pre></div>
+<pre><code>## `geom_smooth()` using method = &#39;gam&#39; and formula &#39;y ~ s(x, bs = &quot;cs&quot;)&#39;</code></pre>
+<p><img src="02c_seedcorr_area_stats_files/figure-html/unnamed-chunk-8-1.png" width="720" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">combined_df <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">filter</span>(Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">17</span>, Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">51</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">Age_decade =</span> <span class="kw">case_when</span>(Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">20</span> <span class="op">~</span><span class="st"> &#39;17-20&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">20</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">30</span> <span class="op">~</span><span class="st"> &#39;20-30&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">30</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">40</span> <span class="op">~</span><span class="st"> &#39;30-40&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">40</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">50</span> <span class="op">~</span><span class="st"> &#39;40-50&#39;</span>,
+                               Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">50</span> <span class="op">~</span><span class="st"> &quot;50 above&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">Age_coarse =</span> <span class="kw">case_when</span>(Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">30</span> <span class="op">~</span><span class="st"> &quot;young adult&quot;</span>,
+                                Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">35</span> <span class="op">~</span><span class="st"> &quot;middle age&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_na</span>(DX, Age_coarse) <span class="op">%&gt;%</span>
+<span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">y =</span> num_sc_vx_gt, <span class="dt">x =</span> vx_gt_thres, <span class="dt">color =</span> DX)) <span class="op">+</span>
+<span class="st">  </span><span class="co">#geom_line(aes(group = subject), alpha = 0.1) + </span>
+<span class="st">  </span><span class="kw">geom_smooth</span>(<span class="kw">aes</span>(<span class="dt">linetype =</span> Age_coarse)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_wrap</span>(<span class="op">~</span>NETWORK<span class="op">*</span>Site, <span class="dt">ncol =</span> <span class="dv">4</span>)  </code></pre></div>
+<pre><code>## `geom_smooth()` using method = &#39;gam&#39; and formula &#39;y ~ s(x, bs = &quot;cs&quot;)&#39;</code></pre>
+<p><img src="02c_seedcorr_area_stats_files/figure-html/unnamed-chunk-9-1.png" width="720" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">combined_df <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">filter</span>(Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">17</span>, Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">51</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">Age_decade =</span> <span class="kw">case_when</span>(Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">20</span> <span class="op">~</span><span class="st"> &#39;17-20&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">20</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">30</span> <span class="op">~</span><span class="st"> &#39;20-30&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">30</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">40</span> <span class="op">~</span><span class="st"> &#39;30-40&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">40</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">50</span> <span class="op">~</span><span class="st"> &#39;40-50&#39;</span>,
+                               Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">50</span> <span class="op">~</span><span class="st"> &quot;50 above&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">Age_coarse =</span> <span class="kw">case_when</span>(Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">30</span> <span class="op">~</span><span class="st"> &quot;young adult&quot;</span>,
+                                Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">35</span> <span class="op">~</span><span class="st"> &quot;middle age&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_na</span>(DX, Age_coarse) <span class="op">%&gt;%</span>
+<span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">y =</span> num_sc_vx_gt, <span class="dt">x =</span> vx_gt_thres)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">geom_line</span>(<span class="kw">aes</span>(<span class="dt">group =</span> subject, <span class="dt">color =</span> Age), <span class="dt">alpha =</span> <span class="fl">0.15</span>) <span class="op">+</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">geom_smooth</span>(<span class="kw">aes</span>(<span class="dt">linetype =</span> Age_coarse), <span class="dt">color =</span> <span class="st">&quot;black&quot;</span>) <span class="op">+</span>
+<span class="st">  </span><span class="kw">scale_color_viridis_c</span>(<span class="dt">option =</span> <span class="st">&quot;D&quot;</span>) <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_grid</span>(DX<span class="op">~</span>NETWORK)  </code></pre></div>
+<pre><code>## `geom_smooth()` using method = &#39;gam&#39; and formula &#39;y ~ s(x, bs = &quot;cs&quot;)&#39;</code></pre>
+<p><img src="02c_seedcorr_area_stats_files/figure-html/unnamed-chunk-10-1.png" width="720" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">combined_df <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">filter</span>(Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">17</span>, Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">51</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">Age_decade =</span> <span class="kw">case_when</span>(Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">20</span> <span class="op">~</span><span class="st"> &#39;17-20&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">20</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">30</span> <span class="op">~</span><span class="st"> &#39;20-30&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">30</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">40</span> <span class="op">~</span><span class="st"> &#39;30-40&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">40</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">50</span> <span class="op">~</span><span class="st"> &#39;40-50&#39;</span>,
+                               Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">50</span> <span class="op">~</span><span class="st"> &quot;50 above&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">Age_coarse =</span> <span class="kw">case_when</span>(Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">30</span> <span class="op">~</span><span class="st"> &quot;young adult&quot;</span>,
+                                Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">35</span> <span class="op">~</span><span class="st"> &quot;middle age&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_na</span>(DX, Age_coarse) <span class="op">%&gt;%</span>
+<span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">y =</span> num_sc_vx_gt, <span class="dt">x =</span> vx_gt_thres)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">geom_line</span>(<span class="kw">aes</span>(<span class="dt">group =</span> subject, <span class="dt">color =</span> Age), <span class="dt">alpha =</span> <span class="fl">0.15</span>) <span class="op">+</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">geom_smooth</span>(<span class="kw">aes</span>(<span class="dt">linetype =</span> Age_coarse), <span class="dt">color =</span> <span class="st">&quot;black&quot;</span>) <span class="op">+</span>
+<span class="st">  </span><span class="kw">scale_color_viridis_c</span>(<span class="dt">option =</span> <span class="st">&quot;D&quot;</span>) <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_grid</span>(<span class="op">~</span>NETWORK)  </code></pre></div>
+<pre><code>## `geom_smooth()` using method = &#39;gam&#39; and formula &#39;y ~ s(x, bs = &quot;cs&quot;)&#39;</code></pre>
+<p><img src="02c_seedcorr_area_stats_files/figure-html/unnamed-chunk-11-1.png" width="816" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">combined_df <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">filter</span>(vx_gt_thres <span class="op">==</span><span class="st"> &quot;0.5&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">Age_decade =</span> <span class="kw">case_when</span>(Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">20</span> <span class="op">~</span><span class="st"> &#39;17-20&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">20</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">30</span> <span class="op">~</span><span class="st"> &#39;20-30&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">30</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">40</span> <span class="op">~</span><span class="st"> &#39;30-40&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">40</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">50</span> <span class="op">~</span><span class="st"> &#39;40-50&#39;</span>,
+                               Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">50</span> <span class="op">~</span><span class="st"> &quot;50 above&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">Age_coarse =</span> <span class="kw">case_when</span>(Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">30</span> <span class="op">~</span><span class="st"> &quot;young adult&quot;</span>,
+                                Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">35</span> <span class="op">~</span><span class="st"> &quot;middle age&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_na</span>(DX) <span class="op">%&gt;%</span>
+<span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">y =</span> num_sc_vx_gt, <span class="dt">x =</span> Age, <span class="dt">color =</span> DX)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">geom_point</span>(<span class="dt">alpha =</span> <span class="fl">0.15</span>) <span class="op">+</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">geom_smooth</span>(<span class="dt">method =</span> lm) <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_grid</span>(<span class="op">~</span>NETWORK) </code></pre></div>
+<p><img src="02c_seedcorr_area_stats_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">combined_df <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">filter</span>(Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">17</span>, Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">51</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">Age_decade =</span> <span class="kw">case_when</span>(Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">20</span> <span class="op">~</span><span class="st"> &#39;17-20&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">20</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">30</span> <span class="op">~</span><span class="st"> &#39;20-30&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">30</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">40</span> <span class="op">~</span><span class="st"> &#39;30-40&#39;</span>,
+                               Age <span class="op">&gt;=</span><span class="st"> </span><span class="dv">40</span> <span class="op">&amp;</span><span class="st"> </span>Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">50</span> <span class="op">~</span><span class="st"> &#39;40-50&#39;</span>,
+                               Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">50</span> <span class="op">~</span><span class="st"> &quot;50 above&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">Age_coarse =</span> <span class="kw">case_when</span>(Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">30</span> <span class="op">~</span><span class="st"> &quot;young adult&quot;</span>,
+                                Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">35</span> <span class="op">~</span><span class="st"> &quot;middle age&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">filter</span>(NETWORK <span class="op">==</span><span class="st"> </span><span class="dv">5</span>, vx_gt_thres <span class="op">==</span><span class="fl">0.5</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">count</span>(DX, Site, Age_coarse)</code></pre></div>
+<pre><code>## # A tibble: 24 x 4
+##    DX    Site     Age_coarse      n
+##    &lt;chr&gt; &lt;chr&gt;    &lt;chr&gt;       &lt;int&gt;
+##  1 CTRL  CMH      &lt;NA&gt;            7
+##  2 CTRL  CMH      middle age      3
+##  3 CTRL  CMH      young adult    30
+##  4 CTRL  COBRE    &lt;NA&gt;            7
+##  5 CTRL  COBRE    middle age     13
+##  6 CTRL  COBRE    young adult    14
+##  7 CTRL  ds000030 &lt;NA&gt;           14
+##  8 CTRL  ds000030 middle age     30
+##  9 CTRL  ds000030 young adult    61
+## 10 CTRL  ZHH      &lt;NA&gt;           12
+## # … with 14 more rows</code></pre>
+
+</div>
+</div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+<a href="multi-dimensional-scaling-stats-on-pint-roi-locations.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="sub-cortical-cortical-stats-left-and-right.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+    </div>
+  </div>
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/lunr.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+"sharing": {
+"github": false,
+"facebook": true,
+"twitter": true,
+"google": false,
+"linkedin": false,
+"weibo": false,
+"instapaper": false,
+"vk": false,
+"all": ["facebook", "google", "twitter", "linkedin", "weibo", "instapaper"]
+},
+"fontsettings": {
+"theme": "white",
+"family": "sans",
+"size": 2
+},
+"edit": {
+"link": "https://github.com/TIGRLab/SZ_PINT/edit/master/02c_seedcorr_area_stats.Rmd",
+"text": "Edit"
+},
+"history": {
+"link": null,
+"text": null
+},
+"download": ["SSD_PINT_full.pdf"],
+"toc": {
+"collapse": "section"
+},
+"toolbar": {
+"position": "fixed"
+},
+"search": true
+});
+});
+</script>
+
+</body>
+
+</html>

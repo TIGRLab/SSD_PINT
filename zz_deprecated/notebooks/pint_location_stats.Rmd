@@ -1,0 +1,90 @@
+---
+title: "SZ Location Stats"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(broom)
+library(knitr)
+library(igraph)
+library(ggplot2)
+library(readr)
+library(stringr)
+```
+
+```{r}
+# Number of subjects
+# 258 SCZ, 225 HC
+
+# PINT distances
+qced_sublist <- read_csv('../data/PINT_outputs_s8_6-6-12/SZ_pint_concat_20171218.csv')
+
+# Demographic data
+patient_info <- read_csv('../phenotypic/NEWallSubjects_completeData3_DM_not_sexmatched.csv')
+
+pheno <- patient_info %>%
+  mutate(Site = factor(site, levels = c(1,2,3),
+                       labels = c("CMH","ZHH","COBRE")) ,
+         DX = factor(DX_GROUP, level = c(1,2), labels = c('SSD', 'Ctrl')),
+         Sex = factor(sex.x),
+         Edu = if_else(is.na(educationCode), 
+                       true = mean(educationCode, na.rm = F), 
+                       false = educationCode))
+
+# Concatenate PINT output and demographics
+concatenated_subject_list <- merge(qced_sublist, patient_info, by = "subid")
+
+concatenated_subject_list %>%
+  group_by(NETWORK, DX_GROUP) %>%
+  summarise(MeanDistance = mean(std_distance),
+            SD = sd(std_distance)) %>%
+  knitr::kable()
+```
+
+```{r}
+dist_by_network <- qced_sublist %>%
+  group_by(subid, NETWORK) %>%
+  summarise(MeanDistance = mean(std_distance)) %>%
+  ungroup() %>%
+  inner_join(pheno, by = "subid")  
+
+dist_by_network %>%
+  ungroup() %>% group_by(NETWORK) %>%
+  do(tidy(lm(MeanDistance ~ DX*Sex + mean_fd + age + Edu + Site,.))) %>%
+  mutate(p_bonf = p.value*6) %>%
+  knitr::kable()
+```
+```{r}
+dist_by_network %>%
+  filter(NETWORK == 2) %>%
+  ggplot(aes(y = MeanDistance, x = age, color = DX)) +
+    geom_point() + 
+    geom_smooth(method = "lm") + 
+    facet_wrap(~Sex)
+```
+
+```{r}
+summary(concatenated_subject_list)
+```
+```{r}
+dist_by_network <- qced_sublist %>%
+  group_by(subid, roiidx) %>%
+  summarise(MeanDistance = mean(std_distance)) %>%
+  ungroup() %>%
+ inner_join(pheno, by = "subid")  
+
+dist_by_network %>%
+  ungroup() %>% group_by(roiidx) %>%
+  do(tidy(lm(MeanDistance ~ DX*Sex + mean_fd + age + Edu + Site,.))) %>%
+  ungroup() %>% group_by(term) %>%
+  mutate(p_bonf = p.adjust(p.value, method = "fdr")) %>%
+  arrange(p.value) %>%         
+  knitr::kable()
+```
+
+

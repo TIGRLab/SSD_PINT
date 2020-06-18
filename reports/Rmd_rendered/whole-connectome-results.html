@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html >
+
+<head>
+
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Chapter 11 Whole Connectome Results | SSD PINT analyses</title>
+  <meta name="description" content="This contains the analysis reported with the SSD pint paper">
+  <meta name="generator" content="bookdown  and GitBook 2.6.7">
+
+  <meta property="og:title" content="Chapter 11 Whole Connectome Results | SSD PINT analyses" />
+  <meta property="og:type" content="book" />
+  
+  
+  <meta property="og:description" content="This contains the analysis reported with the SSD pint paper" />
+  <meta name="github-repo" content="https://github.com/TIGRLab/STOP-PD_ACNP" />
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Chapter 11 Whole Connectome Results | SSD PINT analyses" />
+  
+  <meta name="twitter:description" content="This contains the analysis reported with the SSD pint paper" />
+  
+
+<meta name="author" content="Erin Dickie">
+
+
+<meta name="date" content="2020-02-13">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  
+  
+<link rel="prev" href="cortical-cortical-results.html">
+<link rel="next" href="code-for-reading-in-all-the-timeseries-.html">
+<script src="libs/jquery-2.2.3/jquery.min.js"></script>
+<link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code > span.dt { color: #902000; } /* DataType */
+code > span.dv { color: #40a070; } /* DecVal */
+code > span.bn { color: #40a070; } /* BaseN */
+code > span.fl { color: #40a070; } /* Float */
+code > span.ch { color: #4070a0; } /* Char */
+code > span.st { color: #4070a0; } /* String */
+code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code > span.ot { color: #007020; } /* Other */
+code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code > span.fu { color: #06287e; } /* Function */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #880000; } /* Constant */
+code > span.sc { color: #4070a0; } /* SpecialChar */
+code > span.vs { color: #4070a0; } /* VerbatimString */
+code > span.ss { color: #bb6688; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #19177c; } /* Variable */
+code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #666666; } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #bc7a00; } /* Preprocessor */
+code > span.at { color: #7d9029; } /* Attribute */
+code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+</style>
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+</head>
+
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+
+<ul class="summary">
+<li><a href="./">R-stats in SSD PINT paper</a></li>
+
+<li class="divider"></li>
+<li class="chapter" data-level="1" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i><b>1</b> The index page</a></li>
+<li class="chapter" data-level="2" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html"><i class="fa fa-check"></i><b>2</b> Mangle participant demographics</a><ul>
+<li class="chapter" data-level="2.1" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#coding-zhh-data-by-session"><i class="fa fa-check"></i><b>2.1</b> Coding ZHH data by session</a></li>
+<li class="chapter" data-level="2.2" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#note---re-picking-motion-cutoffs"><i class="fa fa-check"></i><b>2.2</b> Note - re picking motion cutoffs</a></li>
+<li class="chapter" data-level="2.3" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#now-looking-at-what-we-have-from-cobre"><i class="fa fa-check"></i><b>2.3</b> Now looking at what we have from COBRE</a></li>
+<li class="chapter" data-level="2.4" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#now-looking-at-the-cnp-we-have.."><i class="fa fa-check"></i><b>2.4</b> Now looking at the CNP we have..</a></li>
+<li class="chapter" data-level="2.5" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#add-where-are-is-the-cmh-demographic-info.."><i class="fa fa-check"></i><b>2.5</b> add where are is the CMH demographic info..</a></li>
+<li class="chapter" data-level="2.6" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#extra-little-bit-for-traking-down-missing-cobre"><i class="fa fa-check"></i><b>2.6</b> extra little bit for traking down “missing” COBRE</a></li>
+</ul></li>
+<li class="chapter" data-level="3" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html"><i class="fa fa-check"></i><b>3</b> Check completion and add MR QA</a><ul>
+<li class="chapter" data-level="3.1" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#get-a-list-of-available-bold-and-t1w-files-from-the-mriqc-outputs"><i class="fa fa-check"></i><b>3.1</b> Get a list of available bold and T1w files (from the mriqc outputs)</a><ul>
+<li class="chapter" data-level="3.1.1" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#the-list-of-usable-scans-is-all-participants-with-both-t1w-and-bold-data"><i class="fa fa-check"></i><b>3.1.1</b> the list of usable scans is all participants with both T1w and bold data</a></li>
+</ul></li>
+<li class="chapter" data-level="3.2" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#now-glob-for-all-of-the-pint-outputs"><i class="fa fa-check"></i><b>3.2</b> now glob for all of the PINT outputs</a></li>
+<li class="chapter" data-level="3.3" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#read-in-the-combined-demographics-from-the-last-chapter"><i class="fa fa-check"></i><b>3.3</b> read in the combined demographics from the last chapter</a></li>
+<li class="chapter" data-level="3.4" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#also-read-in-an-concatenate-all-the-surface-area-info-from-freesurfer"><i class="fa fa-check"></i><b>3.4</b> also read in an concatenate all the surface area info from freesurfer</a></li>
+<li class="chapter" data-level="3.5" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#anti-join-the-pheno-data-with-the-usable-scan-data-to-see-if-we-have-everything.."><i class="fa fa-check"></i><b>3.5</b> anti-join the pheno data with the usable scan data to see if we have everything..</a></li>
+<li class="chapter" data-level="3.6" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#setting-the-motion-threshold"><i class="fa fa-check"></i><b>3.6</b> Setting the motion threshold:</a></li>
+<li class="chapter" data-level="3.7" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#who-is-still-missing-a-pint-output"><i class="fa fa-check"></i><b>3.7</b> who is still missing a PINT output?</a></li>
+<li class="chapter" data-level="3.8" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#selecting-scans-with-least-motion"><i class="fa fa-check"></i><b>3.8</b> Selecting scans with least motion</a></li>
+<li class="chapter" data-level="3.9" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#final-mangle-of-the-phenotypic-data-transforming-variables"><i class="fa fa-check"></i><b>3.9</b> final mangle of the phenotypic data (transforming variables)</a></li>
+</ul></li>
+<li class="chapter" data-level="4" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html"><i class="fa fa-check"></i><b>4</b> Stats on the PINT summary displacement values</a><ul>
+<li class="chapter" data-level="4.1" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#the-paths-to-data"><i class="fa fa-check"></i><b>4.1</b> The paths to data</a></li>
+<li class="chapter" data-level="4.2" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#run-for-the-whole-head"><i class="fa fa-check"></i><b>4.2</b> run for the whole head</a></li>
+<li class="chapter" data-level="4.3" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#run-linear-model-per-edge"><i class="fa fa-check"></i><b>4.3</b> run linear model per edge</a></li>
+</ul></li>
+<li class="chapter" data-level="5" data-path="multi-dimensional-scaling-stats-on-pint-roi-locations.html"><a href="multi-dimensional-scaling-stats-on-pint-roi-locations.html"><i class="fa fa-check"></i><b>5</b> Multi-Dimensional Scaling Stats on PINT ROI locations</a></li>
+<li class="chapter" data-level="6" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html"><i class="fa fa-check"></i><b>6</b> Seedcorr Area Stats</a><ul>
+<li class="chapter" data-level="6.1" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html#the-paths-to-data-1"><i class="fa fa-check"></i><b>6.1</b> The paths to data</a></li>
+<li class="chapter" data-level="6.2" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html#known-issues"><i class="fa fa-check"></i><b>6.2</b> Known issues</a></li>
+</ul></li>
+<li class="chapter" data-level="7" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html"><i class="fa fa-check"></i><b>7</b> Sub-cortical Cortical Stats Left and Right</a><ul>
+<li class="chapter" data-level="7.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#the-paths-to-data-2"><i class="fa fa-check"></i><b>7.1</b> The paths to data</a><ul>
+<li class="chapter" data-level="7.1.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#this-reads-all-the-subcortical-files-it-can-find"><i class="fa fa-check"></i><b>7.1.1</b> This reads all the subcortical files it can find</a></li>
+<li class="chapter" data-level="7.1.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#merge-with-the-phenotypic-data"><i class="fa fa-check"></i><b>7.1.2</b> merge with the phenotypic data</a></li>
+</ul></li>
+<li class="chapter" data-level="7.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#make-a-subject-table-from-resuts-pheno"><i class="fa fa-check"></i><b>7.2</b> make a subject table from resuts pheno</a></li>
+</ul></li>
+<li class="chapter" data-level="8" data-path="is-pint-focusing-cortical-subcortical-connectivity.html"><a href="is-pint-focusing-cortical-subcortical-connectivity.html"><i class="fa fa-check"></i><b>8</b> Is PINT “focusing” cortical subcortical connectivity</a></li>
+<li class="chapter" data-level="9" data-path="trying-to-calculate-an-vs-off-diagonal-term.html"><a href="trying-to-calculate-an-vs-off-diagonal-term.html"><i class="fa fa-check"></i><b>9</b> trying to calculate an vs off diagonal term</a></li>
+<li class="chapter" data-level="10" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html"><i class="fa fa-check"></i><b>10</b> Cortical-cortical results</a><ul>
+<li class="chapter" data-level="10.1" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html#to-do---rainclouds-for-withing-between-changes-in-cortical-cortical"><i class="fa fa-check"></i><b>10.1</b> To do - rainclouds for withing between changes in cortical cortical??</a></li>
+</ul></li>
+<li class="chapter" data-level="11" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html"><i class="fa fa-check"></i><b>11</b> Whole Connectome Results</a><ul>
+<li class="chapter" data-level="11.1" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html#the-paths-to-data-3"><i class="fa fa-check"></i><b>11.1</b> The paths to data</a></li>
+</ul></li>
+<li class="chapter" data-level="12" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html"><i class="fa fa-check"></i><b>12</b> Code for reading in all the timeseries..</a><ul>
+<li class="chapter" data-level="12.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-was-run-once-in-order-to-detemine-the-too-small-subcortical-rois"><i class="fa fa-check"></i><b>12.1</b> This was run once in order to detemine the too small subcortical ROIs</a><ul>
+<li class="chapter" data-level="12.1.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-reads-all-the-subcortical-files-it-can-find-1"><i class="fa fa-check"></i><b>12.1.1</b> This reads all the subcortical files it can find</a></li>
+<li class="chapter" data-level="12.1.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#merge-with-the-phenotypic-data-1"><i class="fa fa-check"></i><b>12.1.2</b> merge with the phenotypic data</a></li>
+</ul></li>
+<li class="chapter" data-level="12.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#filters-out-some-unwanted-edges-before-fdr-correction"><i class="fa fa-check"></i><b>12.2</b> filters out some unwanted edges before FDR correction</a></li>
+<li class="chapter" data-level="12.3" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-co"><i class="fa fa-check"></i><b>12.3</b> Make co</a></li>
+<li class="chapter" data-level="12.4" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-table-fdr-corrected-edges-that-survive-correction"><i class="fa fa-check"></i><b>12.4</b> make table FDR corrected Edges that survive correction</a></li>
+</ul></li>
+<li class="chapter" data-level="13" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><i class="fa fa-check"></i><b>13</b> calculate weighted subject scores by chopping up the matrix</a></li>
+<li class="divider"></li>
+<li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
+
+</ul>
+
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">SSD PINT analyses</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<div id="whole-connectome-results" class="section level1">
+<h1><span class="header-section-number">Chapter 11</span> Whole Connectome Results</h1>
+<p>We are now going to see if there is anything in cortical-cortical connectivity by running the matrix of all possible connections instead of just subcortical-cortical stats.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(tidygraph)
+<span class="kw">library</span>(tidyverse)
+<span class="kw">library</span>(broom)
+<span class="kw">library</span>(knitr)
+<span class="kw">library</span>(cowplot)
+<span class="kw">library</span>(igraph)
+<span class="kw">library</span>(ggraph)
+<span class="kw">library</span>(here)</code></pre></div>
+<div id="the-paths-to-data-3" class="section level2">
+<h2><span class="header-section-number">11.1</span> The paths to data</h2>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># These functions are for reading timeseries files</span>
+<span class="kw">source</span>(<span class="kw">here</span>(<span class="st">&#39;code/R/settings_helpers.R&#39;</span>))
+<span class="kw">source</span>(<span class="kw">here</span>(<span class="st">&#39;code/R/file_reading_helpers.R&#39;</span>))
+
+pheno &lt;-<span class="st"> </span><span class="kw">read_pheno_file</span>()<span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_na</span>(DX)</code></pre></div>
+<pre><code>## Parsed with column specification:
+## cols(
+##   .default = col_double(),
+##   dataset = col_character(),
+##   subject_id = col_character(),
+##   session_id = col_character(),
+##   task_id = col_character(),
+##   run_id = col_character(),
+##   acq_id = col_character(),
+##   subject = col_character(),
+##   session = col_character(),
+##   cmh_session_id = col_character(),
+##   DX = col_character(),
+##   Sex = col_character(),
+##   Site = col_character(),
+##   Scanner = col_character(),
+##   isFEP = col_character(),
+##   ghost_NoGhost = col_character(),
+##   filename = col_character()
+## )</code></pre>
+<pre><code>## See spec(...) for full column specifications.</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">YeoNet_colours &lt;-<span class="st"> </span><span class="kw">define_Yeo7_colours</span>()
+Yeo7_2011_80verts &lt;-<span class="st"> </span><span class="kw">read_Yeo72011_template</span>()  </code></pre></div>
+</div>
+</div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+<a href="cortical-cortical-results.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="code-for-reading-in-all-the-timeseries-.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+    </div>
+  </div>
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/lunr.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+"sharing": {
+"github": false,
+"facebook": true,
+"twitter": true,
+"google": false,
+"linkedin": false,
+"weibo": false,
+"instapaper": false,
+"vk": false,
+"all": ["facebook", "google", "twitter", "linkedin", "weibo", "instapaper"]
+},
+"fontsettings": {
+"theme": "white",
+"family": "sans",
+"size": 2
+},
+"edit": {
+"link": "https://github.com/TIGRLab/SZ_PINT/edit/master/06_whole_matrix_stats.Rmd",
+"text": "Edit"
+},
+"history": {
+"link": null,
+"text": null
+},
+"download": ["SSD_PINT_full.pdf"],
+"toc": {
+"collapse": "section"
+},
+"toolbar": {
+"position": "fixed"
+},
+"search": true
+});
+});
+</script>
+
+</body>
+
+</html>
