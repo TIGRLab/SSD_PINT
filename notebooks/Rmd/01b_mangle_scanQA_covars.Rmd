@@ -236,7 +236,7 @@ write_csv(sub_numbers_table, here("data", "processed", "pheno", "pre_and_post_qa
 
 ```
 
-```{r}
+```{r eval = TRUE}
 read_csv(here("data", "processed", "pheno", "pre_and_post_qa_counts.csv")) %>%
   knitr::kable()
 ```
@@ -399,7 +399,7 @@ bold_scan_params <- qa_passes_pheno %>%
 write_csv(bold_scan_params, here("data", "processed", "pheno", "bold_scan_summary.csv"))
 ```
 
-```{r}
+```{r eval = TRUE}
 read_csv(here("data", "processed", "pheno", "bold_scan_summary.csv")) %>%
   t()
 ```
