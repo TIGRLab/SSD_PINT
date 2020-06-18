@@ -20,6 +20,10 @@ library(igraph)
 library(here)
 ```
 
+```{r}
+knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
+```
+
 ```{r setting paths}
 source(here('code/R/settings_helpers.R'))
 pheno <- read_pheno_file() %>%
@@ -402,6 +406,28 @@ cortical_raincloud <- function(subject_focus, YeoNet7) {
 cortical_raincloud(all_subject_wtn_cross_means, YeoNet7)
 ```
 ```{r}
+specify_decimal <- function(x, k) trimws(format(round(x, k), nsmall=k))
+
+report_ds <- all_subject_wtn_cross_means %>%
+      ungroup() %>%
+      mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
+                             labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+      group_by(subject, dataset, to_network, corrtype) %>%
+      spread(wtn_or_cross, net_mean) %>%
+      ungroup() %>%
+      group_by(to_network, corrtype) %>%
+      do(tidy(t.test(.$within, .$cross, paired = TRUE))) %>%
+      mutate(cohenD = statistic/sqrt(parameter + 1),
+           cohenD_str = str_c("d = ", specify_decimal(cohenD, 2)))
+
+report_ds
+```
+
+
+```{r}
+# bonfferoni correct for the number of networks
+bonf_cor_factor = 6
+
 subject_focus_wrgl <- all_subject_wtn_cross_means %>%
   ungroup() %>%
   group_by(subject, dataset, to_network, vertex_type) %>%
@@ -416,12 +442,14 @@ subject_focus_wrgl <- all_subject_wtn_cross_means %>%
 pvertex_vs_tvertex <- subject_focus_wrgl %>%
   group_by(to_network, conntype) %>%
   do(tidy(t.test(.$pvertex, .$tvertex, paired = TRUE))) %>%
-  mutate(cohenD = statistic/sqrt(parameter + 1))
+  mutate(cohenD = statistic/sqrt(parameter + 1),
+         p_bonf = p.value*bonf_cor_factor)
 
 tvertex_vs_tvolume <- subject_focus_wrgl %>%
   group_by(to_network, conntype) %>%
   do(tidy(t.test(.$tvertex, .$tvolume, paired = TRUE))) %>%
-  mutate(cohenD = statistic/sqrt(parameter + 1))
+  mutate(cohenD = statistic/sqrt(parameter + 1),
+         p_bonf = p.value*bonf_cor_factor)
 
 focus_results <- bind_rows(pvertex_vs_tvertex = pvertex_vs_tvertex,
                            tvertex_vs_tvolume = tvertex_vs_tvolume,
@@ -429,18 +457,44 @@ focus_results <- bind_rows(pvertex_vs_tvertex = pvertex_vs_tvertex,
 ```
 ```{r}
 focus_results %>%
-  mutate(pval_str = ifelse(p.value < 0.001, 
-                           format(p.value, scientific = TRUE, digits = 2),
-                           format(p.value, digits = 3, nsmall = 3))) %>%
-  mutate(report_str = str_c("d = ", format(cohenD, digits = 3, nsmall = 1),
+  mutate(pval_str = ifelse(p_bonf < 0.001, 
+                           format(p_bonf, scientific = TRUE, digits = 2),
+                           specify_decimal(p_bonf,3)),
+         pval_str = ifelse(p_bonf > 0.10, "ns", pval_str)) %>%
+  mutate(report_str = str_c("d = ", specify_decimal(cohenD, 2),
                             ", t(",parameter, ') =', 
-                            format(statistic, digits = 3, nsmall = 0),
+                            specify_decimal(statistic, 2),
                             ', p=', pval_str)) %>%
   select(test_vars, conntype, to_network, report_str) %>%
   spread(conntype, report_str) %>%
   select(test_vars, to_network, within, cross, focus_effect) %>%
+  ungroup() %>%
+  mutate(test_vars = factor(test_vars, levels = c("tvertex_vs_tvolume","pvertex_vs_tvertex")),
+         to_network = factor(to_network, levels = c("DM", "FP", "VA", "DA", "SM", "VI"))) %>%
   arrange(test_vars, to_network) %>%
   knitr::kable()
 ```
+```{r}
+report_ds_by_corrtype <- report_ds %>%
+  ungroup() %>%
+  group_by(corrtype) %>%
+  summarise(d_min = specify_decimal(min(cohenD),2),
+            d_max = specify_decimal(max(cohenD),2),
+            d_str = str_glue('{d_min}-{d_max}'))
+```
+
+```{r}
+library(glue)
+focus_results_ranges <- focus_results %>% 
+  ungroup() %>%
+  group_by(test_vars, conntype) %>%
+  summarise(d_min = specify_decimal(min(cohenD),2),
+            d_max = specify_decimal(max(cohenD),2),
+            d_str = str_glue('{d_min}-{d_max}'))
+
+```
+
+
+The sample mean cortical-cortical correlation matrixes were calculated after fMRI timeseries were extracted using a volume-based, surface-based and personalized surface-based approach are plotted in Figure 1. Within network correlations are higher than between network correlations, evidence of a resting-state network structure, were observed for all networks tested, for the volume-based approach (Cohen's D `r report_ds_by_corrtype %>% filter(corrtype == "Volume Template") %>% pull(d_str)`), as well as for the surface-based approach (Cohen's D `r report_ds_by_corrtype %>% filter(corrtype == "Surface Template") %>% pull(d_str)`) and the personalized surface approach (Cohen's D `r report_ds_by_corrtype %>% filter(corrtype == "Surface Personalized") %>% pull(d_str)`)(see Figure 1H). Using a surface-based approach, as opposed to a volume-based approach has a mixed effect on this witin-to-between network differences according to instrinsic network (see Supple Table 2): increases these within to between network correlation difference increases in the Dorsal and Ventral Attentional Network, but decreases for the Default Mode, Sensory Motor and Visual Networks. Using PINT increases within network correlations again further for all networks (Surface Template vs PINT cohen D `r focus_results_ranges %>% filter(test_vars == "pvertex_vs_tvertex", conntype == "focus_effect") %>% pull(d_str)`, see Suppl Table 2). Note that this change from Surface Template and Surface Personalized is not surprising given that the PINT algorithm was designed to increase within network correlations. 
 
 

@@ -104,3 +104,5 @@ get_node_annotations <- function(Yeo7_2011_80verts, the_subcortical_guide) {
 
   return(node_annotations)
 }
+
+specify_decimal <- function(x, k) trimws(format(round(x, k), nsmall=k))

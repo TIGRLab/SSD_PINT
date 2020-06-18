@@ -9,6 +9,8 @@ YeoNet7 <- tribble(
   "DM", "#CD3E3A",
   "LI", "#dcf8a4")
 
+specify_decimal <- function(x, k) trimws(format(round(x, k), nsmall=k))
+
 #' Left section of the raincload plots used in sub-cortical cortical change reporting
 samediff_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
   eff_size_df <- data %>%
@@ -51,7 +53,6 @@ samediff_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_t
 
 #' Right section of the raincload plots used in sub-cortical cortical change reporting
 focus_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
-
   
   plt <- data %>%
     mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),

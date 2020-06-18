@@ -37,16 +37,29 @@ pint_concat <- read_csv(here("data","processed","mri",
               "postPINT1_concat_all_qa_passes.csv"))
 
 lm_predictors <- "DX + Age_match_pt + Sex + fd_mean_match_pt + Site + SurfArea_match_pt"
+lm_covars <- "Sex + fd_mean_match_pt + Site + SurfArea_match_pt"
 ```
 
+```{r}
+library(modelr)
 
+
+df_plus_resids <- function(df, outcome, covars) { 
+m1 <- lm(formula(paste(outcome, '~', paste(covars, collapse = " + "))),
+         data = df)
+result <-df %>% 
+  add_residuals(m1) 
+return(result)
+}
+```
 
 
 ```{r}
 ana_data <- pheno %>%
   inner_join(pint_concat, by = "subid") %>%
   inner_join(Yeo7_2011_80verts, by = "roiidx") %>%
-  mutate(network = str_sub(SHORTNAME, 1,2))
+  mutate(network = str_sub(SHORTNAME, 1,2),
+         network = factor(network, levels = names(YeoNet_colours)))
 
 ```
 
@@ -60,47 +73,51 @@ dist_by_total <- ana_data %>%
   ungroup() %>%
   inner_join(pheno, by = "subid") 
 
-dist_by_total %>%
+dist_by_total_fit <- dist_by_total %>%
   ungroup() %>%
-  do(tidy(lm(formula(paste("MeanDistance ~", lm_predictors)),.))) %>%
-  knitr::kable()
+  do(tidy(lm(formula(paste("MeanDistance ~", lm_predictors)),.)))
+
+dist_by_total_fit %>%knitr::kable()
 ```
 
 ```{r age-location-plot-byDX, fig.height=4, fig.width=7}
 dist_by_total %>%
   ggplot(aes(y = MeanDistance, x = Age)) +
   geom_point(aes(color = Site)) + 
-  geom_smooth(aes(color = DX), method = "lm")+
+  geom_smooth(method = "lm")+
   facet_wrap(~DX) +
   theme_bw()
 ```
-```{r age-location-plot-byDX-blackred, fig.height=4, fig.width=5}
-dist_by_total %>%
-  ggplot(aes(y = MeanDistance, x = Age, color = DX)) +
-  geom_point() + 
-  geom_smooth(method = "lm")+
-  scale_color_manual(values = c("grey20","red")) +
-  theme_bw()
-```
+
 
 
 ```{r, fig.height=4, fig.width=6}
-dist_by_total %>%
+p1 <- dist_by_total %>%
   ggplot(aes(y = MeanDistance, x = DX, color = DX)) + 
   geom_boxplot(outlier.shape = NA) + 
   geom_dotplot(binaxis = 'y', stackdir = 'center', binwidth = 0.08, alpha = 0.5) +
   scale_color_manual(values = c("grey20","red")) +
   facet_wrap( ~ Site, ncol = 4) +
-  labs(x = NULL) +
-  theme_minimal()
+  labs(x = NULL, color = NULL) +
+  theme_minimal() +
+  labs(y = "PINT mean distance (mm)") +
+  theme(legend.position = "none")
+```
+
+```{r age-location-plot-byDX-blackred, fig.height=4, fig.width=5}
+p2 <- dist_by_total %>%
+  df_plus_resids("MeanDistance", lm_covars) %>%
+  ggplot(aes(y = resid, x = Age, color = DX)) +
+  geom_point(alpha = 0.2) + 
+  geom_smooth(method = "lm")+
+  scale_color_manual(values = c("grey20","red")) +
+  theme_bw() +
+  labs(y = "PINT distance residuals") 
 ```
 
 
-
 ```{r}
-dist_by_network <- pint_concat %>%
-  inner_join(Yeo7_2011_80verts, by = "roiidx") %>%
-  mutate(network = str_sub(SHORTNAME, 1,2)) %>%
+dist_by_network <- ana_data %>%
   group_by(subid, network) %>%
   summarise(MeanDistance = mean(std_distance)) %>%
   ungroup() %>%
@@ -124,18 +141,57 @@ dist_by_network_lmfit %>%
 
 ```{r age-loc_dx-plot_by_network, fig.height=3, fig.width = 10}
 
-dist_by_network %>%
-  ggplot(aes(y = MeanDistance, x = Age)) +
-  geom_point(alpha = 0.2, size = 0.5) + 
+p3 <- dist_by_network %>%
+  group_by(network) %>%
+  nest() %>%
+  mutate(result = map(data, ~df_plus_resids(.x, "MeanDistance", lm_covars))) %>%
+  unnest(result) %>%
+  ggplot(aes(y = resid, x = Age)) +
+  geom_point(aes(color = DX),alpha = 0.2, size = 0.5) +
   geom_smooth(aes(color = DX), method = "lm") +
   facet_wrap(~network, scales = "free", nrow = 1) +
   scale_color_manual(values = c("grey20","red"))+
-  theme_minimal()
+  theme_minimal() +
+  labs(y = "PINT distance residuals") +
+  theme(legend.position = "none")
   
 ```
 
 
-## run linear model per edge
+```{r}
+report_model_beta_t <- function(tidy_model, this_term, p_value_col = p.value) {
+  p_value_col = enquo(p_value_col)
+  tidy_model %>%
+    filter(term == this_term) %>%
+    mutate(
+      beta = specify_decimal(estimate,2),
+      beta_se = specify_decimal(std.error,2),
+      t_stat = specify_decimal(statistic,2),
+      pval_str = ifelse(!!p_value_col < 0.001, 
+                           format(!!p_value_col, scientific = TRUE, digits = 2),
+                           specify_decimal(!!p_value_col,3)),
+      pval_str = ifelse(!!p_value_col > 0.10, "ns", pval_str),
+      report_str = str_glue("beta(SE)={beta}({beta_se}), t={t_stat}, p={pval_str}")) %>%
+    pull(report_str)
+}
+report_model_beta_t(dist_by_network_lmfit %>% filter(network == "SM"), "Age_match_pt", p_value_col = p_bonf)
+```
+
+
+We investigated the mean of the distance that ROIs travelled during hte PINT algorithm as a measure of variability in intrinsic network topography, using linear models with SSD diagnosis and Age as predictors, and covariates of Sex, Site, total surface area and movement during the fMRI scan (mean framewise displacement). For mean distance travelled, across all 80 ROIs, We observe a small effect of SSD diagnosis, such that participants wiht SSD had a smaller distance travelled healthy controls (`r report_model_beta_t(dist_by_total_fit, "DXSSD")`). Moreover, observed a linear effect of age of RSN network location variability, where older adults were more similar to the template than younger adults.  (`r report_model_beta_t(dist_by_total_fit, "Age_match_pt")`, see Supplemental Figure 2). When we tested mean distance travelled separately for each intrinsic network, a significant effect of SSD diagnosis was not observed in any individual network after bonferonni correction for the 6 networks tested. The negative linear effect of age was observed for the visual (`r report_model_beta_t(dist_by_network_lmfit %>% filter(network == "VI"), "Age_match_pt", p_value_col = p_bonf)`) and sensory motor networks (`r report_model_beta_t(dist_by_network_lmfit %>% filter(network == "SM"), "Age_match_pt", p_value_col = p_bonf)`).
+
+## double check that model/plot look right without COBRE and ds00030
+
+```{r}
+library(cowplot)
+
+top_row <- plot_grid(p1, p2, labels = c('A', 'B'), label_size = 12)
+plot_grid(top_row, p3, labels = c("", 'C'), label_size = 12, ncol = 1)
+```
+
+
+
+## run linear model per edge (not reported)
 
 ```{r}
 
