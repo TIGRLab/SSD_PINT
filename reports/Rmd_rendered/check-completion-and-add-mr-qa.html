@@ -1,13 +1,12 @@
 <!DOCTYPE html>
-<html >
-
+<html lang="" xml:lang="">
 <head>
 
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>Chapter 3 Check completion and add MR QA | SSD PINT analyses</title>
-  <meta name="description" content="This contains the analysis reported with the SSD pint paper">
-  <meta name="generator" content="bookdown  and GitBook 2.6.7">
+  <meta name="description" content="This contains the analysis reported with the SSD pint paper" />
+  <meta name="generator" content="bookdown 0.19 and GitBook 2.6.7" />
 
   <meta property="og:title" content="Chapter 3 Check completion and add MR QA | SSD PINT analyses" />
   <meta property="og:type" content="book" />
@@ -22,18 +21,18 @@
   <meta name="twitter:description" content="This contains the analysis reported with the SSD pint paper" />
   
 
-<meta name="author" content="Erin Dickie">
+<meta name="author" content="Erin Dickie" />
 
 
-<meta name="date" content="2020-02-13">
+<meta name="date" content="2020-06-18" />
 
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   
   
-<link rel="prev" href="mangle-participant-demographics.html">
-<link rel="next" href="stats-on-the-pint-summary-displacement-values.html">
+<link rel="prev" href="mangle-participant-demographics.html"/>
+<link rel="next" href="stats-on-the-pint-summary-displacement-values.html"/>
 <script src="libs/jquery-2.2.3/jquery.min.js"></script>
 <link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
 <link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
@@ -41,6 +40,9 @@
 <link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
 <link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
 <link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet" />
+
+
 
 
 
@@ -104,14 +106,17 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <li><a href="./">R-stats in SSD PINT paper</a></li>
 
 <li class="divider"></li>
-<li class="chapter" data-level="1" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i><b>1</b> The index page</a></li>
+<li class="chapter" data-level="1" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i><b>1</b> The index page</a><ul>
+<li class="chapter" data-level="1.1" data-path="index.html"><a href="index.html#all-the-packages-in-this-book"><i class="fa fa-check"></i><b>1.1</b> all the packages in this book</a></li>
+</ul></li>
 <li class="chapter" data-level="2" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html"><i class="fa fa-check"></i><b>2</b> Mangle participant demographics</a><ul>
+<li class="chapter" data-level="2.0.1" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#mangle-the-zzh-data---determining-the-mapping-between-the-zhh-session-name-and-daytons-bids-name"><i class="fa fa-check"></i><b>2.0.1</b> mangle the ZZH data - determining the mapping between the ZHH session name and Dayton's bids name</a></li>
 <li class="chapter" data-level="2.1" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#coding-zhh-data-by-session"><i class="fa fa-check"></i><b>2.1</b> Coding ZHH data by session</a></li>
 <li class="chapter" data-level="2.2" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#note---re-picking-motion-cutoffs"><i class="fa fa-check"></i><b>2.2</b> Note - re picking motion cutoffs</a></li>
 <li class="chapter" data-level="2.3" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#now-looking-at-what-we-have-from-cobre"><i class="fa fa-check"></i><b>2.3</b> Now looking at what we have from COBRE</a></li>
 <li class="chapter" data-level="2.4" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#now-looking-at-the-cnp-we-have.."><i class="fa fa-check"></i><b>2.4</b> Now looking at the CNP we have..</a></li>
 <li class="chapter" data-level="2.5" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#add-where-are-is-the-cmh-demographic-info.."><i class="fa fa-check"></i><b>2.5</b> add where are is the CMH demographic info..</a></li>
-<li class="chapter" data-level="2.6" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#extra-little-bit-for-traking-down-missing-cobre"><i class="fa fa-check"></i><b>2.6</b> extra little bit for traking down “missing” COBRE</a></li>
+<li class="chapter" data-level="2.6" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#extra-little-bit-for-traking-down-missing-cobre"><i class="fa fa-check"></i><b>2.6</b> extra little bit for traking down &quot;missing&quot; COBRE</a></li>
 </ul></li>
 <li class="chapter" data-level="3" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html"><i class="fa fa-check"></i><b>3</b> Check completion and add MR QA</a><ul>
 <li class="chapter" data-level="3.1" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#get-a-list-of-available-bold-and-t1w-files-from-the-mriqc-outputs"><i class="fa fa-check"></i><b>3.1</b> Get a list of available bold and T1w files (from the mriqc outputs)</a><ul>
@@ -121,46 +126,57 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <li class="chapter" data-level="3.3" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#read-in-the-combined-demographics-from-the-last-chapter"><i class="fa fa-check"></i><b>3.3</b> read in the combined demographics from the last chapter</a></li>
 <li class="chapter" data-level="3.4" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#also-read-in-an-concatenate-all-the-surface-area-info-from-freesurfer"><i class="fa fa-check"></i><b>3.4</b> also read in an concatenate all the surface area info from freesurfer</a></li>
 <li class="chapter" data-level="3.5" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#anti-join-the-pheno-data-with-the-usable-scan-data-to-see-if-we-have-everything.."><i class="fa fa-check"></i><b>3.5</b> anti-join the pheno data with the usable scan data to see if we have everything..</a></li>
-<li class="chapter" data-level="3.6" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#setting-the-motion-threshold"><i class="fa fa-check"></i><b>3.6</b> Setting the motion threshold:</a></li>
-<li class="chapter" data-level="3.7" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#who-is-still-missing-a-pint-output"><i class="fa fa-check"></i><b>3.7</b> who is still missing a PINT output?</a></li>
-<li class="chapter" data-level="3.8" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#selecting-scans-with-least-motion"><i class="fa fa-check"></i><b>3.8</b> Selecting scans with least motion</a></li>
-<li class="chapter" data-level="3.9" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#final-mangle-of-the-phenotypic-data-transforming-variables"><i class="fa fa-check"></i><b>3.9</b> final mangle of the phenotypic data (transforming variables)</a></li>
+<li class="chapter" data-level="3.6" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#zhh-is-the-only-site-where-we-have-session-specific-pheno-information..-so-we-will-check-that"><i class="fa fa-check"></i><b>3.6</b> ZHH is the only site where we have session specific pheno information.. so we will check that</a></li>
+<li class="chapter" data-level="3.7" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#setting-the-motion-threshold"><i class="fa fa-check"></i><b>3.7</b> Setting the motion threshold:</a></li>
+<li class="chapter" data-level="3.8" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#write-this-table-out-to-csv---than-read-the-csv-and-print-it"><i class="fa fa-check"></i><b>3.8</b> write this table out to csv - than read the csv and print it</a></li>
+<li class="chapter" data-level="3.9" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#who-is-still-missing-a-pint-output"><i class="fa fa-check"></i><b>3.9</b> who is still missing a PINT output?</a></li>
+<li class="chapter" data-level="3.10" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#selecting-scans-with-least-motion"><i class="fa fa-check"></i><b>3.10</b> Selecting scans with least motion</a></li>
+<li class="chapter" data-level="3.11" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#final-mangle-of-the-phenotypic-data-transforming-variables"><i class="fa fa-check"></i><b>3.11</b> final mangle of the phenotypic data (transforming variables)</a></li>
+<li class="chapter" data-level="3.12" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#adding-matching-for-the-ds00030-subsample-first..."><i class="fa fa-check"></i><b>3.12</b> adding matching for the ds00030 subsample first...</a><ul>
+<li class="chapter" data-level="3.12.1" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#write-out-subject-list-for-further-analysis"><i class="fa fa-check"></i><b>3.12.1</b> write out subject list for further analysis</a></li>
+</ul></li>
 </ul></li>
 <li class="chapter" data-level="4" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html"><i class="fa fa-check"></i><b>4</b> Stats on the PINT summary displacement values</a><ul>
 <li class="chapter" data-level="4.1" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#the-paths-to-data"><i class="fa fa-check"></i><b>4.1</b> The paths to data</a></li>
 <li class="chapter" data-level="4.2" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#run-for-the-whole-head"><i class="fa fa-check"></i><b>4.2</b> run for the whole head</a></li>
-<li class="chapter" data-level="4.3" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#run-linear-model-per-edge"><i class="fa fa-check"></i><b>4.3</b> run linear model per edge</a></li>
+<li class="chapter" data-level="4.3" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#double-check-that-modelplot-look-right-without-cobre-and-ds00030"><i class="fa fa-check"></i><b>4.3</b> double check that model/plot look right without COBRE and ds00030</a></li>
+<li class="chapter" data-level="4.4" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#run-linear-model-per-edge-not-reported"><i class="fa fa-check"></i><b>4.4</b> run linear model per edge (not reported)</a></li>
 </ul></li>
-<li class="chapter" data-level="5" data-path="multi-dimensional-scaling-stats-on-pint-roi-locations.html"><a href="multi-dimensional-scaling-stats-on-pint-roi-locations.html"><i class="fa fa-check"></i><b>5</b> Multi-Dimensional Scaling Stats on PINT ROI locations</a></li>
-<li class="chapter" data-level="6" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html"><i class="fa fa-check"></i><b>6</b> Seedcorr Area Stats</a><ul>
-<li class="chapter" data-level="6.1" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html#the-paths-to-data-1"><i class="fa fa-check"></i><b>6.1</b> The paths to data</a></li>
-<li class="chapter" data-level="6.2" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html#known-issues"><i class="fa fa-check"></i><b>6.2</b> Known issues</a></li>
+<li class="chapter" data-level="5" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html"><i class="fa fa-check"></i><b>5</b> Sub-cortical Cortical Stats Left and Right</a><ul>
+<li class="chapter" data-level="5.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#the-paths-to-data-1"><i class="fa fa-check"></i><b>5.1</b> The paths to data</a><ul>
+<li class="chapter" data-level="5.1.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#this-reads-all-the-subcortical-files-it-can-find"><i class="fa fa-check"></i><b>5.1.1</b> This reads all the subcortical files it can find</a></li>
+<li class="chapter" data-level="5.1.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#reduce-data-from-the-whole-brain-data-to-only-include-the-subcortical-cortical-connections"><i class="fa fa-check"></i><b>5.1.2</b> reduce data from the whole brain data to only include the subcortical cortical connections</a></li>
+<li class="chapter" data-level="5.1.3" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#merge-with-the-phenotypic-data"><i class="fa fa-check"></i><b>5.1.3</b> merge with the phenotypic data</a></li>
 </ul></li>
-<li class="chapter" data-level="7" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html"><i class="fa fa-check"></i><b>7</b> Sub-cortical Cortical Stats Left and Right</a><ul>
-<li class="chapter" data-level="7.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#the-paths-to-data-2"><i class="fa fa-check"></i><b>7.1</b> The paths to data</a><ul>
-<li class="chapter" data-level="7.1.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#this-reads-all-the-subcortical-files-it-can-find"><i class="fa fa-check"></i><b>7.1.1</b> This reads all the subcortical files it can find</a></li>
-<li class="chapter" data-level="7.1.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#merge-with-the-phenotypic-data"><i class="fa fa-check"></i><b>7.1.2</b> merge with the phenotypic data</a></li>
+<li class="chapter" data-level="5.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#make-a-subject-table-from-resuts-pheno"><i class="fa fa-check"></i><b>5.2</b> make a subject table from resuts pheno</a></li>
 </ul></li>
-<li class="chapter" data-level="7.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#make-a-subject-table-from-resuts-pheno"><i class="fa fa-check"></i><b>7.2</b> make a subject table from resuts pheno</a></li>
+<li class="chapter" data-level="6" data-path="is-pint-focusing-cortical-subcortical-connectivity.html"><a href="is-pint-focusing-cortical-subcortical-connectivity.html"><i class="fa fa-check"></i><b>6</b> Is PINT &quot;focusing&quot; cortical subcortical connectivity</a></li>
+<li class="chapter" data-level="7" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html"><i class="fa fa-check"></i><b>7</b> Cortical-cortical results</a><ul>
+<li class="chapter" data-level="7.1" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html#to-do---rainclouds-for-withing-between-changes-in-cortical-cortical"><i class="fa fa-check"></i><b>7.1</b> To do - rainclouds for withing between changes in cortical cortical??</a></li>
 </ul></li>
-<li class="chapter" data-level="8" data-path="is-pint-focusing-cortical-subcortical-connectivity.html"><a href="is-pint-focusing-cortical-subcortical-connectivity.html"><i class="fa fa-check"></i><b>8</b> Is PINT “focusing” cortical subcortical connectivity</a></li>
-<li class="chapter" data-level="9" data-path="trying-to-calculate-an-vs-off-diagonal-term.html"><a href="trying-to-calculate-an-vs-off-diagonal-term.html"><i class="fa fa-check"></i><b>9</b> trying to calculate an vs off diagonal term</a></li>
-<li class="chapter" data-level="10" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html"><i class="fa fa-check"></i><b>10</b> Cortical-cortical results</a><ul>
-<li class="chapter" data-level="10.1" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html#to-do---rainclouds-for-withing-between-changes-in-cortical-cortical"><i class="fa fa-check"></i><b>10.1</b> To do - rainclouds for withing between changes in cortical cortical??</a></li>
+<li class="chapter" data-level="8" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html"><i class="fa fa-check"></i><b>8</b> Whole Connectome Results</a><ul>
+<li class="chapter" data-level="8.1" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html#the-paths-to-data-2"><i class="fa fa-check"></i><b>8.1</b> The paths to data</a></li>
 </ul></li>
-<li class="chapter" data-level="11" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html"><i class="fa fa-check"></i><b>11</b> Whole Connectome Results</a><ul>
-<li class="chapter" data-level="11.1" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html#the-paths-to-data-3"><i class="fa fa-check"></i><b>11.1</b> The paths to data</a></li>
+<li class="chapter" data-level="9" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html"><i class="fa fa-check"></i><b>9</b> Code for reading in all the timeseries..</a><ul>
+<li class="chapter" data-level="9.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-was-run-once-in-order-to-detemine-the-too-small-subcortical-rois"><i class="fa fa-check"></i><b>9.1</b> This was run once in order to detemine the too small subcortical ROIs</a><ul>
+<li class="chapter" data-level="9.1.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-reads-all-the-subcortical-files-it-can-find-1"><i class="fa fa-check"></i><b>9.1.1</b> This reads all the subcortical files it can find</a></li>
+<li class="chapter" data-level="9.1.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#merge-with-the-phenotypic-data-1"><i class="fa fa-check"></i><b>9.1.2</b> merge with the phenotypic data</a></li>
 </ul></li>
-<li class="chapter" data-level="12" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html"><i class="fa fa-check"></i><b>12</b> Code for reading in all the timeseries..</a><ul>
-<li class="chapter" data-level="12.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-was-run-once-in-order-to-detemine-the-too-small-subcortical-rois"><i class="fa fa-check"></i><b>12.1</b> This was run once in order to detemine the too small subcortical ROIs</a><ul>
-<li class="chapter" data-level="12.1.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-reads-all-the-subcortical-files-it-can-find-1"><i class="fa fa-check"></i><b>12.1.1</b> This reads all the subcortical files it can find</a></li>
-<li class="chapter" data-level="12.1.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#merge-with-the-phenotypic-data-1"><i class="fa fa-check"></i><b>12.1.2</b> merge with the phenotypic data</a></li>
+<li class="chapter" data-level="9.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#calcualate-cohens-d-for-diagnosis-effect"><i class="fa fa-check"></i><b>9.2</b> calcualate cohen's D for Diagnosis Effect</a></li>
+<li class="chapter" data-level="9.3" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#filters-out-some-unwanted-edges-before-fdr-correction"><i class="fa fa-check"></i><b>9.3</b> filters out some unwanted edges before FDR correction</a></li>
+<li class="chapter" data-level="9.4" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-co"><i class="fa fa-check"></i><b>9.4</b> Make co</a></li>
+<li class="chapter" data-level="9.5" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-table-fdr-corrected-edges-that-survive-correction"><i class="fa fa-check"></i><b>9.5</b> make table FDR corrected Edges that survive correction</a><ul>
+<li class="chapter" data-level="9.5.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#calculated-extract-edge-weights-for-per-participant-scores"><i class="fa fa-check"></i><b>9.5.1</b> calculated extract edge weights for per participant scores</a></li>
+<li class="chapter" data-level="9.5.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#calculated-scores-per-participant"><i class="fa fa-check"></i><b>9.5.2</b> calculated scores per participant</a></li>
 </ul></li>
-<li class="chapter" data-level="12.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#filters-out-some-unwanted-edges-before-fdr-correction"><i class="fa fa-check"></i><b>12.2</b> filters out some unwanted edges before FDR correction</a></li>
-<li class="chapter" data-level="12.3" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-co"><i class="fa fa-check"></i><b>12.3</b> Make co</a></li>
-<li class="chapter" data-level="12.4" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-table-fdr-corrected-edges-that-survive-correction"><i class="fa fa-check"></i><b>12.4</b> make table FDR corrected Edges that survive correction</a></li>
+<li class="chapter" data-level="9.6" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#write-up-to-this-point.."><i class="fa fa-check"></i><b>9.6</b> write up to this point..</a></li>
 </ul></li>
-<li class="chapter" data-level="13" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><i class="fa fa-check"></i><b>13</b> calculate weighted subject scores by chopping up the matrix</a></li>
+<li class="chapter" data-level="10" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><i class="fa fa-check"></i><b>10</b> calculate weighted subject scores by chopping up the matrix</a><ul>
+<li class="chapter" data-level="10.1" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html#the-paths-to-data-3"><i class="fa fa-check"></i><b>10.1</b> The paths to data</a><ul>
+<li class="chapter" data-level="10.1.1" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html#refit-the-models-with-education-included"><i class="fa fa-check"></i><b>10.1.1</b> refit the models with Education included</a></li>
+<li class="chapter" data-level="10.1.2" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html#the-results-write-up"><i class="fa fa-check"></i><b>10.1.2</b> The results write-up</a></li>
+</ul></li>
+</ul></li>
 <li class="divider"></li>
 <li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
 
@@ -185,19 +201,23 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <h1><span class="header-section-number">Chapter 3</span> Check completion and add MR QA</h1>
 <p>This section of the code checks to make sure that we have preprocessed data available for all expected partcipants.</p>
 <p>Then, for participants with more than one run/session of bold data it picks the best run per participant for the next analysis</p>
-<p>The final output is the QAed phenotypic file is <code>data/phenotypic/20200202_pheno_qapass.csv</code> which is the input for all of the rest of the analyses.</p>
+<p>The final output is the QAed phenotypic file is <code>data/processed/pheno/simple_pheno_20200221.csv</code> which is the input for all of the rest of the analyses.</p>
+<div id="note-all-computations-here-are-locked-on-feb-21-2020-they-are-not-repeated-as-when-this-book-is-rerun" class="section level4">
+<h4><span class="header-section-number">3.0.0.1</span> Note: all computations here are locked on Feb 21, 2020 (they are not repeated as when this book is rerun)</h4>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">knitr<span class="op">::</span>opts_chunk<span class="op">$</span><span class="kw">set</span>(<span class="dt">eval =</span> <span class="ot">FALSE</span>)</code></pre></div>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(tidyverse)</code></pre></div>
-<pre><code>## ── Attaching packages ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse 1.2.1 ──</code></pre>
-<pre><code>## ✔ ggplot2 3.1.0       ✔ purrr   0.2.5  
-## ✔ tibble  2.0.1       ✔ dplyr   0.8.0.1
-## ✔ tidyr   0.8.2       ✔ stringr 1.3.1  
-## ✔ readr   1.3.0       ✔ forcats 0.3.0</code></pre>
-<pre><code>## ── Conflicts ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
-## ✖ dplyr::filter() masks stats::filter()
-## ✖ dplyr::lag()    masks stats::lag()</code></pre>
+<pre><code>## ── Attaching packages ──────────────────────────────────────────────────────────────────────── tidyverse 1.3.0 ──</code></pre>
+<pre><code>## ✓ ggplot2 3.3.1     ✓ purrr   0.3.4
+## ✓ tibble  3.0.1     ✓ dplyr   1.0.0
+## ✓ tidyr   1.1.0     ✓ stringr 1.4.0
+## ✓ readr   1.3.1     ✓ forcats 0.5.0</code></pre>
+<pre><code>## ── Conflicts ─────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(here)</code></pre></div>
 <pre><code>## here() starts at /mnt/tigrlab/projects/edickie/code/SZ_PINT</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">processed_mri_dir &lt;-<span class="st"> </span><span class="kw">here</span>(<span class="st">&quot;data/processed/mri/&quot;</span>)</code></pre></div>
+</div>
 <div id="get-a-list-of-available-bold-and-t1w-files-from-the-mriqc-outputs" class="section level2">
 <h2><span class="header-section-number">3.1</span> Get a list of available bold and T1w files (from the mriqc outputs)</h2>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">sub_projects =<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;ZHH&quot;</span>, <span class="st">&quot;COBRE&quot;</span>, <span class="st">&quot;ASDD&quot;</span>, <span class="st">&quot;ASDD&quot;</span>, <span class="st">&quot;DTI3T&quot;</span> , <span class="st">&quot;RTMSWM&quot;</span>, <span class="st">&quot;PNSC&quot;</span>, <span class="st">&quot;SPINS&quot;</span>, <span class="st">&quot;ds000030_R1.0.5&quot;</span>)
@@ -211,16 +231,20 @@ read_mriqc_bold &lt;-<span class="st"> </span><span class="cf">function</span>(s
   <span class="kw">return</span>(bold)
 }
 
+## read all mriqc bold outputs
 all_the_bolds &lt;-<span class="st"> </span><span class="kw">tibble</span>(<span class="dt">dataset =</span> sub_projects) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">mutate</span>(<span class="dt">boldqc =</span> <span class="kw">map</span>(dataset, <span class="cf">function</span>(x) {
         <span class="kw">read_mriqc_bold</span>(x)
     })) <span class="op">%&gt;%</span>
 <span class="st">    </span><span class="kw">unnest</span>() <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">filter</span>(task_id <span class="op">==</span><span class="st"> &quot;rest&quot;</span>) </code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bolds_condensed &lt;-<span class="st"> </span>all_the_bolds <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">filter</span>(task_id <span class="op">==</span><span class="st"> &quot;rest&quot;</span>) 
+
+## mangle the mriqc bold outputs
+bolds_condensed &lt;-<span class="st"> </span>all_the_bolds <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">select</span>(dataset, <span class="kw">ends_with</span>(<span class="st">&#39;_id&#39;</span>), <span class="kw">starts_with</span>(<span class="st">&#39;fd_&#39;</span>), <span class="kw">starts_with</span>(<span class="st">&#39;size&#39;</span>), <span class="kw">starts_with</span>(<span class="st">&#39;spacing&#39;</span>)) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">mutate</span>(<span class="dt">subject =</span> <span class="kw">str_c</span>(<span class="st">&quot;sub-&quot;</span>, subject_id),
          <span class="dt">session =</span> <span class="kw">str_c</span>(<span class="st">&quot;ses-&quot;</span>,session_id)) </code></pre></div>
+<p>Also read the mriqc outputs from the T1w images</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">read_mriqc_t1w &lt;-<span class="st"> </span><span class="cf">function</span>(studyname) {
   bold &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="kw">str_c</span>(processed_mri_dir, studyname, <span class="st">&quot;/out/mriqc/T1w.csv&quot;</span>)) <span class="op">%&gt;%</span>
 <span class="st">    </span><span class="kw">mutate</span>(<span class="dt">subject_id =</span> <span class="kw">as.character</span>(subject_id))
@@ -240,22 +264,21 @@ all_the_T1w &lt;-<span class="st"> </span><span class="kw">tibble</span>(<span c
 <div id="the-list-of-usable-scans-is-all-participants-with-both-t1w-and-bold-data" class="section level3">
 <h3><span class="header-section-number">3.1.1</span> the list of usable scans is all participants with both T1w and bold data</h3>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">usable_scans &lt;-<span class="st"> </span>all_the_bolds <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">group_by</span>(dataset, subject_id, task_id) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(dataset, subject_id, session_id, task_id) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">summarise</span>(<span class="dt">num_rest =</span> <span class="kw">n</span>()) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">full_join</span>(all_the_T1w, <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject_id&quot;</span>, <span class="st">&quot;dataset&quot;</span>)) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">mutate</span>(<span class="dt">num_scans =</span> num_rest <span class="op">+</span><span class="st"> </span>num_t1w,
-         <span class="dt">subject =</span> <span class="kw">str_c</span>(<span class="st">&quot;sub-&quot;</span>, subject_id)) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">ungroup</span>()</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">usable_scans <span class="op">%&gt;%</span>
+         <span class="dt">subject =</span> <span class="kw">str_c</span>(<span class="st">&quot;sub-&quot;</span>, subject_id),
+         <span class="dt">session =</span> <span class="kw">str_c</span>(<span class="st">&quot;ses-&quot;</span>, session_id)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ungroup</span>()
+
+## print the number of usable scans
+usable_scans <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">select</span>(subject_id, dataset, num_scans) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">drop_na</span>(num_scans) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">distinct</span>() <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">count</span>()</code></pre></div>
-<pre><code>## # A tibble: 1 x 1
-##       n
-##   &lt;int&gt;
-## 1   704</code></pre>
+<span class="st">  </span><span class="kw">count</span>(dataset)</code></pre></div>
 </div>
 </div>
 <div id="now-glob-for-all-of-the-pint-outputs" class="section level2">
@@ -285,24 +308,8 @@ pintdf &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(pintdf_ws
 <div id="read-in-the-combined-demographics-from-the-last-chapter" class="section level2">
 <h2><span class="header-section-number">3.3</span> read in the combined demographics from the last chapter</h2>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># removing session id column because it is redundant</span>
-simple_pheno &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="kw">here</span>(<span class="st">&#39;data/processed/pheno/simple_pheno_20200202.csv&#39;</span>)) </code></pre></div>
-<pre><code>## Parsed with column specification:
-## cols(
-##   subject = col_character(),
-##   cmh_session_id = col_character(),
-##   DX = col_character(),
-##   Age = col_double(),
-##   Sex = col_character(),
-##   dataset = col_character(),
-##   Site = col_character(),
-##   Scanner = col_character(),
-##   GRID = col_double(),
-##   zhh_session_id = col_double(),
-##   MRI_Date = col_double(),
-##   Edu = col_double(),
-##   isFEP = col_character(),
-##   ghost_NoGhost = col_character()
-## )</code></pre>
+simple_pheno &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="kw">here</span>(<span class="st">&#39;data/processed/pheno/simple_pheno_20200221.csv&#39;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_na</span>(DX)</code></pre></div>
 </div>
 <div id="also-read-in-an-concatenate-all-the-surface-area-info-from-freesurfer" class="section level2">
 <h2><span class="header-section-number">3.4</span> also read in an concatenate all the surface area info from freesurfer</h2>
@@ -321,87 +328,228 @@ simple_pheno &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<spa
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">usable_scans <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">anti_join</span>(simple_pheno, <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;dataset&quot;</span>)) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">drop_na</span>(num_scans)</code></pre></div>
-<pre><code>## # A tibble: 1 x 7
-##   dataset subject_id task_id num_rest num_t1w num_scans subject      
-##   &lt;chr&gt;   &lt;chr&gt;      &lt;chr&gt;      &lt;int&gt;   &lt;int&gt;     &lt;int&gt; &lt;chr&gt;        
-## 1 SPINS   CMHAA2102  rest           1       1         2 sub-CMHAA2102</code></pre>
 <div id="we-see-that-the-only-people-we-have-bold-info-but-no-phenotype-for-is-that-one-vipr-participant-in-spins-and-the-5-people-from-ds00030-who-dont-have-a-t1w-scan" class="section level4">
-<h4><span class="header-section-number">3.5.0.1</span> we see that the only people we have bold info but no phenotype for is that one VIPR participant in SPINS and the 5 people from ds00030 who don’t have a T1w scan</h4>
+<h4><span class="header-section-number">3.5.0.1</span> we see that the only people we have bold info but no phenotype for is that one VIPR participant in SPINS and the 5 people from ds00030 who don't have a T1w scan</h4>
 </div>
+</div>
+<div id="zhh-is-the-only-site-where-we-have-session-specific-pheno-information..-so-we-will-check-that" class="section level2">
+<h2><span class="header-section-number">3.6</span> ZHH is the only site where we have session specific pheno information.. so we will check that</h2>
+<p><em>Note: (known issue) we discovered that, due to a duplicate row in the participants spreadsheet - one ZHH scan <code>SessNo</code> 22434 was copied into two sessions..(ses-01 &amp; ses-02)</em></p>
+<p>Data from sub-11082-ses-02 should be discarded from further analyses - ses-02 does not exist..it is a duplicate of ses-01 from the same participant..(note how the scan QA values are also identical)</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">usable_scans <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">filter</span>(dataset <span class="op">==</span><span class="st"> &quot;ZHH&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">anti_join</span>(simple_pheno, <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;session&quot;</span>, <span class="st">&quot;dataset&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_na</span>(num_scans)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bolds_condensed <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">filter</span>(dataset <span class="op">==</span><span class="st"> &quot;ZHH&quot;</span>, subject <span class="op">==</span><span class="st"> &quot;sub-11082&quot;</span>)</code></pre></div>
 </div>
 <div id="setting-the-motion-threshold" class="section level2">
-<h2><span class="header-section-number">3.6</span> Setting the motion threshold:</h2>
+<h2><span class="header-section-number">3.7</span> Setting the motion threshold:</h2>
 <p>We have set the motion threshold to: Mean FD &lt; 0.5mm and No more than 50% of the scan with motion &gt; 0.2mm</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mean_fd_thres &lt;-<span class="st"> </span><span class="fl">0.5</span>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">GRIDs_w_cerebellum_cutoff &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="dv">7793</span>, <span class="dv">7834</span>, <span class="dv">9405</span>)
+  
+mean_fd_thres &lt;-<span class="st"> </span><span class="fl">0.5</span>
 perc_fd_thres &lt;-<span class="st"> </span><span class="dv">50</span>
 
-pre_qa &lt;-<span class="st"> </span>bolds_condensed <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">inner_join</span>(<span class="kw">select</span>(usable_scans, <span class="op">-</span>task_id, <span class="op">-</span>subject_id), 
-             <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;dataset&quot;</span>)) <span class="op">%&gt;%</span>
+pre_pre_qa &lt;-<span class="st"> </span>bolds_condensed <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">inner_join</span>(usable_scans <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">select</span>(subject, dataset, num_scans), <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;dataset&quot;</span>)) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">drop_na</span>(num_scans) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">inner_join</span>(simple_pheno, <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;dataset&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">inner_join</span>(all_surfs <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">rename</span>(<span class="dt">subject =</span> SubjID), <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;dataset&quot;</span>))</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pre_qa_counts &lt;-<span class="st"> </span>pre_qa <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">select</span>(subject, dataset, DX) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">inner_join</span>(simple_pheno <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">select</span>(subject, dataset, DX, Site), <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;dataset&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">inner_join</span>(all_surfs, <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>=<span class="st">&quot;SubjID&quot;</span>, <span class="st">&quot;dataset&quot;</span>))
+pre_qa &lt;-<span class="st"> </span>pre_pre_qa <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">filter</span>(<span class="op">!</span>(subject_id <span class="op">%in%</span><span class="st"> </span>GRIDs_w_cerebellum_cutoff))</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pre_pre_qa_counts &lt;-<span class="st"> </span>pre_pre_qa <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(subject, Site, DX) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">distinct</span>() <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">count</span>(DX)
+<span class="st">  </span><span class="kw">count</span>(DX, Site) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">rename</span>(<span class="dt">n_before_anat_qa =</span> n)
+
+pre_pre_qa_ses_counts &lt;-<span class="st"> </span>pre_pre_qa <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(subject, Site, DX, session) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">distinct</span>() <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">count</span>(DX, Site) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">rename</span>(<span class="dt">n_ses_before_anat_qa =</span> n)
+
+pre_qa_counts &lt;-<span class="st"> </span>pre_qa <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(subject, Site, DX) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">distinct</span>() <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">count</span>(DX, Site)
 
 qa_passes_pheno &lt;-<span class="st"> </span>pre_qa <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">filter</span>(fd_mean <span class="op">&lt;</span><span class="st"> </span><span class="fl">0.5</span>, fd_perc <span class="op">&lt;</span><span class="st"> </span><span class="dv">50</span>, size_t <span class="op">&gt;</span><span class="st"> </span><span class="dv">100</span>) 
 
-qa_passes_pheno <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">select</span>(subject, dataset, DX) <span class="op">%&gt;%</span>
+(sub_numbers_table &lt;-<span class="st"> </span>qa_passes_pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(subject, Site, DX) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">distinct</span>() <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">count</span>(DX) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">inner_join</span>(pre_qa_counts, <span class="dt">by =</span> <span class="st">&quot;DX&quot;</span>, <span class="dt">suffix =</span> <span class="kw">c</span>(<span class="st">&quot;_after_qa&quot;</span>, <span class="st">&quot;_before_qa&quot;</span>))</code></pre></div>
-<pre><code>## # A tibble: 3 x 3
-##   DX    n_after_qa n_before_qa
-##   &lt;chr&gt;      &lt;int&gt;       &lt;int&gt;
-## 1 &lt;NA&gt;           2           9
-## 2 CTRL         294         377
-## 3 SSD          203         317</code></pre>
+<span class="st">  </span><span class="kw">count</span>(DX, Site) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">inner_join</span>(pre_qa_counts, <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;DX&quot;</span>, <span class="st">&quot;Site&quot;</span>), <span class="dt">suffix =</span> <span class="kw">c</span>(<span class="st">&quot;_after_fmri_qa&quot;</span>, <span class="st">&quot;_before_qa&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">inner_join</span>(pre_pre_qa_counts, <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;DX&quot;</span>, <span class="st">&quot;Site&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">inner_join</span>(pre_pre_qa_ses_counts, <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;DX&quot;</span>, <span class="st">&quot;Site&quot;</span>)))</code></pre></div>
+</div>
+<div id="write-this-table-out-to-csv---than-read-the-csv-and-print-it" class="section level2">
+<h2><span class="header-section-number">3.8</span> write this table out to csv - than read the csv and print it</h2>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">write_csv</span>(sub_numbers_table, <span class="kw">here</span>(<span class="st">&quot;data&quot;</span>, <span class="st">&quot;processed&quot;</span>, <span class="st">&quot;pheno&quot;</span>, <span class="st">&quot;pre_and_post_qa_counts.csv&quot;</span>))</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">read_csv</span>(<span class="kw">here</span>(<span class="st">&quot;data&quot;</span>, <span class="st">&quot;processed&quot;</span>, <span class="st">&quot;pheno&quot;</span>, <span class="st">&quot;pre_and_post_qa_counts.csv&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span>knitr<span class="op">::</span><span class="kw">kable</span>()</code></pre></div>
+<pre><code>## Parsed with column specification:
+## cols(
+##   DX = col_character(),
+##   Site = col_character(),
+##   n_after_fmri_qa = col_double(),
+##   n_before_qa = col_double(),
+##   n_before_anat_qa = col_double(),
+##   n_ses_before_anat_qa = col_double()
+## )</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">DX</th>
+<th align="left">Site</th>
+<th align="right">n_after_fmri_qa</th>
+<th align="right">n_before_qa</th>
+<th align="right">n_before_anat_qa</th>
+<th align="right">n_ses_before_anat_qa</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">CTRL</td>
+<td align="left">CMH</td>
+<td align="right">41</td>
+<td align="right">41</td>
+<td align="right">41</td>
+<td align="right">41</td>
+</tr>
+<tr class="even">
+<td align="left">CTRL</td>
+<td align="left">COBRE</td>
+<td align="right">35</td>
+<td align="right">90</td>
+<td align="right">90</td>
+<td align="right">90</td>
+</tr>
+<tr class="odd">
+<td align="left">CTRL</td>
+<td align="left">ds000030</td>
+<td align="right">107</td>
+<td align="right">122</td>
+<td align="right">122</td>
+<td align="right">122</td>
+</tr>
+<tr class="even">
+<td align="left">CTRL</td>
+<td align="left">ZHH</td>
+<td align="right">110</td>
+<td align="right">122</td>
+<td align="right">124</td>
+<td align="right">124</td>
+</tr>
+<tr class="odd">
+<td align="left">SSD</td>
+<td align="left">CMH</td>
+<td align="right">67</td>
+<td align="right">67</td>
+<td align="right">67</td>
+<td align="right">67</td>
+</tr>
+<tr class="even">
+<td align="left">SSD</td>
+<td align="left">COBRE</td>
+<td align="right">22</td>
+<td align="right">85</td>
+<td align="right">85</td>
+<td align="right">91</td>
+</tr>
+<tr class="odd">
+<td align="left">SSD</td>
+<td align="left">ds000030</td>
+<td align="right">31</td>
+<td align="right">50</td>
+<td align="right">50</td>
+<td align="right">50</td>
+</tr>
+<tr class="even">
+<td align="left">SSD</td>
+<td align="left">ZHH</td>
+<td align="right">83</td>
+<td align="right">114</td>
+<td align="right">115</td>
+<td align="right">175</td>
+</tr>
+</tbody>
+</table>
 </div>
 <div id="who-is-still-missing-a-pint-output" class="section level2">
-<h2><span class="header-section-number">3.7</span> who is still missing a PINT output?</h2>
+<h2><span class="header-section-number">3.9</span> who is still missing a PINT output?</h2>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">anti_join</span>(qa_passes_pheno, pintdf,
-          <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;dataset&quot;</span>, <span class="st">&quot;subject&quot;</span>, <span class="st">&quot;session&quot;</span>)) </code></pre></div>
-<pre><code>## # A tibble: 0 x 37
-## # … with 37 variables: dataset &lt;chr&gt;, subject_id &lt;chr&gt;, session_id &lt;chr&gt;,
-## #   task_id &lt;chr&gt;, run_id &lt;chr&gt;, acq_id &lt;chr&gt;, fd_mean &lt;dbl&gt;,
-## #   fd_num &lt;dbl&gt;, fd_perc &lt;dbl&gt;, size_t &lt;dbl&gt;, size_x &lt;dbl&gt;, size_y &lt;dbl&gt;,
-## #   size_z &lt;dbl&gt;, spacing_tr &lt;dbl&gt;, spacing_x &lt;dbl&gt;, spacing_y &lt;dbl&gt;,
-## #   spacing_z &lt;dbl&gt;, subject &lt;chr&gt;, session &lt;chr&gt;, num_rest &lt;int&gt;,
-## #   num_t1w &lt;int&gt;, num_scans &lt;int&gt;, cmh_session_id &lt;chr&gt;, DX &lt;chr&gt;,
-## #   Age &lt;dbl&gt;, Sex &lt;chr&gt;, Site &lt;chr&gt;, Scanner &lt;chr&gt;, GRID &lt;dbl&gt;,
-## #   zhh_session_id &lt;dbl&gt;, MRI_Date &lt;dbl&gt;, Edu &lt;dbl&gt;, isFEP &lt;chr&gt;,
-## #   ghost_NoGhost &lt;chr&gt;, LSurfArea &lt;dbl&gt;, RSurfArea &lt;dbl&gt;, SurfArea &lt;dbl&gt;</code></pre>
+          <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;dataset&quot;</span>, <span class="st">&quot;subject&quot;</span>)) </code></pre></div>
 </div>
 <div id="selecting-scans-with-least-motion" class="section level2">
-<h2><span class="header-section-number">3.8</span> Selecting scans with least motion</h2>
+<h2><span class="header-section-number">3.10</span> Selecting scans with least motion</h2>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># select the scan for each participant with the least motion</span>
-pheno &lt;-<span class="st"> </span>qa_passes_pheno <span class="op">%&gt;%</span>
+mangle_qa_passes &lt;-<span class="st"> </span>qa_passes_pheno <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">select</span>(<span class="op">-</span><span class="kw">ends_with</span>(<span class="st">&quot;_x&quot;</span>), <span class="op">-</span><span class="kw">ends_with</span>(<span class="st">&quot;_y&quot;</span>)) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">left_join</span>(pintdf,
           <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;dataset&quot;</span>, <span class="st">&quot;subject&quot;</span>, <span class="st">&quot;session&quot;</span>)) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">filter</span>(<span class="op">!</span><span class="kw">is.na</span>(filename)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">filter</span>(<span class="op">!</span><span class="kw">is.na</span>(filename)) 
+
+qa_passes_no_ZHH &lt;-<span class="st"> </span>mangle_qa_passes <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">filter</span>(dataset <span class="op">!=</span><span class="st"> &quot;ZHH&quot;</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">distinct</span>()
+qa_passes_no_ZHH_leastmotion &lt;-<span class="st"> </span>qa_passes_no_ZHH <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">left_join</span>(simple_pheno <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">select</span>(<span class="op">-</span>session), <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;dataset&quot;</span>, <span class="st">&quot;DX&quot;</span>, <span class="st">&quot;Site&quot;</span>)) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">group_by</span>(subject, dataset) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">arrange</span>(fd_perc) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">ungroup</span>() </code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">names</span>(qa_passes_no_ZHH_leastmotion)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">anti_join</span>(qa_passes_no_ZHH, qa_passes_no_ZHH_leastmotion, <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;dataset&quot;</span>, <span class="st">&quot;session&quot;</span>, <span class="st">&quot;fd_mean&quot;</span>))</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">bind_rows</span>(<span class="dt">pre_drop =</span> qa_passes_no_ZHH <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">count</span>(dataset),
+          <span class="dt">post_drop =</span> qa_passes_no_ZHH_leastmotion <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">count</span>(dataset),
+          <span class="dt">.id =</span> <span class="st">&quot;prepost&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">spread</span>(prepost, n)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">qa_passes_ZHH &lt;-<span class="st"> </span>mangle_qa_passes <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">filter</span>(dataset <span class="op">==</span><span class="st"> &quot;ZHH&quot;</span>) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">distinct</span>() <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">left_join</span>(simple_pheno, <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;dataset&quot;</span>, <span class="st">&quot;session&quot;</span>, <span class="st">&quot;DX&quot;</span>, <span class="st">&quot;Site&quot;</span>)) 
+
+qa_passes_ZHH_leastmotion &lt;-<span class="st"> </span>qa_passes_ZHH <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">group_by</span>(subject, dataset) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">arrange</span>(fd_perc) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ungroup</span>() 
+
+qa_passes_ZHH_chosenleastmotion &lt;-<span class="st"> </span>qa_passes_ZHH <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">group_by</span>(subject, dataset) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">arrange</span>(<span class="kw">desc</span>(zhh_chosen_sess), fd_num) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ungroup</span>() 
+
+## show table of picking scans purely for motion vs picking the scan with better clinical characterization.. 
+<span class="kw">bind_rows</span>(<span class="dt">before =</span> qa_passes_ZHH <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">count</span>(DX, isFEP),
+          <span class="dt">after_dropping_formot =</span> qa_passes_ZHH_leastmotion <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">count</span>(DX, isFEP),
+          <span class="dt">after_dropping_notchosen =</span> qa_passes_ZHH_chosenleastmotion <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">count</span>(DX, isFEP),
+          <span class="dt">.id =</span> <span class="st">&quot;prepost&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">spread</span>(prepost, n)</code></pre></div>
+<p>So, luckily, it looks like the difference between what we did before (just selecting the session with the least motion) and what we would like to do now (selecting the session with better clinical characterization) leads to similar subject lists (differing only by 15 sessions).</p>
+<p>Note - from this calculation it looks like we have repeat scans available for some later analysis from 33 SSD participants..</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">anti_join</span>(qa_passes_ZHH, qa_passes_ZHH_chosenleastmotion, <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;dataset&quot;</span>, <span class="st">&quot;session&quot;</span>, <span class="st">&quot;fd_mean&quot;</span>)) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">distinct</span>(subject) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">count</span>()</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pheno &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(qa_passes_no_ZHH_leastmotion,
+                   qa_passes_ZHH_chosenleastmotion)</code></pre></div>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pheno <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">x =</span> Age, <span class="dt">y =</span> SurfArea)) <span class="op">+</span><span class="st"> </span>
 <span class="st">  </span><span class="kw">geom_point</span>(<span class="kw">aes</span>(<span class="dt">color =</span> Site)) <span class="op">+</span><span class="st"> </span><span class="kw">geom_smooth</span>(<span class="dt">method =</span> <span class="st">&quot;lm&quot;</span>) </code></pre></div>
-<p><img src="01b_mangle_scanQA_covars_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">x =</span> fd_mean, <span class="dt">color =</span> DX)) <span class="op">+</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">geom_density</span>() <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_wrap</span>(<span class="op">~</span>Site, <span class="dt">ncol =</span> <span class="dv">1</span>)</code></pre></div>
 </div>
 <div id="final-mangle-of-the-phenotypic-data-transforming-variables" class="section level2">
-<h2><span class="header-section-number">3.9</span> final mangle of the phenotypic data (transforming variables)</h2>
+<h2><span class="header-section-number">3.11</span> final mangle of the phenotypic data (transforming variables)</h2>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">transform_to_normal &lt;-<span class="st"> </span><span class="cf">function</span>(X) {
   <span class="co"># calculate the best exponent using powerTransform:</span>
   pT &lt;-<span class="st"> </span>car<span class="op">::</span><span class="kw">powerTransform</span>(X)
   <span class="co"># apply the power transform and save the result to a new variable</span>
   X_pT &lt;-<span class="st"> </span>X<span class="op">^</span>pT<span class="op">$</span>lambda ## note ^ is exponent in r
   xout =<span class="st"> </span>scales<span class="op">::</span><span class="kw">rescale</span>(X_pT)
-  <span class="kw">return</span>(X_pT)
+  <span class="kw">return</span>(xout)
 }
 
 <span class="co"># transform age and fd_mean to normality</span>
@@ -414,12 +562,6 @@ pheno &lt;-<span class="st"> </span>pheno <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">distinct</span>() <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">count</span>(DX) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">inner_join</span>(pre_qa_counts, <span class="dt">by =</span> <span class="st">&quot;DX&quot;</span>, <span class="dt">suffix =</span> <span class="kw">c</span>(<span class="st">&quot;_after_qa&quot;</span>, <span class="st">&quot;_before_qa&quot;</span>))</code></pre></div>
-<pre><code>## # A tibble: 3 x 3
-##   DX    n_after_qa n_before_qa
-##   &lt;chr&gt;      &lt;int&gt;       &lt;int&gt;
-## 1 &lt;NA&gt;           2           9
-## 2 CTRL         294         377
-## 3 SSD          203         317</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pheno <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">group_by</span>(Site, DX) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">summarise</span>(<span class="dt">n =</span> <span class="kw">n</span>(),
@@ -433,33 +575,36 @@ pheno &lt;-<span class="st"> </span>pheno <span class="op">%&gt;%</span>
                                age_mean, age_sd, age_min, age_max),
            <span class="dt">sex_report =</span> <span class="kw">str_c</span>(nMale, <span class="st">&#39;(&#39;</span>, <span class="kw">sprintf</span>(<span class="st">&quot;%0.1f&quot;</span>, perc_male), <span class="st">&#39;%)&#39;</span>)) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">select</span>(Site, DX, n, age_report, sex_report)</code></pre></div>
-<pre><code>## # A tibble: 9 x 5
-## # Groups:   Site [4]
-##   Site     DX        n age_report         sex_report
-##   &lt;chr&gt;    &lt;chr&gt; &lt;int&gt; &lt;chr&gt;              &lt;chr&gt;     
-## 1 CMH      CTRL     41 26.4(6.7) 18 - 49  22(53.7%) 
-## 2 CMH      SSD      67 32.2(8.5) 18 - 50  40(59.7%) 
-## 3 COBRE    &lt;NA&gt;      2 40.0(2.8) 38 - 42  1(50.0%)  
-## 4 COBRE    CTRL     35 33.2(9.0) 18 - 51  23(65.7%) 
-## 5 COBRE    SSD      22 29.5(12.1) 19 - 55 19(86.4%) 
-## 6 ds000030 CTRL    107 30.4(8.1) 21 - 50  55(51.4%) 
-## 7 ds000030 SSD      31 35.2(9.3) 22 - 49  24(77.4%) 
-## 8 ZHH      CTRL    111 25.1(6.6) 15 - 41  48(43.2%) 
-## 9 ZHH      SSD      83 25.8(9.0) 15 - 57  63(75.9%)</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">qa_passes_pheno <span class="op">%&gt;%</span>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">bold_scan_params &lt;-<span class="st"> </span>qa_passes_pheno <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">mutate</span>(<span class="dt">scan_length =</span> size_t<span class="op">*</span><span class="dv">2</span><span class="op">/</span><span class="dv">60</span>,
          <span class="dt">spacing_x_round =</span> <span class="kw">round</span>(spacing_x, <span class="dv">3</span>),
          <span class="dt">spacing_z_round =</span> <span class="kw">round</span>(spacing_z,<span class="dv">3</span>)) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">group_by</span>(subject) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">sample_n</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">group_by</span>(Site, size_t, size_x, size_y, size_z, spacing_x_round, spacing_z_round, scan_length) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(Site, size_t, size_x, size_y, size_z, spacing_x_round, spacing_z_round, spacing_tr, scan_length) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">count</span>() <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">group_by</span>(Site) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">arrange</span>(<span class="op">-</span>n) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">slice</span>(<span class="dv">1</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">slice</span>(<span class="dv">1</span>) 
+
+<span class="kw">write_csv</span>(bold_scan_params, <span class="kw">here</span>(<span class="st">&quot;data&quot;</span>, <span class="st">&quot;processed&quot;</span>, <span class="st">&quot;pheno&quot;</span>, <span class="st">&quot;bold_scan_summary.csv&quot;</span>))</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">read_csv</span>(<span class="kw">here</span>(<span class="st">&quot;data&quot;</span>, <span class="st">&quot;processed&quot;</span>, <span class="st">&quot;pheno&quot;</span>, <span class="st">&quot;bold_scan_summary.csv&quot;</span>)) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">t</span>()</code></pre></div>
+<pre><code>## Parsed with column specification:
+## cols(
+##   Site = col_character(),
+##   size_t = col_double(),
+##   size_x = col_double(),
+##   size_y = col_double(),
+##   size_z = col_double(),
+##   spacing_x_round = col_double(),
+##   spacing_z_round = col_double(),
+##   spacing_tr = col_double(),
+##   scan_length = col_double(),
+##   n = col_double()
+## )</code></pre>
 <pre><code>##                 [,1]       [,2]       [,3]       [,4]      
 ## Site            &quot;CMH&quot;      &quot;COBRE&quot;    &quot;ds000030&quot; &quot;ZHH&quot;     
 ## size_t          &quot;208&quot;      &quot;149&quot;      &quot;152&quot;      &quot;148&quot;     
@@ -468,23 +613,79 @@ pheno &lt;-<span class="st"> </span>pheno <span class="op">%&gt;%</span>
 ## size_z          &quot;40&quot;       &quot;33&quot;       &quot;34&quot;       &quot;40&quot;      
 ## spacing_x_round &quot;3.125&quot;    &quot;3.750&quot;    &quot;3.000&quot;    &quot;3.750&quot;   
 ## spacing_z_round &quot;4.00&quot;     &quot;4.55&quot;     &quot;4.00&quot;     &quot;3.00&quot;    
+## spacing_tr      &quot;2&quot;        &quot;2&quot;        &quot;2&quot;        &quot;2&quot;       
 ## scan_length     &quot;6.933333&quot; &quot;4.966667&quot; &quot;5.066667&quot; &quot;4.933333&quot;
-## n               &quot; 98&quot;      &quot; 36&quot;      &quot;124&quot;      &quot;148&quot;</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">write_csv</span>(pheno, <span class="kw">here</span>(<span class="st">&#39;data/processed/pheno/20200202_pheno_qapass.csv&#39;</span>))</code></pre></div>
+## n               &quot; 98&quot;      &quot; 35&quot;      &quot;125&quot;      &quot;118&quot;</code></pre>
+</div>
+<div id="adding-matching-for-the-ds00030-subsample-first..." class="section level2">
+<h2><span class="header-section-number">3.12</span> adding matching for the ds00030 subsample first...</h2>
+<p>In ds00030 there are a lot more controls than SSD participants - and the controls are mostly from one scanner with no ghosting artifact.. so it might be good idea to drop some of them..</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(MatchIt)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ds30 &lt;-<span class="st"> </span>pheno <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">filter</span>(Site <span class="op">==</span><span class="st"> &quot;ds000030&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">select</span>(subject, DX, Age, Sex, ghost_NoGhost, Scanner, Site) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">DXnum =</span> <span class="kw">as.numeric</span>(<span class="kw">factor</span>(DX))<span class="op">-</span><span class="dv">1</span>)
+
+
+(ds30_match1 &lt;-<span class="st"> </span><span class="kw">matchit</span>(DXnum <span class="op">~</span><span class="st"> </span>Age <span class="op">+</span><span class="st"> </span>Sex <span class="op">+</span><span class="st"> </span><span class="kw">as.character</span>(ghost_NoGhost) <span class="op">+</span><span class="st"> </span><span class="kw">as.character</span>(Scanner),
+                     <span class="dt">data =</span> ds30))</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">therest &lt;-<span class="st"> </span>pheno <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">filter</span>(Site <span class="op">!=</span><span class="st"> &quot;ds000030&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">select</span>(subject, DX, Age, Sex, Scanner) <span class="op">%&gt;%</span>
+<span class="st">   </span><span class="kw">mutate</span>(<span class="dt">DXnum =</span> <span class="kw">as.numeric</span>(<span class="kw">factor</span>(DX))<span class="op">-</span><span class="dv">1</span>)
+
+
+(therest_match1 &lt;-<span class="st"> </span><span class="kw">matchit</span>(DXnum <span class="op">~</span><span class="st"> </span>Age <span class="op">+</span><span class="st"> </span>Sex <span class="op">+</span><span class="st"> </span><span class="kw">as.character</span>(Scanner),
+                     <span class="dt">data =</span> therest))</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pheno1 &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(
+  pheno <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">semi_join</span>(<span class="kw">match.data</span>(ds30_match1), <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;Site&quot;</span>)),
+  pheno <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">semi_join</span>(<span class="kw">match.data</span>(therest_match1), <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;Scanner&quot;</span>)))
+
+pheno1 <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">count</span>(Site,DX)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pheno1 <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(Site, DX) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">summarise</span>(<span class="dt">n =</span> <span class="kw">n</span>(),
+            <span class="dt">nMale =</span> <span class="kw">sum</span>(Sex <span class="op">==</span><span class="st"> &quot;M&quot;</span>),
+            <span class="dt">perc_male =</span> nMale<span class="op">/</span><span class="kw">n</span>()<span class="op">*</span><span class="dv">100</span>,
+            <span class="dt">age_mean =</span> <span class="kw">mean</span>(Age, <span class="dt">na.rm =</span> T),
+            <span class="dt">age_sd =</span> <span class="kw">sd</span>(Age, <span class="dt">na.rm =</span> T),
+            <span class="dt">age_min =</span> <span class="kw">min</span>(Age, <span class="dt">na.rm =</span> T),
+            <span class="dt">age_max =</span> <span class="kw">max</span>(Age, <span class="dt">na.rm =</span> T)) <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">age_report =</span><span class="kw">sprintf</span>(<span class="st">&quot;%0.1f(%0.1f) %0.0f - %0.0f&quot;</span>, 
+                               age_mean, age_sd, age_min, age_max),
+           <span class="dt">sex_report =</span> <span class="kw">str_c</span>(nMale, <span class="st">&#39;(&#39;</span>, <span class="kw">sprintf</span>(<span class="st">&quot;%0.1f&quot;</span>, perc_male), <span class="st">&#39;%)&#39;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(Site, DX, n, age_report, sex_report)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pheno1 <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">x =</span> fd_mean, <span class="dt">color =</span> DX)) <span class="op">+</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">geom_density</span>() <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_wrap</span>(<span class="op">~</span>Site, <span class="dt">ncol =</span> <span class="dv">1</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">final_pheno &lt;-<span class="st"> </span>pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">left_join</span>(pheno1 <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">select</span>(subject, dataset, Age, fd_mean, SurfArea), 
+            <span class="dt">by =</span><span class="kw">c</span>(<span class="st">&quot;subject&quot;</span>, <span class="st">&quot;dataset&quot;</span>),
+            <span class="dt">suffix =</span> <span class="kw">c</span>(<span class="st">&quot;&quot;</span>, <span class="st">&quot;_match&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">in_matched_sample =</span> <span class="op">!</span><span class="kw">is.na</span>(Age_match),
+         <span class="dt">Age_match_pt =</span> <span class="kw">transform_to_normal</span>(Age_match),
+         <span class="dt">fd_mean_match_pt =</span> <span class="kw">transform_to_normal</span>(fd_mean_match),
+         <span class="dt">SurfArea_match_pt =</span> <span class="kw">transform_to_normal</span>(SurfArea_match))</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">final_pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">x =</span> fd_mean_match_pt, <span class="dt">color =</span> DX)) <span class="op">+</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">geom_density</span>() <span class="op">+</span>
+<span class="st">  </span><span class="kw">scale_colour_manual</span>(<span class="dt">values =</span> <span class="kw">c</span>(<span class="st">&quot;grey10&quot;</span>, <span class="st">&quot;red&quot;</span>)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_wrap</span>(<span class="op">~</span>Site, <span class="dt">ncol =</span> <span class="dv">1</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">final_pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">x =</span> SurfArea_match_pt, <span class="dt">color =</span> DX)) <span class="op">+</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">geom_density</span>() <span class="op">+</span>
+<span class="st">  </span><span class="kw">scale_colour_manual</span>(<span class="dt">values =</span> <span class="kw">c</span>(<span class="st">&quot;grey10&quot;</span>, <span class="st">&quot;red&quot;</span>)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_wrap</span>(<span class="op">~</span>Site, <span class="dt">ncol =</span> <span class="dv">1</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">final_pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">x =</span> SurfArea_match_pt, <span class="dt">color =</span> DX)) <span class="op">+</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">geom_density</span>() <span class="op">+</span>
+<span class="st">  </span><span class="kw">scale_colour_manual</span>(<span class="dt">values =</span> <span class="kw">c</span>(<span class="st">&quot;grey10&quot;</span>, <span class="st">&quot;red&quot;</span>)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_wrap</span>(<span class="op">~</span>Site, <span class="dt">ncol =</span> <span class="dv">1</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">write_csv</span>(final_pheno, <span class="kw">here</span>(<span class="st">&#39;data/processed/pheno/20200221_pheno_clinicalplusqa.csv&#39;</span>))</code></pre></div>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pheno <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">filter</span>(<span class="op">!</span><span class="kw">is.na</span>(DX)) <span class="op">%&gt;%</span>
 <span class="st">  </span><span class="kw">count</span>(Site, DX) </code></pre></div>
-<pre><code>## # A tibble: 8 x 3
-##   Site     DX        n
-##   &lt;chr&gt;    &lt;chr&gt; &lt;int&gt;
-## 1 CMH      CTRL     41
-## 2 CMH      SSD      67
-## 3 COBRE    CTRL     35
-## 4 COBRE    SSD      22
-## 5 ds000030 CTRL    107
-## 6 ds000030 SSD      31
-## 7 ZHH      CTRL    111
-## 8 ZHH      SSD      83</code></pre>
 <ul>
 <li>ASDD is done!</li>
 <li>ZHH is done! (note that the TR for scans without a TR was set to 2s by Saba and Dayton)</li>
@@ -495,7 +696,23 @@ pheno &lt;-<span class="st"> </span>pheno <span class="op">%&gt;%</span>
 <li>COBRE is done (enough) - but half of it never downloaded</li>
 <li>ds00030 5 subjects need to rerun ciftify..</li>
 </ul>
+<div id="write-out-subject-list-for-further-analysis" class="section level3">
+<h3><span class="header-section-number">3.12.1</span> write out subject list for further analysis</h3>
+<p>this section is run manually before the postPINT group steps are done..</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">source</span>(<span class="kw">here</span>(<span class="st">&#39;code&#39;</span>,<span class="st">&#39;R&#39;</span>,<span class="st">&#39;file_reading_helpers.R&#39;</span>))
 
+final_sublist &lt;-<span class="st"> </span>final_pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">func_base =</span> <span class="kw">get_func_base_from_pint_summary_filename</span>(filename,subject, session), 
+         <span class="dt">outputprefix =</span> <span class="kw">construct_output_prefix</span>(subject, session, func_base),
+         <span class="dt">expected_filepath =</span> <span class="kw">file.path</span>(dataset, <span class="st">&quot;out&quot;</span>,<span class="st">&#39;ciftify_PINT&#39;</span>, 
+                                 <span class="kw">str_c</span>(outputprefix, <span class="st">&#39;_desc-clean_bold_summary.csv&#39;</span>)))
+
+final_sublist <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(expected_filepath) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">arrange</span>(expected_filepath) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">write_csv</span>(<span class="dt">path =</span> <span class="kw">here</span>(<span class="st">&#39;data/processed/mri/all_clinicalplusqa_group/pint_summary_filelist.csv&#39;</span>), <span class="dt">col_names =</span> <span class="ot">FALSE</span>)</code></pre></div>
+
+</div>
 </div>
 </div>
             </section>
@@ -509,11 +726,13 @@ pheno &lt;-<span class="st"> </span>pheno <span class="op">%&gt;%</span>
   </div>
 <script src="libs/gitbook-2.6.7/js/app.min.js"></script>
 <script src="libs/gitbook-2.6.7/js/lunr.js"></script>
+<script src="libs/gitbook-2.6.7/js/clipboard.min.js"></script>
 <script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
 <script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
 <script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
 <script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
 <script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-clipboard.js"></script>
 <script>
 gitbook.require(["gitbook"], function(gitbook) {
 gitbook.start({
@@ -521,12 +740,11 @@ gitbook.start({
 "github": false,
 "facebook": true,
 "twitter": true,
-"google": false,
 "linkedin": false,
 "weibo": false,
 "instapaper": false,
 "vk": false,
-"all": ["facebook", "google", "twitter", "linkedin", "weibo", "instapaper"]
+"all": ["facebook", "twitter", "linkedin", "weibo", "instapaper"]
 },
 "fontsettings": {
 "theme": "white",
@@ -534,10 +752,14 @@ gitbook.start({
 "size": 2
 },
 "edit": {
-"link": "https://github.com/TIGRLab/SZ_PINT/edit/master/01b_mangle_scanQA_covars.Rmd",
+"link": "https://github.com/TIGRLab/SZ_PINT/edit/master/notebooks/Rmd/01b_mangle_scanQA_covars.Rmd",
 "text": "Edit"
 },
 "history": {
+"link": null,
+"text": null
+},
+"view": {
 "link": null,
 "text": null
 },
@@ -548,7 +770,10 @@ gitbook.start({
 "toolbar": {
 "position": "fixed"
 },
-"search": true
+"search": true,
+"share": {
+"github": true
+}
 });
 });
 </script>

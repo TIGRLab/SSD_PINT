@@ -1,6 +1,6 @@
 ---
 title: "04 PINT displacement stats"
-date: "13 February, 2020"
+date: "18 June, 2020"
 output:
   html_document:
     keep_md: true
@@ -15,20 +15,20 @@ library(tidyverse)
 ```
 
 ```
-## ── Attaching packages ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse 1.2.1 ──
+## ── Attaching packages ──────────────────────────────────────────────────────────────────────── tidyverse 1.3.0 ──
 ```
 
 ```
-## ✔ ggplot2 3.1.0       ✔ purrr   0.2.5  
-## ✔ tibble  2.0.1       ✔ dplyr   0.8.0.1
-## ✔ tidyr   0.8.2       ✔ stringr 1.3.1  
-## ✔ readr   1.3.0       ✔ forcats 0.3.0
+## ✓ ggplot2 3.3.1     ✓ purrr   0.3.4
+## ✓ tibble  3.0.1     ✓ dplyr   1.0.0
+## ✓ tidyr   1.1.0     ✓ stringr 1.4.0
+## ✓ readr   1.3.1     ✓ forcats 0.5.0
 ```
 
 ```
-## ── Conflicts ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
-## ✖ dplyr::filter() masks stats::filter()
-## ✖ dplyr::lag()    masks stats::lag()
+## ── Conflicts ─────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()
 ```
 
 ```r
@@ -54,7 +54,8 @@ YeoNet_colours = define_Yeo7_colours()
 ## adding a subid that matches what the concatenation script adds..
 pheno <- read_pheno_file() %>%
   mutate(subid = str_replace(filename, '_summary.csv','')) %>%
-  drop_na(DX)
+  drop_na(DX) %>%
+  drop_na(Age_match) # dropping un-matched subjects
 ```
 
 ```
@@ -69,14 +70,16 @@ pheno <- read_pheno_file() %>%
 ##   acq_id = col_character(),
 ##   subject = col_character(),
 ##   session = col_character(),
-##   cmh_session_id = col_character(),
 ##   DX = col_character(),
-##   Sex = col_character(),
 ##   Site = col_character(),
+##   filename = col_character(),
+##   cmh_session_id = col_character(),
+##   Sex = col_character(),
 ##   Scanner = col_character(),
 ##   isFEP = col_character(),
+##   zhh_chosen_sess = col_logical(),
 ##   ghost_NoGhost = col_character(),
-##   filename = col_character()
+##   in_matched_sample = col_logical()
 ## )
 ```
 
@@ -85,7 +88,10 @@ pheno <- read_pheno_file() %>%
 ```
 
 ```r
-pint_concat <- read_csv(file.path(output_base,'postPINT1_concat_all_qa_passes.csv'))
+#pint_concat <- read_csv(file.path(output_base,'postPINT1_concat_all_qa_passes.csv'))
+pint_concat <- read_csv(here("data","processed","mri",
+              "all_clinicalplusqa_group", "postPINT",
+              "postPINT1_concat_all_qa_passes.csv"))
 ```
 
 ```
@@ -103,27 +109,45 @@ pint_concat <- read_csv(file.path(output_base,'postPINT1_concat_all_qa_passes.cs
 ## )
 ```
 
+```r
+lm_predictors <- "DX + Age_match_pt + Sex + fd_mean_match_pt + Site + SurfArea_match_pt"
+lm_covars <- "Sex + fd_mean_match_pt + Site + SurfArea_match_pt"
+```
 
 
 ```r
-pheno %>%  
-  select(subject, dataset) %>%
-  distinct() %>%
-  count()
+library(modelr)
 ```
 
 ```
-## # A tibble: 1 x 1
-##       n
-##   <int>
-## 1   497
+## 
+## Attaching package: 'modelr'
 ```
+
+```
+## The following object is masked from 'package:broom':
+## 
+##     bootstrap
+```
+
+```r
+df_plus_resids <- function(df, outcome, covars) { 
+m1 <- lm(formula(paste(outcome, '~', paste(covars, collapse = " + "))),
+         data = df)
+result <-df %>% 
+  add_residuals(m1) 
+return(result)
+}
+```
+
+
 
 ```r
 ana_data <- pheno %>%
   inner_join(pint_concat, by = "subid") %>%
   inner_join(Yeo7_2011_80verts, by = "roiidx") %>%
-  mutate(network = str_sub(SHORTNAME, 1,2))
+  mutate(network = str_sub(SHORTNAME, 1,2),
+         network = factor(network, levels = names(YeoNet_colours)))
 ```
 
 
@@ -131,32 +155,38 @@ ana_data <- pheno %>%
 
 
 ```r
-dist_by_total <- pint_concat %>%
+dist_by_total <- ana_data %>%
   group_by(subid) %>%
   summarise(MeanDistance = mean(std_distance)) %>%
   ungroup() %>%
-  inner_join(pheno, by = "subid")  
+  inner_join(pheno, by = "subid") 
+```
 
-dist_by_total %>%
+```
+## `summarise()` ungrouping output (override with `.groups` argument)
+```
+
+```r
+dist_by_total_fit <- dist_by_total %>%
   ungroup() %>%
-  do(tidy(lm(MeanDistance ~ DX + Age_pt + Sex + fd_mean_pt + Site + SurfArea_pt,.))) %>%
-  mutate(p_bonf = p.value*6) %>%
-  knitr::kable()
+  do(tidy(lm(formula(paste("MeanDistance ~", lm_predictors)),.)))
+
+dist_by_total_fit %>%knitr::kable()
 ```
 
 
 
-term              estimate   std.error    statistic     p.value      p_bonf
--------------  -----------  ----------  -----------  ----------  ----------
-(Intercept)     10.4934545   2.0347512    5.1571192   0.0000004   0.0000022
-DXSSD           -0.1466062   0.0627130   -2.3377333   0.0198068   0.1188408
-Age_pt           4.2418153   1.0972011    3.8660326   0.0001257   0.0007541
-SexM             0.0596993   0.0713062    0.8372247   0.4028786   2.4172716
-fd_mean_pt       1.0963997   1.5419903    0.7110290   0.4774081   2.8644486
-SiteCOBRE       -0.3464107   0.1108145   -3.1260409   0.0018781   0.0112685
-Siteds000030    -0.5501351   0.0872879   -6.3025326   0.0000000   0.0000000
-SiteZHH          0.0722012   0.0787317    0.9170533   0.3595705   2.1574230
-SurfArea_pt     -0.2728473   0.0921273   -2.9616328   0.0032102   0.0192614
+term                   estimate   std.error    statistic     p.value
+------------------  -----------  ----------  -----------  ----------
+(Intercept)           7.9123671   0.1537307   51.4690092   0.0000000
+DXSSD                -0.1383787   0.0675476   -2.0486101   0.0411573
+Age_match_pt          0.5741340   0.1634885    3.5117706   0.0004963
+SexM                  0.0492648   0.0836917    0.5886459   0.5564336
+fd_mean_match_pt      0.3198708   0.2080922    1.5371587   0.1250510
+SiteCOBRE            -0.3676564   0.1215226   -3.0254157   0.0026445
+Siteds000030         -0.5622250   0.1093387   -5.1420482   0.0000004
+SiteZHH               0.0764913   0.0821198    0.9314596   0.3521820
+SurfArea_match_pt    -0.5926052   0.2320469   -2.5538165   0.0110277
 
 
 ```r
@@ -168,84 +198,101 @@ dist_by_total %>%
   theme_bw()
 ```
 
+```
+## `geom_smooth()` using formula 'y ~ x'
+```
+
 <img src="02a_pint_displacement_stats_files/figure-html/age-location-plot-byDX-1.png" width="672" />
 
 
+
+
 ```r
-dist_by_total %>%
-  ggplot(aes(y = MeanDistance, x = Age, color = DX)) +
-  geom_point() + 
-  geom_smooth(method = "lm")+
-  theme_bw()
+p1 <- dist_by_total %>%
+  ggplot(aes(y = MeanDistance, x = DX, color = DX)) + 
+  geom_boxplot(outlier.shape = NA) + 
+  geom_dotplot(binaxis = 'y', stackdir = 'center', binwidth = 0.08, alpha = 0.5) +
+  scale_color_manual(values = c("grey20","red")) +
+  facet_wrap( ~ Site, ncol = 4) +
+  labs(x = NULL, color = NULL) +
+  theme_minimal() +
+  labs(y = "PINT mean distance (mm)") +
+  theme(legend.position = "none")
 ```
 
-<img src="02a_pint_displacement_stats_files/figure-html/age-location-plot-1.png" width="672" />
+
+```r
+p2 <- dist_by_total %>%
+  df_plus_resids("MeanDistance", lm_covars) %>%
+  ggplot(aes(y = resid, x = Age, color = DX)) +
+  geom_point(alpha = 0.2) + 
+  geom_smooth(method = "lm")+
+  scale_color_manual(values = c("grey20","red")) +
+  theme_bw() +
+  labs(y = "PINT distance residuals") 
+```
+
 
 
 ```r
-dist_by_network <- pint_concat %>%
-  inner_join(Yeo7_2011_80verts, by = "roiidx") %>%
-  mutate(network = str_sub(SHORTNAME, 1,2)) %>%
+dist_by_network <- ana_data %>%
   group_by(subid, network) %>%
   summarise(MeanDistance = mean(std_distance)) %>%
   ungroup() %>%
   inner_join(pheno, by = "subid")  
+```
 
-dist_by_network %>%
+```
+## `summarise()` regrouping output by 'subid' (override with `.groups` argument)
+```
+
+```r
+dist_by_network_lmfit <- dist_by_network %>%
   ungroup() %>% group_by(network) %>%
-  do(tidy(aov(lm(MeanDistance ~ DX + Age_pt + Sex + fd_mean_pt + Scanner + SurfArea_pt,.)))) %>%
-  mutate(p_bonf = p.value*6) %>%
-  filter(!(term %in% c('Intercept', 'ScannerCOBRE', 'Scannerds00003035343', 'ScannerZHH', 'Scannerds00003035426'))) %>%
-  select(network, term, df, statistic, p.value, p_bonf) %>%
+  do(tidy(lm(formula(paste("MeanDistance ~", lm_predictors)),.))) %>%
+  mutate(p_bonf = p.value*6)
+
+dist_by_network_lmfit %>%
+  filter(!(term %in% c('(Intercept)', 'SiteCOBRE', 'Siteds000030', 'SiteZHH'))) %>%
+  #select(network, term, df, statistic, p.value, p_bonf) %>%
+  arrange(term, network) %>%
   knitr::kable()
 ```
 
 
 
-network   term            df    statistic     p.value      p_bonf
---------  ------------  ----  -----------  ----------  ----------
-DA        DX               1    0.3532816   0.5525391   3.3152346
-DA        Age_pt           1   12.0217421   0.0005727   0.0034363
-DA        Sex              1    0.0000806   0.9928397   5.9570381
-DA        fd_mean_pt       1    0.3414558   0.5592624   3.3555743
-DA        Scanner          4    5.5705136   0.0002167   0.0013004
-DA        SurfArea_pt      1    1.7744287   0.1834618   1.1007710
-DA        Residuals      484           NA          NA          NA
-DM        DX               1    0.1061633   0.7446959   4.4681757
-DM        Age_pt           1    5.1586493   0.0235692   0.1414152
-DM        Sex              1    6.0387566   0.0143448   0.0860689
-DM        fd_mean_pt       1    3.0434880   0.0816963   0.4901779
-DM        Scanner          4    5.7903617   0.0001473   0.0008839
-DM        SurfArea_pt      1    1.0292682   0.3108375   1.8650250
-DM        Residuals      484           NA          NA          NA
-FP        DX               1    1.2293379   0.2680865   1.6085188
-FP        Age_pt           1    4.2182044   0.0405291   0.2431747
-FP        Sex              1    1.0228033   0.3123603   1.8741617
-FP        fd_mean_pt       1    3.6095802   0.0580417   0.3482502
-FP        Scanner          4    1.5177324   0.1957679   1.1746074
-FP        SurfArea_pt      1   14.1124915   0.0001932   0.0011591
-FP        Residuals      484           NA          NA          NA
-SM        DX               1    0.0869153   0.7682624   4.6095742
-SM        Age_pt           1   16.5226128   0.0000561   0.0003366
-SM        Sex              1    0.0125257   0.9109344   5.4656067
-SM        fd_mean_pt       1    1.8318356   0.1765426   1.0592558
-SM        Scanner          4    5.0117573   0.0005766   0.0034598
-SM        SurfArea_pt      1    0.3107575   0.5774735   3.4648408
-SM        Residuals      484           NA          NA          NA
-VA        DX               1    0.1441132   0.7043922   4.2263530
-VA        Age_pt           1    1.8970876   0.1690413   1.0142476
-VA        Sex              1    0.4108716   0.5218308   3.1309850
-VA        fd_mean_pt       1    0.1003183   0.7515846   4.5095074
-VA        Scanner          4    6.6816251   0.0000307   0.0001840
-VA        SurfArea_pt      1    2.7537042   0.0976772   0.5860630
-VA        Residuals      484           NA          NA          NA
-VI        DX               1    0.3137753   0.5756319   3.4537911
-VI        Age_pt           1   16.3660012   0.0000608   0.0003646
-VI        Sex              1    1.3560252   0.2448012   1.4688072
-VI        fd_mean_pt       1    0.8478563   0.3576182   2.1457092
-VI        Scanner          4    6.0907240   0.0000869   0.0005211
-VI        SurfArea_pt      1    0.9719647   0.3246833   1.9480996
-VI        Residuals      484           NA          NA          NA
+network   term                   estimate   std.error    statistic     p.value      p_bonf
+--------  ------------------  -----------  ----------  -----------  ----------  ----------
+VI        Age_match_pt          1.1366964   0.4098716    2.7732985   0.0058108   0.0348648
+SM        Age_match_pt          1.6257206   0.5414940    3.0022873   0.0028490   0.0170941
+DA        Age_match_pt          0.6887221   0.3784455    1.8198713   0.0695315   0.4171893
+VA        Age_match_pt          0.0539861   0.2885697    0.1870817   0.8516922   5.1101530
+DM        Age_match_pt          0.0223583   0.3315875    0.0674281   0.9462748   5.6776490
+FP        Age_match_pt          0.5473200   0.2875183    1.9036004   0.0576851   0.3461107
+VI        DXSSD                -0.3441888   0.1693443   -2.0324793   0.0427703   0.2566215
+SM        DXSSD                -0.1908120   0.2237259   -0.8528828   0.3942386   2.3654314
+DA        DXSSD                -0.2102749   0.1563601   -1.3448117   0.1794538   1.0767229
+VA        DXSSD                -0.1610808   0.1192267   -1.3510464   0.1774500   1.0647002
+DM        DXSSD                -0.0645531   0.1370001   -0.4711901   0.6377638   3.8265830
+FP        DXSSD                 0.0378881   0.1187923    0.3189445   0.7499363   4.4996180
+VI        fd_mean_match_pt      0.4222965   0.5216948    0.8094703   0.4187296   2.5123774
+SM        fd_mean_match_pt      1.5855820   0.6892271    2.3005219   0.0219364   0.1316182
+DA        fd_mean_match_pt      0.4860387   0.4816949    1.0090178   0.3135807   1.8814841
+VA        fd_mean_match_pt      0.0296406   0.3672987    0.0806990   0.9357220   5.6143319
+DM        fd_mean_match_pt     -0.0342583   0.4220528   -0.0811707   0.9353471   5.6120826
+FP        fd_mean_match_pt     -0.0234690   0.3659605   -0.0641298   0.9488992   5.6933949
+VI        SexM                  0.1056483   0.2098182    0.5035232   0.6148758   3.6892545
+SM        SexM                 -0.2269101   0.2771973   -0.8185870   0.4135131   2.4810789
+DA        SexM                  0.0403942   0.1937308    0.2085067   0.8349403   5.0096416
+VA        SexM                  0.2196289   0.1477223    1.4867684   0.1378697   0.8272183
+DM        SexM                 -0.1941668   0.1697436   -1.1438825   0.2533616   1.5201697
+FP        SexM                  0.2146303   0.1471841    1.4582441   0.1455639   0.8733835
+VI        SurfArea_match_pt    -1.2264312   0.5817501   -2.1081753   0.0356420   0.2138519
+SM        SurfArea_match_pt     0.8309689   0.7685679    1.0811913   0.2802684   1.6816102
+DA        SurfArea_match_pt    -0.3447443   0.5371455   -0.6418080   0.5213683   3.1282096
+VA        SurfArea_match_pt    -0.4979558   0.4095806   -1.2157701   0.2247949   1.3487697
+DM        SurfArea_match_pt    -0.4369830   0.4706377   -0.9284912   0.3537170   2.1223021
+FP        SurfArea_match_pt    -1.5147434   0.4080883   -3.7118028   0.0002352   0.0014111
 
 
 
@@ -253,36 +300,131 @@ VI        Residuals      484           NA          NA          NA
 
 
 ```r
-dist_by_network %>%
-  ggplot(aes(y = MeanDistance, x = Age)) +
-  geom_point(alpha = 0.2, size = 0.5) + 
+p3 <- dist_by_network %>%
+  group_by(network) %>%
+  nest() %>%
+  mutate(result = map(data, ~df_plus_resids(.x, "MeanDistance", lm_covars))) %>%
+  unnest(result) %>%
+  ggplot(aes(y = resid, x = Age)) +
+  geom_point(aes(color = DX),alpha = 0.2, size = 0.5) +
   geom_smooth(aes(color = DX), method = "lm") +
   facet_wrap(~network, scales = "free", nrow = 1) +
-  scale_color_manual(values = c("grey20","red"))
+  scale_color_manual(values = c("grey20","red"))+
+  theme_minimal() +
+  labs(y = "PINT distance residuals") +
+  theme(legend.position = "none")
 ```
 
-<img src="02a_pint_displacement_stats_files/figure-html/age-loc_dx-plot-1.png" width="960" />
 
 
-## run linear model per edge
+```r
+report_model_beta_t <- function(tidy_model, this_term, p_value_col = p.value) {
+  p_value_col = enquo(p_value_col)
+  tidy_model %>%
+    filter(term == this_term) %>%
+    mutate(
+      beta = specify_decimal(estimate,2),
+      beta_se = specify_decimal(std.error,2),
+      t_stat = specify_decimal(statistic,2),
+      pval_str = ifelse(!!p_value_col < 0.001, 
+                           format(!!p_value_col, scientific = TRUE, digits = 2),
+                           specify_decimal(!!p_value_col,3)),
+      pval_str = ifelse(!!p_value_col > 0.10, "ns", pval_str),
+      report_str = str_glue("beta(SE)={beta}({beta_se}), t={t_stat}, p={pval_str}")) %>%
+    pull(report_str)
+}
+report_model_beta_t(dist_by_network_lmfit %>% filter(network == "SM"), "Age_match_pt", p_value_col = p_bonf)
+```
+
+```
+## beta(SE)=1.63(0.54), t=3.00, p=0.017
+```
+
+
+We investigated the mean of the distance that ROIs travelled during hte PINT algorithm as a measure of variability in intrinsic network topography, using linear models with SSD diagnosis and Age as predictors, and covariates of Sex, Site, total surface area and movement during the fMRI scan (mean framewise displacement). For mean distance travelled, across all 80 ROIs, We observe a small effect of SSD diagnosis, such that participants wiht SSD had a smaller distance travelled healthy controls (beta(SE)=-0.14(0.07), t=-2.05, p=0.041). Moreover, observed a linear effect of age of RSN network location variability, where older adults were more similar to the template than younger adults.  (beta(SE)=0.57(0.16), t=3.51, p=5e-04, see Supplemental Figure 2). When we tested mean distance travelled separately for each intrinsic network, a significant effect of SSD diagnosis was not observed in any individual network after bonferonni correction for the 6 networks tested. The negative linear effect of age was observed for the visual (beta(SE)=1.14(0.41), t=2.77, p=0.035) and sensory motor networks (beta(SE)=1.63(0.54), t=3.00, p=0.017).
+
+## double check that model/plot look right without COBRE and ds00030
+
+
+```r
+library(cowplot)
+```
+
+```
+## 
+## ********************************************************
+```
+
+```
+## Note: As of version 1.0.0, cowplot does not change the
+```
+
+```
+##   default ggplot2 theme anymore. To recover the previous
+```
+
+```
+##   behavior, execute:
+##   theme_set(theme_cowplot())
+```
+
+```
+## ********************************************************
+```
+
+```r
+top_row <- plot_grid(p1, p2, labels = c('A', 'B'), label_size = 12)
+```
+
+```
+## `geom_smooth()` using formula 'y ~ x'
+```
+
+```r
+plot_grid(top_row, p3, labels = c("", 'C'), label_size = 12, ncol = 1)
+```
+
+```
+## `geom_smooth()` using formula 'y ~ x'
+```
+
+<img src="02a_pint_displacement_stats_files/figure-html/unnamed-chunk-8-1.png" width="672" />
+
+
+
+## run linear model per edge (not reported)
 
 
 ```r
 roi_dx_lm <- ana_data %>%
   ungroup() %>% group_by(SHORTNAME) %>%
-  do(tidy(lm(std_distance ~ DX + Sex + fd_mean_pt + Age_pt + Scanner,.))) %>%
+  do(tidy(lm(formula(paste("std_distance ~", lm_predictors)),.))) %>%
   ungroup() %>% group_by(term) %>%
   mutate(p_fdr  = p.adjust(p.value, method = 'fdr'))
 
 roi_dx_lm %>%
-  filter(term == "Age_pt") %>%
+  filter(term %in% c("DXSSD")) %>%
+  filter(p_fdr < 0.1)
+```
+
+```
+## # A tibble: 0 x 7
+## # Groups:   term [0]
+## # … with 7 variables: SHORTNAME <chr>, term <chr>, estimate <dbl>,
+## #   std.error <dbl>, statistic <dbl>, p.value <dbl>, p_fdr <dbl>
+```
+
+```r
+roi_dx_lm %>%
+  filter(term %in% c("Age_match_pt")) %>%
   filter(p_fdr < 0.1)
 ```
 
 ```
 ## # A tibble: 1 x 7
 ## # Groups:   term [1]
-##   SHORTNAME term   estimate std.error statistic   p.value   p_fdr
-##   <chr>     <chr>     <dbl>     <dbl>     <dbl>     <dbl>   <dbl>
-## 1 VI03L     Age_pt     34.5      8.58      4.02 0.0000662 0.00530
+##   SHORTNAME term         estimate std.error statistic   p.value   p_fdr
+##   <chr>     <chr>           <dbl>     <dbl>     <dbl>     <dbl>   <dbl>
+## 1 VI03L     Age_match_pt     5.24      1.26      4.15 0.0000403 0.00322
 ```
+

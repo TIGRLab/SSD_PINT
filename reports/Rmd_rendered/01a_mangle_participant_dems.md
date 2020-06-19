@@ -1,15 +1,22 @@
 ---
 title: "Mangle the phenotypic data"
-date: "13 February, 2020"
+date: "18 June, 2020"
 ---
 
 # Mangle participant demographics
 
 #### Note: this chapter uses the resticted (unshared) phenotypic data. So can only be run on a CAMH computer..
 
-We output the file `data/phenotypic/simple_pheno_20200202.csv` which is carrier forward to the next script..
+We output the file `data/processed/pheno/simple_pheno_20200221.csv` which is carrier forward to the next script..
 
 The code chunks below where run on the kimel lab system and not only echo when rest of the notebooks are run.. (i.e. eval = FALSE)
+
+##### all computations here are locked on Feb 21, 2020 (they are not repeated as when this book is rerun)
+
+
+```r
+knitr::opts_chunk$set(eval = FALSE)
+```
 
 ----
 
@@ -49,46 +56,42 @@ library(here)
 
 
 ```r
+## these hold the more extended data pulls from 2018
 ZHH_SZ = read.spss(here('data/raw/restricted_pheno/ZHH/phenotypic/Patient\ Sample\ 7-30-18.sav'), to.data.frame=TRUE)
 ZHH_CRTL = read.spss(here('data/raw/restricted_pheno/ZHH/phenotypic/Control Sample 7-30-18.sav'), to.data.frame=TRUE)
 
-qryHC_NewResting_15_40 <- read_excel(here("data/raw/restricted_pheno/ZHH/demographics/qryHC_NewResting_15-40.xlsx"))
+
+## these hold the original phenotypic pull that was used to determine the BIDS session id
+qryHC_firstexcel <- read_excel(here("data/raw/restricted_pheno/ZHH/demographics/qryHC_NewResting_15-40.xlsx"))
+qrySZ_firstexcel <- read_excel(here("data/raw/restricted_pheno/ZHH/demographics/qrySZ_Sess_Miklos.xlsx"))
 ```
-
-
-Putting together the simplest stuff
+### mangle the ZZH data - determining the mapping between the ZHH session name and Dayton's bids name
 
 
 ```r
-vars_from_both <- c("GRID", "SessNo","MRI_Date", "Age", "Sex", "DX", "Edu")
+qryHC <- qryHC_firstexcel %>%
+  mutate(subject = str_c("sub-",GRID)) %>%
+  select(subject, SessNo, Age, sex) 
+  
+qrySZ <- qrySZ_firstexcel %>%
+  mutate(subject = str_c("sub-",grid)) %>%
+  select(subject, SessNo, Age, sex) 
 
-mangle_CTRL_ZHH <- qryHC_NewResting_15_40 %>%
-  select(SessNo, sex) %>%
-  right_join(ZHH_CRTL, by = "SessNo") %>%
-  mutate(Sex = factor(sex, levels = c(1,2), labels = c("M", "F")),
-         DX = "CTRL",
-         Edu = EducatPtHighest) %>%
-  select(one_of(vars_from_both))
-
-mangle_SZ_ZHH <- ZHH_SZ %>%
-  mutate(GRID = grid,
-         Sex = factor(sex, levels = c("male", "female"), labels = c("M", "F")),
-         DX = "SSD",
-         Edu = EducationPatient) %>%
-  rename(isFEP = Type) %>%
-  select(one_of(vars_from_both), isFEP)
-
-ZHH_pheno <-bind_rows(mangle_SZ_ZHH, mangle_CTRL_ZHH) %>%
-  rename(zhh_session_id = SessNo) %>%
-  mutate(subject = str_c('sub-',GRID),
-         dataset = "ZHH",
+qry_both <- bind_rows("CTRL" = qryHC, 
+                      "SSD" = qrySZ,
+                      .id = "DX") %>%
+    group_by(subject) %>%
+    mutate(session = str_c("ses-0",min_rank(SessNo))) %>%
+    ungroup() %>%
+    mutate(dataset = "ZHH",
          Site = "ZHH",
-         Scanner = "ZHH")
-
-rm(mangle_CTRL_ZHH, mangle_SZ_ZHH)
-
-GRIDs_w_cerebellum_cutoff <- c(7793, 7834, 9405)
+         Scanner = "ZHH",
+         SessNo = as.character(SessNo),
+         Sex = factor(sex, levels = c(1,2), labels = c("M", "F"))) %>%
+  select(-sex) 
 ```
+
+
 
 ## Coding ZHH data by session
 
@@ -112,6 +115,85 @@ orig_T1w_both = bind_rows(orig_T1w_HC, orig_T1w_SZ)
 
 orig_both = inner_join(orig_rest_both, orig_T1w_both, by = "SessNo")
 ```
+
+
+
+```r
+ZHH_pheno1 <- semi_join(qry_both, orig_both, by = "SessNo")
+```
+
+
+Putting together the simplest stuff
+
+
+```r
+vars_from_both <- c("GRID", "zhh_session_id","MRI_Date", "Age", "Sex", "DX", "Edu")
+
+mangle_CTRL_ZHH <- qryHC_firstexcel %>%
+  select(SessNo, sex) %>%
+  right_join(ZHH_CRTL, by = "SessNo") %>%
+  mutate(zhh_session_id = as.character(SessNo),
+         GRID = as.character(GRID)) %>%
+  mutate(Sex = factor(sex, levels = c(1,2), labels = c("M", "F")),
+         DX = "CTRL",
+         Edu = EducatPtHighest) %>%
+  select(one_of(vars_from_both))
+
+mangle_SZ_ZHH <- ZHH_SZ %>%
+  mutate(zhh_session_id = as.character(SessNo),
+         GRID = as.character(grid)) %>%
+  mutate(Sex = factor(sex, levels = c("male", "female"), labels = c("M", "F")),
+         DX = "SSD",
+         Edu = EducationPatient) %>%
+  rename(isFEP = Type) %>%
+  select(one_of(vars_from_both), isFEP)
+
+ZHH_pheno2 <-bind_rows(mangle_SZ_ZHH, mangle_CTRL_ZHH) %>%
+  mutate(subject = str_c('sub-',GRID),
+         dataset = "ZHH",
+         Site = "ZHH",
+         Scanner = "ZHH") %>%
+  select(-GRID, -MRI_Date, -Edu)
+
+#rm(mangle_CTRL_ZHH, mangle_SZ_ZHH)
+
+GRIDs_w_cerebellum_cutoff <- c(7793, 7834, 9405)
+```
+
+
+```r
+ZHH_pheno1 %>%
+  distinct(subject) %>%
+  count()
+
+ZHH_pheno2 %>%
+  distinct(subject) %>%
+  count()
+```
+
+
+
+```r
+ZHH_pheno <- left_join(ZHH_pheno1, 
+           ZHH_pheno2 %>% select(zhh_session_id, Age, isFEP), 
+           by = c("SessNo"="zhh_session_id"),
+          suffix = c("", "_atIQ")) %>%
+  mutate(zhh_chosen_sess = !is.na(Age_atIQ))
+```
+
+*Note: (known issue) we discovered that, due to a duplicate row in the participants spreadsheet - one ZHH scan `SessNo` 22434 was copied into two sessions..(ses-01 & ses-02)* 
+
+Data from sub-11082-ses-02 should be discarded from further analyses - it does not exist..
+
+
+```r
+ZHH_pheno %>% filter(dataset == "ZHH", subject == "sub-11082")
+```
+
+```r
+ZHH_pheno <- ZHH_pheno %>% distinct()
+```
+
 
 
 #### the COBRE cohort
@@ -195,7 +277,7 @@ simple_pheno = bind_rows(CMH_pheno,
 
 
 ```r
-write_csv(simple_pheno, here("data/processed/pheno/simple_pheno_20200202.csv"))
+write_csv(simple_pheno, here("data/processed/pheno/simple_pheno_20200221.csv"))
 ```
 
 

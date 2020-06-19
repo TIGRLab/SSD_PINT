@@ -1,13 +1,12 @@
 <!DOCTYPE html>
-<html >
-
+<html lang="" xml:lang="">
 <head>
 
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>Chapter 2 Mangle participant demographics | SSD PINT analyses</title>
-  <meta name="description" content="This contains the analysis reported with the SSD pint paper">
-  <meta name="generator" content="bookdown  and GitBook 2.6.7">
+  <meta name="description" content="This contains the analysis reported with the SSD pint paper" />
+  <meta name="generator" content="bookdown 0.19 and GitBook 2.6.7" />
 
   <meta property="og:title" content="Chapter 2 Mangle participant demographics | SSD PINT analyses" />
   <meta property="og:type" content="book" />
@@ -22,18 +21,18 @@
   <meta name="twitter:description" content="This contains the analysis reported with the SSD pint paper" />
   
 
-<meta name="author" content="Erin Dickie">
+<meta name="author" content="Erin Dickie" />
 
 
-<meta name="date" content="2020-02-13">
+<meta name="date" content="2020-06-18" />
 
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   
   
-<link rel="prev" href="index.html">
-<link rel="next" href="check-completion-and-add-mr-qa.html">
+<link rel="prev" href="index.html"/>
+<link rel="next" href="check-completion-and-add-mr-qa.html"/>
 <script src="libs/jquery-2.2.3/jquery.min.js"></script>
 <link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
 <link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
@@ -41,6 +40,9 @@
 <link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
 <link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
 <link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet" />
+
+
 
 
 
@@ -104,14 +106,17 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <li><a href="./">R-stats in SSD PINT paper</a></li>
 
 <li class="divider"></li>
-<li class="chapter" data-level="1" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i><b>1</b> The index page</a></li>
+<li class="chapter" data-level="1" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i><b>1</b> The index page</a><ul>
+<li class="chapter" data-level="1.1" data-path="index.html"><a href="index.html#all-the-packages-in-this-book"><i class="fa fa-check"></i><b>1.1</b> all the packages in this book</a></li>
+</ul></li>
 <li class="chapter" data-level="2" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html"><i class="fa fa-check"></i><b>2</b> Mangle participant demographics</a><ul>
+<li class="chapter" data-level="2.0.1" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#mangle-the-zzh-data---determining-the-mapping-between-the-zhh-session-name-and-daytons-bids-name"><i class="fa fa-check"></i><b>2.0.1</b> mangle the ZZH data - determining the mapping between the ZHH session name and Dayton's bids name</a></li>
 <li class="chapter" data-level="2.1" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#coding-zhh-data-by-session"><i class="fa fa-check"></i><b>2.1</b> Coding ZHH data by session</a></li>
 <li class="chapter" data-level="2.2" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#note---re-picking-motion-cutoffs"><i class="fa fa-check"></i><b>2.2</b> Note - re picking motion cutoffs</a></li>
 <li class="chapter" data-level="2.3" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#now-looking-at-what-we-have-from-cobre"><i class="fa fa-check"></i><b>2.3</b> Now looking at what we have from COBRE</a></li>
 <li class="chapter" data-level="2.4" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#now-looking-at-the-cnp-we-have.."><i class="fa fa-check"></i><b>2.4</b> Now looking at the CNP we have..</a></li>
 <li class="chapter" data-level="2.5" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#add-where-are-is-the-cmh-demographic-info.."><i class="fa fa-check"></i><b>2.5</b> add where are is the CMH demographic info..</a></li>
-<li class="chapter" data-level="2.6" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#extra-little-bit-for-traking-down-missing-cobre"><i class="fa fa-check"></i><b>2.6</b> extra little bit for traking down “missing” COBRE</a></li>
+<li class="chapter" data-level="2.6" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#extra-little-bit-for-traking-down-missing-cobre"><i class="fa fa-check"></i><b>2.6</b> extra little bit for traking down &quot;missing&quot; COBRE</a></li>
 </ul></li>
 <li class="chapter" data-level="3" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html"><i class="fa fa-check"></i><b>3</b> Check completion and add MR QA</a><ul>
 <li class="chapter" data-level="3.1" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#get-a-list-of-available-bold-and-t1w-files-from-the-mriqc-outputs"><i class="fa fa-check"></i><b>3.1</b> Get a list of available bold and T1w files (from the mriqc outputs)</a><ul>
@@ -121,46 +126,57 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <li class="chapter" data-level="3.3" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#read-in-the-combined-demographics-from-the-last-chapter"><i class="fa fa-check"></i><b>3.3</b> read in the combined demographics from the last chapter</a></li>
 <li class="chapter" data-level="3.4" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#also-read-in-an-concatenate-all-the-surface-area-info-from-freesurfer"><i class="fa fa-check"></i><b>3.4</b> also read in an concatenate all the surface area info from freesurfer</a></li>
 <li class="chapter" data-level="3.5" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#anti-join-the-pheno-data-with-the-usable-scan-data-to-see-if-we-have-everything.."><i class="fa fa-check"></i><b>3.5</b> anti-join the pheno data with the usable scan data to see if we have everything..</a></li>
-<li class="chapter" data-level="3.6" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#setting-the-motion-threshold"><i class="fa fa-check"></i><b>3.6</b> Setting the motion threshold:</a></li>
-<li class="chapter" data-level="3.7" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#who-is-still-missing-a-pint-output"><i class="fa fa-check"></i><b>3.7</b> who is still missing a PINT output?</a></li>
-<li class="chapter" data-level="3.8" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#selecting-scans-with-least-motion"><i class="fa fa-check"></i><b>3.8</b> Selecting scans with least motion</a></li>
-<li class="chapter" data-level="3.9" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#final-mangle-of-the-phenotypic-data-transforming-variables"><i class="fa fa-check"></i><b>3.9</b> final mangle of the phenotypic data (transforming variables)</a></li>
+<li class="chapter" data-level="3.6" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#zhh-is-the-only-site-where-we-have-session-specific-pheno-information..-so-we-will-check-that"><i class="fa fa-check"></i><b>3.6</b> ZHH is the only site where we have session specific pheno information.. so we will check that</a></li>
+<li class="chapter" data-level="3.7" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#setting-the-motion-threshold"><i class="fa fa-check"></i><b>3.7</b> Setting the motion threshold:</a></li>
+<li class="chapter" data-level="3.8" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#write-this-table-out-to-csv---than-read-the-csv-and-print-it"><i class="fa fa-check"></i><b>3.8</b> write this table out to csv - than read the csv and print it</a></li>
+<li class="chapter" data-level="3.9" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#who-is-still-missing-a-pint-output"><i class="fa fa-check"></i><b>3.9</b> who is still missing a PINT output?</a></li>
+<li class="chapter" data-level="3.10" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#selecting-scans-with-least-motion"><i class="fa fa-check"></i><b>3.10</b> Selecting scans with least motion</a></li>
+<li class="chapter" data-level="3.11" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#final-mangle-of-the-phenotypic-data-transforming-variables"><i class="fa fa-check"></i><b>3.11</b> final mangle of the phenotypic data (transforming variables)</a></li>
+<li class="chapter" data-level="3.12" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#adding-matching-for-the-ds00030-subsample-first..."><i class="fa fa-check"></i><b>3.12</b> adding matching for the ds00030 subsample first...</a><ul>
+<li class="chapter" data-level="3.12.1" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#write-out-subject-list-for-further-analysis"><i class="fa fa-check"></i><b>3.12.1</b> write out subject list for further analysis</a></li>
+</ul></li>
 </ul></li>
 <li class="chapter" data-level="4" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html"><i class="fa fa-check"></i><b>4</b> Stats on the PINT summary displacement values</a><ul>
 <li class="chapter" data-level="4.1" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#the-paths-to-data"><i class="fa fa-check"></i><b>4.1</b> The paths to data</a></li>
 <li class="chapter" data-level="4.2" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#run-for-the-whole-head"><i class="fa fa-check"></i><b>4.2</b> run for the whole head</a></li>
-<li class="chapter" data-level="4.3" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#run-linear-model-per-edge"><i class="fa fa-check"></i><b>4.3</b> run linear model per edge</a></li>
+<li class="chapter" data-level="4.3" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#double-check-that-modelplot-look-right-without-cobre-and-ds00030"><i class="fa fa-check"></i><b>4.3</b> double check that model/plot look right without COBRE and ds00030</a></li>
+<li class="chapter" data-level="4.4" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#run-linear-model-per-edge-not-reported"><i class="fa fa-check"></i><b>4.4</b> run linear model per edge (not reported)</a></li>
 </ul></li>
-<li class="chapter" data-level="5" data-path="multi-dimensional-scaling-stats-on-pint-roi-locations.html"><a href="multi-dimensional-scaling-stats-on-pint-roi-locations.html"><i class="fa fa-check"></i><b>5</b> Multi-Dimensional Scaling Stats on PINT ROI locations</a></li>
-<li class="chapter" data-level="6" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html"><i class="fa fa-check"></i><b>6</b> Seedcorr Area Stats</a><ul>
-<li class="chapter" data-level="6.1" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html#the-paths-to-data-1"><i class="fa fa-check"></i><b>6.1</b> The paths to data</a></li>
-<li class="chapter" data-level="6.2" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html#known-issues"><i class="fa fa-check"></i><b>6.2</b> Known issues</a></li>
+<li class="chapter" data-level="5" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html"><i class="fa fa-check"></i><b>5</b> Sub-cortical Cortical Stats Left and Right</a><ul>
+<li class="chapter" data-level="5.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#the-paths-to-data-1"><i class="fa fa-check"></i><b>5.1</b> The paths to data</a><ul>
+<li class="chapter" data-level="5.1.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#this-reads-all-the-subcortical-files-it-can-find"><i class="fa fa-check"></i><b>5.1.1</b> This reads all the subcortical files it can find</a></li>
+<li class="chapter" data-level="5.1.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#reduce-data-from-the-whole-brain-data-to-only-include-the-subcortical-cortical-connections"><i class="fa fa-check"></i><b>5.1.2</b> reduce data from the whole brain data to only include the subcortical cortical connections</a></li>
+<li class="chapter" data-level="5.1.3" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#merge-with-the-phenotypic-data"><i class="fa fa-check"></i><b>5.1.3</b> merge with the phenotypic data</a></li>
 </ul></li>
-<li class="chapter" data-level="7" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html"><i class="fa fa-check"></i><b>7</b> Sub-cortical Cortical Stats Left and Right</a><ul>
-<li class="chapter" data-level="7.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#the-paths-to-data-2"><i class="fa fa-check"></i><b>7.1</b> The paths to data</a><ul>
-<li class="chapter" data-level="7.1.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#this-reads-all-the-subcortical-files-it-can-find"><i class="fa fa-check"></i><b>7.1.1</b> This reads all the subcortical files it can find</a></li>
-<li class="chapter" data-level="7.1.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#merge-with-the-phenotypic-data"><i class="fa fa-check"></i><b>7.1.2</b> merge with the phenotypic data</a></li>
+<li class="chapter" data-level="5.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#make-a-subject-table-from-resuts-pheno"><i class="fa fa-check"></i><b>5.2</b> make a subject table from resuts pheno</a></li>
 </ul></li>
-<li class="chapter" data-level="7.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#make-a-subject-table-from-resuts-pheno"><i class="fa fa-check"></i><b>7.2</b> make a subject table from resuts pheno</a></li>
+<li class="chapter" data-level="6" data-path="is-pint-focusing-cortical-subcortical-connectivity.html"><a href="is-pint-focusing-cortical-subcortical-connectivity.html"><i class="fa fa-check"></i><b>6</b> Is PINT &quot;focusing&quot; cortical subcortical connectivity</a></li>
+<li class="chapter" data-level="7" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html"><i class="fa fa-check"></i><b>7</b> Cortical-cortical results</a><ul>
+<li class="chapter" data-level="7.1" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html#to-do---rainclouds-for-withing-between-changes-in-cortical-cortical"><i class="fa fa-check"></i><b>7.1</b> To do - rainclouds for withing between changes in cortical cortical??</a></li>
 </ul></li>
-<li class="chapter" data-level="8" data-path="is-pint-focusing-cortical-subcortical-connectivity.html"><a href="is-pint-focusing-cortical-subcortical-connectivity.html"><i class="fa fa-check"></i><b>8</b> Is PINT “focusing” cortical subcortical connectivity</a></li>
-<li class="chapter" data-level="9" data-path="trying-to-calculate-an-vs-off-diagonal-term.html"><a href="trying-to-calculate-an-vs-off-diagonal-term.html"><i class="fa fa-check"></i><b>9</b> trying to calculate an vs off diagonal term</a></li>
-<li class="chapter" data-level="10" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html"><i class="fa fa-check"></i><b>10</b> Cortical-cortical results</a><ul>
-<li class="chapter" data-level="10.1" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html#to-do---rainclouds-for-withing-between-changes-in-cortical-cortical"><i class="fa fa-check"></i><b>10.1</b> To do - rainclouds for withing between changes in cortical cortical??</a></li>
+<li class="chapter" data-level="8" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html"><i class="fa fa-check"></i><b>8</b> Whole Connectome Results</a><ul>
+<li class="chapter" data-level="8.1" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html#the-paths-to-data-2"><i class="fa fa-check"></i><b>8.1</b> The paths to data</a></li>
 </ul></li>
-<li class="chapter" data-level="11" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html"><i class="fa fa-check"></i><b>11</b> Whole Connectome Results</a><ul>
-<li class="chapter" data-level="11.1" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html#the-paths-to-data-3"><i class="fa fa-check"></i><b>11.1</b> The paths to data</a></li>
+<li class="chapter" data-level="9" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html"><i class="fa fa-check"></i><b>9</b> Code for reading in all the timeseries..</a><ul>
+<li class="chapter" data-level="9.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-was-run-once-in-order-to-detemine-the-too-small-subcortical-rois"><i class="fa fa-check"></i><b>9.1</b> This was run once in order to detemine the too small subcortical ROIs</a><ul>
+<li class="chapter" data-level="9.1.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-reads-all-the-subcortical-files-it-can-find-1"><i class="fa fa-check"></i><b>9.1.1</b> This reads all the subcortical files it can find</a></li>
+<li class="chapter" data-level="9.1.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#merge-with-the-phenotypic-data-1"><i class="fa fa-check"></i><b>9.1.2</b> merge with the phenotypic data</a></li>
 </ul></li>
-<li class="chapter" data-level="12" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html"><i class="fa fa-check"></i><b>12</b> Code for reading in all the timeseries..</a><ul>
-<li class="chapter" data-level="12.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-was-run-once-in-order-to-detemine-the-too-small-subcortical-rois"><i class="fa fa-check"></i><b>12.1</b> This was run once in order to detemine the too small subcortical ROIs</a><ul>
-<li class="chapter" data-level="12.1.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-reads-all-the-subcortical-files-it-can-find-1"><i class="fa fa-check"></i><b>12.1.1</b> This reads all the subcortical files it can find</a></li>
-<li class="chapter" data-level="12.1.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#merge-with-the-phenotypic-data-1"><i class="fa fa-check"></i><b>12.1.2</b> merge with the phenotypic data</a></li>
+<li class="chapter" data-level="9.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#calcualate-cohens-d-for-diagnosis-effect"><i class="fa fa-check"></i><b>9.2</b> calcualate cohen's D for Diagnosis Effect</a></li>
+<li class="chapter" data-level="9.3" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#filters-out-some-unwanted-edges-before-fdr-correction"><i class="fa fa-check"></i><b>9.3</b> filters out some unwanted edges before FDR correction</a></li>
+<li class="chapter" data-level="9.4" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-co"><i class="fa fa-check"></i><b>9.4</b> Make co</a></li>
+<li class="chapter" data-level="9.5" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-table-fdr-corrected-edges-that-survive-correction"><i class="fa fa-check"></i><b>9.5</b> make table FDR corrected Edges that survive correction</a><ul>
+<li class="chapter" data-level="9.5.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#calculated-extract-edge-weights-for-per-participant-scores"><i class="fa fa-check"></i><b>9.5.1</b> calculated extract edge weights for per participant scores</a></li>
+<li class="chapter" data-level="9.5.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#calculated-scores-per-participant"><i class="fa fa-check"></i><b>9.5.2</b> calculated scores per participant</a></li>
 </ul></li>
-<li class="chapter" data-level="12.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#filters-out-some-unwanted-edges-before-fdr-correction"><i class="fa fa-check"></i><b>12.2</b> filters out some unwanted edges before FDR correction</a></li>
-<li class="chapter" data-level="12.3" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-co"><i class="fa fa-check"></i><b>12.3</b> Make co</a></li>
-<li class="chapter" data-level="12.4" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-table-fdr-corrected-edges-that-survive-correction"><i class="fa fa-check"></i><b>12.4</b> make table FDR corrected Edges that survive correction</a></li>
+<li class="chapter" data-level="9.6" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#write-up-to-this-point.."><i class="fa fa-check"></i><b>9.6</b> write up to this point..</a></li>
 </ul></li>
-<li class="chapter" data-level="13" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><i class="fa fa-check"></i><b>13</b> calculate weighted subject scores by chopping up the matrix</a></li>
+<li class="chapter" data-level="10" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><i class="fa fa-check"></i><b>10</b> calculate weighted subject scores by chopping up the matrix</a><ul>
+<li class="chapter" data-level="10.1" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html#the-paths-to-data-3"><i class="fa fa-check"></i><b>10.1</b> The paths to data</a><ul>
+<li class="chapter" data-level="10.1.1" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html#refit-the-models-with-education-included"><i class="fa fa-check"></i><b>10.1.1</b> refit the models with Education included</a></li>
+<li class="chapter" data-level="10.1.2" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html#the-results-write-up"><i class="fa fa-check"></i><b>10.1.2</b> The results write-up</a></li>
+</ul></li>
+</ul></li>
 <li class="divider"></li>
 <li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
 
@@ -185,12 +201,15 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <h1><span class="header-section-number">Chapter 2</span> Mangle participant demographics</h1>
 <div id="note-this-chapter-uses-the-resticted-unshared-phenotypic-data.-so-can-only-be-run-on-a-camh-computer.." class="section level4">
 <h4><span class="header-section-number">2.0.0.1</span> Note: this chapter uses the resticted (unshared) phenotypic data. So can only be run on a CAMH computer..</h4>
-<p>We output the file <code>data/phenotypic/simple_pheno_20200202.csv</code> which is carrier forward to the next script..</p>
-<p>The code chunks below where run on the kimel lab system and not only echo when rest of the notebooks are run.. (i.e. eval = FALSE)</p>
+<p>We output the file <code>data/processed/pheno/simple_pheno_20200221.csv</code> which is carrier forward to the next script..</p>
+<p>The code chunks below where run on the kimel lab system and not only echo when rest of the notebooks are run.. (i.e. eval = FALSE)</p>
+<div id="all-computations-here-are-locked-on-feb-21-2020-they-are-not-repeated-as-when-this-book-is-rerun" class="section level5">
+<h5><span class="header-section-number">2.0.0.1.1</span> all computations here are locked on Feb 21, 2020 (they are not repeated as when this book is rerun)</h5>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">knitr<span class="op">::</span>opts_chunk<span class="op">$</span><span class="kw">set</span>(<span class="dt">eval =</span> <span class="ot">FALSE</span>)</code></pre></div>
 <hr />
 <p>and now it starts</p>
-<p>let’s get some idea of what data we have</p>
-<p>There are now Four/ish Center’s sites from which we are pooling data for this project</p>
+<p>let's get some idea of what data we have</p>
+<p>There are now Four/ish Center's sites from which we are pooling data for this project</p>
 <ul>
 <li>CAMH data (pooling across ASDD, RTMSWM, PNSC, SPINS studies..)</li>
 <li>COBRE data</li>
@@ -208,50 +227,49 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <li>diagnosis</li>
 </ul>
 </div>
+</div>
 <div id="starting-with-zhh" class="section level4">
 <h4><span class="header-section-number">2.0.0.2</span> Starting with ZHH</h4>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(foreign)
 <span class="kw">library</span>(tidyverse)
 <span class="kw">library</span>(readxl)
 <span class="kw">library</span>(here)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ZHH_SZ =<span class="st"> </span><span class="kw">read.spss</span>(<span class="kw">here</span>(<span class="st">&#39;data/raw/restricted_pheno/ZHH/phenotypic/Patient\ Sample\ 7-30-18.sav&#39;</span>), <span class="dt">to.data.frame=</span><span class="ot">TRUE</span>)
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">## these hold the more extended data pulls from 2018
+ZHH_SZ =<span class="st"> </span><span class="kw">read.spss</span>(<span class="kw">here</span>(<span class="st">&#39;data/raw/restricted_pheno/ZHH/phenotypic/Patient\ Sample\ 7-30-18.sav&#39;</span>), <span class="dt">to.data.frame=</span><span class="ot">TRUE</span>)
 ZHH_CRTL =<span class="st"> </span><span class="kw">read.spss</span>(<span class="kw">here</span>(<span class="st">&#39;data/raw/restricted_pheno/ZHH/phenotypic/Control Sample 7-30-18.sav&#39;</span>), <span class="dt">to.data.frame=</span><span class="ot">TRUE</span>)
 
-qryHC_NewResting_15_<span class="dv">40</span> &lt;-<span class="st"> </span><span class="kw">read_excel</span>(<span class="kw">here</span>(<span class="st">&quot;data/raw/restricted_pheno/ZHH/demographics/qryHC_NewResting_15-40.xlsx&quot;</span>))</code></pre></div>
-<p>Putting together the simplest stuff</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">vars_from_both &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;GRID&quot;</span>, <span class="st">&quot;SessNo&quot;</span>,<span class="st">&quot;MRI_Date&quot;</span>, <span class="st">&quot;Age&quot;</span>, <span class="st">&quot;Sex&quot;</span>, <span class="st">&quot;DX&quot;</span>, <span class="st">&quot;Edu&quot;</span>)
 
-mangle_CTRL_ZHH &lt;-<span class="st"> </span>qryHC_NewResting_15_<span class="dv">40</span> <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">select</span>(SessNo, sex) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">right_join</span>(ZHH_CRTL, <span class="dt">by =</span> <span class="st">&quot;SessNo&quot;</span>) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">Sex =</span> <span class="kw">factor</span>(sex, <span class="dt">levels =</span> <span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">2</span>), <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">&quot;M&quot;</span>, <span class="st">&quot;F&quot;</span>)),
-         <span class="dt">DX =</span> <span class="st">&quot;CTRL&quot;</span>,
-         <span class="dt">Edu =</span> EducatPtHighest) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">select</span>(<span class="kw">one_of</span>(vars_from_both))
+## these hold the original phenotypic pull that was used to determine the BIDS session id
+qryHC_firstexcel &lt;-<span class="st"> </span><span class="kw">read_excel</span>(<span class="kw">here</span>(<span class="st">&quot;data/raw/restricted_pheno/ZHH/demographics/qryHC_NewResting_15-40.xlsx&quot;</span>))
+qrySZ_firstexcel &lt;-<span class="st"> </span><span class="kw">read_excel</span>(<span class="kw">here</span>(<span class="st">&quot;data/raw/restricted_pheno/ZHH/demographics/qrySZ_Sess_Miklos.xlsx&quot;</span>))</code></pre></div>
+</div>
+<div id="mangle-the-zzh-data---determining-the-mapping-between-the-zhh-session-name-and-daytons-bids-name" class="section level3">
+<h3><span class="header-section-number">2.0.1</span> mangle the ZZH data - determining the mapping between the ZHH session name and Dayton's bids name</h3>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">qryHC &lt;-<span class="st"> </span>qryHC_firstexcel <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">subject =</span> <span class="kw">str_c</span>(<span class="st">&quot;sub-&quot;</span>,GRID)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(subject, SessNo, Age, sex) 
+  
+qrySZ &lt;-<span class="st"> </span>qrySZ_firstexcel <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">subject =</span> <span class="kw">str_c</span>(<span class="st">&quot;sub-&quot;</span>,grid)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(subject, SessNo, Age, sex) 
 
-mangle_SZ_ZHH &lt;-<span class="st"> </span>ZHH_SZ <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">GRID =</span> grid,
-         <span class="dt">Sex =</span> <span class="kw">factor</span>(sex, <span class="dt">levels =</span> <span class="kw">c</span>(<span class="st">&quot;male&quot;</span>, <span class="st">&quot;female&quot;</span>), <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">&quot;M&quot;</span>, <span class="st">&quot;F&quot;</span>)),
-         <span class="dt">DX =</span> <span class="st">&quot;SSD&quot;</span>,
-         <span class="dt">Edu =</span> EducationPatient) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">rename</span>(<span class="dt">isFEP =</span> Type) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">select</span>(<span class="kw">one_of</span>(vars_from_both), isFEP)
-
-ZHH_pheno &lt;-<span class="kw">bind_rows</span>(mangle_SZ_ZHH, mangle_CTRL_ZHH) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">rename</span>(<span class="dt">zhh_session_id =</span> SessNo) <span class="op">%&gt;%</span>
-<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">subject =</span> <span class="kw">str_c</span>(<span class="st">&#39;sub-&#39;</span>,GRID),
-         <span class="dt">dataset =</span> <span class="st">&quot;ZHH&quot;</span>,
+qry_both &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(<span class="st">&quot;CTRL&quot;</span> =<span class="st"> </span>qryHC, 
+                      <span class="st">&quot;SSD&quot;</span> =<span class="st"> </span>qrySZ,
+                      <span class="dt">.id =</span> <span class="st">&quot;DX&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">group_by</span>(subject) <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">session =</span> <span class="kw">str_c</span>(<span class="st">&quot;ses-0&quot;</span>,<span class="kw">min_rank</span>(SessNo))) <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">dataset =</span> <span class="st">&quot;ZHH&quot;</span>,
          <span class="dt">Site =</span> <span class="st">&quot;ZHH&quot;</span>,
-         <span class="dt">Scanner =</span> <span class="st">&quot;ZHH&quot;</span>)
-
-<span class="kw">rm</span>(mangle_CTRL_ZHH, mangle_SZ_ZHH)
-
-GRIDs_w_cerebellum_cutoff &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="dv">7793</span>, <span class="dv">7834</span>, <span class="dv">9405</span>)</code></pre></div>
+         <span class="dt">Scanner =</span> <span class="st">&quot;ZHH&quot;</span>,
+         <span class="dt">SessNo =</span> <span class="kw">as.character</span>(SessNo),
+         <span class="dt">Sex =</span> <span class="kw">factor</span>(sex, <span class="dt">levels =</span> <span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">2</span>), <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">&quot;M&quot;</span>, <span class="st">&quot;F&quot;</span>))) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(<span class="op">-</span>sex) </code></pre></div>
 </div>
 <div id="coding-zhh-data-by-session" class="section level2">
 <h2><span class="header-section-number">2.1</span> Coding ZHH data by session</h2>
 <p>When the ZHH data was converted to BIDS, we renamed the session ids in order. But the phenotypic data we have is coded by the original session ids. So lets map the original session ids to the ZHH data.</p>
-<p>Note: looking at Dayton’s scripts - he first joined the participants demographics witha list of what scans we have available.. then he sorted , within participant, by GRID session id and labeled those in orders (i.e 01, 02, 03 etc.)</p>
+<p>Note: looking at Dayton's scripts - he first joined the participants demographics witha list of what scans we have available.. then he sorted , within participant, by GRID session id and labeled those in orders (i.e 01, 02, 03 etc.)</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">orig_rest_HC &lt;-<span class="st"> </span><span class="kw">tibble</span>(<span class="dt">files =</span> <span class="kw">list.files</span>(<span class="kw">here</span>(<span class="st">&#39;data/raw/restricted_pheno/ZHH/raw/HC/rsfmri/&#39;</span>))) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">  </span><span class="kw">separate</span>(files, <span class="dt">into =</span> <span class="kw">c</span>(<span class="st">&#39;SessNo&#39;</span>, <span class="st">&#39;therest&#39;</span>) , <span class="dt">sep =</span> <span class="st">&#39;_&#39;</span>, <span class="dt">extra =</span> <span class="st">&quot;merge&quot;</span>)
 orig_T1w_HC &lt;-<span class="st"> </span><span class="kw">tibble</span>(<span class="dt">files =</span> <span class="kw">list.files</span>(<span class="kw">here</span>(<span class="st">&#39;data/raw/restricted_pheno/ZHH/raw/HC/struct/&#39;</span>)))  <span class="op">%&gt;%</span><span class="st"> </span>
@@ -265,6 +283,55 @@ orig_rest_both =<span class="st"> </span><span class="kw">bind_rows</span>(orig_
 orig_T1w_both =<span class="st"> </span><span class="kw">bind_rows</span>(orig_T1w_HC, orig_T1w_SZ)
 
 orig_both =<span class="st"> </span><span class="kw">inner_join</span>(orig_rest_both, orig_T1w_both, <span class="dt">by =</span> <span class="st">&quot;SessNo&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ZHH_pheno1 &lt;-<span class="st"> </span><span class="kw">semi_join</span>(qry_both, orig_both, <span class="dt">by =</span> <span class="st">&quot;SessNo&quot;</span>)</code></pre></div>
+<p>Putting together the simplest stuff</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">vars_from_both &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;GRID&quot;</span>, <span class="st">&quot;zhh_session_id&quot;</span>,<span class="st">&quot;MRI_Date&quot;</span>, <span class="st">&quot;Age&quot;</span>, <span class="st">&quot;Sex&quot;</span>, <span class="st">&quot;DX&quot;</span>, <span class="st">&quot;Edu&quot;</span>)
+
+mangle_CTRL_ZHH &lt;-<span class="st"> </span>qryHC_firstexcel <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(SessNo, sex) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">right_join</span>(ZHH_CRTL, <span class="dt">by =</span> <span class="st">&quot;SessNo&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">zhh_session_id =</span> <span class="kw">as.character</span>(SessNo),
+         <span class="dt">GRID =</span> <span class="kw">as.character</span>(GRID)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">Sex =</span> <span class="kw">factor</span>(sex, <span class="dt">levels =</span> <span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">2</span>), <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">&quot;M&quot;</span>, <span class="st">&quot;F&quot;</span>)),
+         <span class="dt">DX =</span> <span class="st">&quot;CTRL&quot;</span>,
+         <span class="dt">Edu =</span> EducatPtHighest) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(<span class="kw">one_of</span>(vars_from_both))
+
+mangle_SZ_ZHH &lt;-<span class="st"> </span>ZHH_SZ <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">zhh_session_id =</span> <span class="kw">as.character</span>(SessNo),
+         <span class="dt">GRID =</span> <span class="kw">as.character</span>(grid)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">Sex =</span> <span class="kw">factor</span>(sex, <span class="dt">levels =</span> <span class="kw">c</span>(<span class="st">&quot;male&quot;</span>, <span class="st">&quot;female&quot;</span>), <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">&quot;M&quot;</span>, <span class="st">&quot;F&quot;</span>)),
+         <span class="dt">DX =</span> <span class="st">&quot;SSD&quot;</span>,
+         <span class="dt">Edu =</span> EducationPatient) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">rename</span>(<span class="dt">isFEP =</span> Type) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(<span class="kw">one_of</span>(vars_from_both), isFEP)
+
+ZHH_pheno2 &lt;-<span class="kw">bind_rows</span>(mangle_SZ_ZHH, mangle_CTRL_ZHH) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">subject =</span> <span class="kw">str_c</span>(<span class="st">&#39;sub-&#39;</span>,GRID),
+         <span class="dt">dataset =</span> <span class="st">&quot;ZHH&quot;</span>,
+         <span class="dt">Site =</span> <span class="st">&quot;ZHH&quot;</span>,
+         <span class="dt">Scanner =</span> <span class="st">&quot;ZHH&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(<span class="op">-</span>GRID, <span class="op">-</span>MRI_Date, <span class="op">-</span>Edu)
+
+<span class="co">#rm(mangle_CTRL_ZHH, mangle_SZ_ZHH)</span>
+
+GRIDs_w_cerebellum_cutoff &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="dv">7793</span>, <span class="dv">7834</span>, <span class="dv">9405</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ZHH_pheno1 <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">distinct</span>(subject) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">count</span>()
+
+ZHH_pheno2 <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">distinct</span>(subject) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">count</span>()</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ZHH_pheno &lt;-<span class="st"> </span><span class="kw">left_join</span>(ZHH_pheno1, 
+           ZHH_pheno2 <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">select</span>(zhh_session_id, Age, isFEP), 
+           <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;SessNo&quot;</span>=<span class="st">&quot;zhh_session_id&quot;</span>),
+          <span class="dt">suffix =</span> <span class="kw">c</span>(<span class="st">&quot;&quot;</span>, <span class="st">&quot;_atIQ&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">zhh_chosen_sess =</span> <span class="op">!</span><span class="kw">is.na</span>(Age_atIQ))</code></pre></div>
+<p><em>Note: (known issue) we discovered that, due to a duplicate row in the participants spreadsheet - one ZHH scan <code>SessNo</code> 22434 was copied into two sessions..(ses-01 &amp; ses-02)</em></p>
+<p>Data from sub-11082-ses-02 should be discarded from further analyses - it does not exist..</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ZHH_pheno <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">filter</span>(dataset <span class="op">==</span><span class="st"> &quot;ZHH&quot;</span>, subject <span class="op">==</span><span class="st"> &quot;sub-11082&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">ZHH_pheno &lt;-<span class="st"> </span>ZHH_pheno <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">distinct</span>()</code></pre></div>
 <div id="the-cobre-cohort" class="section level4">
 <h4><span class="header-section-number">2.1.0.1</span> the COBRE cohort</h4>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">cobre_participants &lt;-<span class="st"> </span><span class="kw">read_delim</span>(<span class="kw">here</span>(<span class="st">&quot;data/raw/phenotypic/cobre_participants.tsv&quot;</span>),
@@ -327,7 +394,7 @@ CMH_pheno &lt;-<span class="st"> </span>old_pheno <span class="op">%&gt;%</span>
                          ZHH_pheno,
                          ds00030_participants,
                          cobre_participants)</code></pre></div>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">write_csv</span>(simple_pheno, <span class="kw">here</span>(<span class="st">&quot;data/processed/pheno/simple_pheno_20200202.csv&quot;</span>))</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">write_csv</span>(simple_pheno, <span class="kw">here</span>(<span class="st">&quot;data/processed/pheno/simple_pheno_20200221.csv&quot;</span>))</code></pre></div>
 </div>
 </div>
 <div id="note---re-picking-motion-cutoffs" class="section level2">
@@ -358,7 +425,7 @@ CMH_pheno &lt;-<span class="st"> </span>old_pheno <span class="op">%&gt;%</span>
 <hr />
 </div>
 <div id="extra-little-bit-for-traking-down-missing-cobre" class="section level2">
-<h2><span class="header-section-number">2.6</span> extra little bit for traking down “missing” COBRE</h2>
+<h2><span class="header-section-number">2.6</span> extra little bit for traking down &quot;missing&quot; COBRE</h2>
 
 </div>
 </div>
@@ -373,11 +440,13 @@ CMH_pheno &lt;-<span class="st"> </span>old_pheno <span class="op">%&gt;%</span>
   </div>
 <script src="libs/gitbook-2.6.7/js/app.min.js"></script>
 <script src="libs/gitbook-2.6.7/js/lunr.js"></script>
+<script src="libs/gitbook-2.6.7/js/clipboard.min.js"></script>
 <script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
 <script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
 <script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
 <script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
 <script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-clipboard.js"></script>
 <script>
 gitbook.require(["gitbook"], function(gitbook) {
 gitbook.start({
@@ -385,12 +454,11 @@ gitbook.start({
 "github": false,
 "facebook": true,
 "twitter": true,
-"google": false,
 "linkedin": false,
 "weibo": false,
 "instapaper": false,
 "vk": false,
-"all": ["facebook", "google", "twitter", "linkedin", "weibo", "instapaper"]
+"all": ["facebook", "twitter", "linkedin", "weibo", "instapaper"]
 },
 "fontsettings": {
 "theme": "white",
@@ -398,10 +466,14 @@ gitbook.start({
 "size": 2
 },
 "edit": {
-"link": "https://github.com/TIGRLab/SZ_PINT/edit/master/01a_mangle_participant_dems.Rmd",
+"link": "https://github.com/TIGRLab/SZ_PINT/edit/master/notebooks/Rmd/01a_mangle_participant_dems.Rmd",
 "text": "Edit"
 },
 "history": {
+"link": null,
+"text": null
+},
+"view": {
 "link": null,
 "text": null
 },
@@ -412,7 +484,10 @@ gitbook.start({
 "toolbar": {
 "position": "fixed"
 },
-"search": true
+"search": true,
+"share": {
+"github": true
+}
 });
 });
 </script>

@@ -28,10 +28,11 @@ library(here)
 ```r
 # These functions are for reading timeseries files
 source(here('code/R/settings_helpers.R'))
-source(here('code/R/file_reading_helpers.R'))
+#
 
 pheno <- read_pheno_file()%>%
-  drop_na(DX)
+  drop_na(DX) %>%
+  filter(in_matched_sample)
 ```
 
 ```
@@ -46,14 +47,16 @@ pheno <- read_pheno_file()%>%
 ##   acq_id = col_character(),
 ##   subject = col_character(),
 ##   session = col_character(),
-##   cmh_session_id = col_character(),
 ##   DX = col_character(),
-##   Sex = col_character(),
 ##   Site = col_character(),
+##   filename = col_character(),
+##   cmh_session_id = col_character(),
+##   Sex = col_character(),
 ##   Scanner = col_character(),
 ##   isFEP = col_character(),
+##   zhh_chosen_sess = col_logical(),
 ##   ghost_NoGhost = col_character(),
-##   filename = col_character()
+##   in_matched_sample = col_logical()
 ## )
 ```
 
@@ -63,7 +66,13 @@ pheno <- read_pheno_file()%>%
 
 ```r
 YeoNet_colours <- define_Yeo7_colours()
-Yeo7_2011_80verts <- read_Yeo72011_template()  
+Yeo7_2011_80verts <- read_Yeo72011_template() 
+
+lm_predictor_col = c("DX")
+lm_covar_cols <- c("Age_match_pt", 
+                    "Sex",
+                    "fd_mean_match_pt",
+                    "Site")
 ```
 
 # Code for reading in all the timeseries..
@@ -83,6 +92,11 @@ This reads all files and generate PINT to subcortical correlation values for a g
 
 ```r
 the_subcortical_guide <- get_subcortical_guide()
+```
+
+```
+## Warning: `cols` is now required when using unnest().
+## Please use `cols = c(subcort_NET)`
 ```
 
 ```
@@ -134,14 +148,12 @@ node_annotations <- get_node_annotations(Yeo7_2011_80verts, the_subcortical_guid
 Write a func_base and outputprefix cols into the pheno file for the file reading step
 
 
+
 ```r
+source(here('code/R/file_reading_helpers.R'))
 pheno <- pheno %>%
   mutate(func_base = get_func_base_from_pint_summary_filename(filename,subject, session), 
-         outputprefix = construct_output_prefix(subject, session, func_base)) 
-```
-
-
-```r
+         outputprefix = construct_output_prefix(subject, session, func_base))
 map2(pheno$outputprefix[1], pheno$dataset[1],
                               ~run_read_all_subject_timeseries_and_wholebrain_corZ(.x, .y))
 ```
@@ -149,21 +161,31 @@ map2(pheno$outputprefix[1], pheno$dataset[1],
 
 
 ```r
+source(here('code/R/file_reading_helpers.R'))
+pheno <- pheno %>%
+  mutate(func_base = get_func_base_from_pint_summary_filename(filename,subject, session), 
+         outputprefix = construct_output_prefix(subject, session, func_base))
 all_corZ_results <- pheno %>%
   select(subject, outputprefix, dataset) %>%
   mutate(the_corrs = map2(.$outputprefix, .$dataset,
                               ~run_read_all_subject_timeseries_and_wholebrain_corZ(.x, .y)))
+
+#save(all_corZ_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
+saveRDS(all_corZ_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_cache.rds"))
 ```
 
 
 ```r
-save(all_corZ_results, file = file.path(output_base, "all_qa_passes_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
+load(file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
 ```
+
+
 
 
 ```r
-load(file.path(output_base, "all_qa_passes_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
+all_corZ_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_cache.rds"))
 ```
+
 
 
 ### merge with the phenotypic data
@@ -172,8 +194,11 @@ load(file.path(output_base, "all_qa_passes_group", "Rdata_cache", "06_wholebrain
 ```r
 results_pheno <- all_corZ_results %>%
   inner_join(pheno, by = c("subject", "dataset")) %>%
-  unnest()  
+  unnest(cols = c(the_corrs))  
 ```
+
+
+
 
 
 
@@ -181,14 +206,136 @@ results_pheno <- all_corZ_results %>%
 results_pheno
 ```
 
+## calcualate cohen's D for Diagnosis Effect
+
 
 ```r
-DX_lm_model_full <- results_pheno %>%
+library(modelr)
+```
+
+```
+## 
+## Attaching package: 'modelr'
+```
+
+```
+## The following object is masked from 'package:igraph':
+## 
+##     permute
+```
+
+```
+## The following object is masked from 'package:broom':
+## 
+##     bootstrap
+```
+
+```r
+library(effsize)
+
+
+calc_DX_cohenD <- function(df, outcome, predictor, covars) { 
+m1 <- lm(formula(paste(outcome, '~', paste(covars, collapse = " + "))),
+         data = df)
+result <-df %>% 
+  add_residuals(m1) %>%
+  cohen.d(formula(paste("resid ~", predictor)), data = .) %>% 
+  .$estimate
+return(result)
+}
+```
+
+```r
+rm(all_corZ_results)
+```
+
+
+
+
+```r
+results_pheno_plus_DXd <- function(results_pheno) {
+  results_pheno %>%
   semi_join(node_annotations, by = c("to"="node_name")) %>%
   semi_join(node_annotations, by = c("from"="node_name")) %>%
   mutate(corZ = weight) %>%
   group_by(vertex_type, to, from) %>%
-  do(tidy(lm(corZ ~ DX + Age_pt + Sex + fd_mean_pt + Scanner,.))) 
+  nest() %>%
+  #slice(1:3) %>%
+  mutate(DX_cohenD = map(data, ~calc_DX_cohenD(.x, 
+                                               outcome = "corZ", 
+                                               predictor = "DX",
+                                               covars = lm_covar_cols))) %>%
+  unnest(DX_cohenD) %>%
+  ungroup() %>%
+  select(vertex_type, to, from, DX_cohenD)
+}
+
+## had to split this by vertex because of RAM issues on laptop
+pvertex_DXd <- results_pheno %>%
+  filter(vertex_type == "pvertex") %>%
+  results_pheno_plus_DXd()
+tvertex_DXd <- results_pheno %>%
+  filter(vertex_type == "tvertex") %>%
+  results_pheno_plus_DXd()
+tvolume_DXd <- results_pheno %>%
+  filter(vertex_type == "tvolume") %>%
+  results_pheno_plus_DXd()
+
+DX_cohensD_results <- bind_rows(
+  pvertex_DXd,
+  tvertex_DXd,
+  tvolume_DXd
+) 
+```
+
+
+```r
+DX_lm_formula <- formula(paste("corZ ~ ", lm_predictor_col, "+",
+                               paste(lm_covar_cols, collapse = " + ")))
+
+print(str_glue("fitting: lm formula {DX_lm_formula}"))
+```
+
+```
+## fitting: lm formula ~
+## fitting: lm formula corZ
+## fitting: lm formula DX + Age_match_pt + Sex + fd_mean_match_pt + Site
+```
+
+```r
+DX_lm_model_fit <- function(results_pheno) {
+  results_pheno %>%
+  semi_join(node_annotations, by = c("to"="node_name")) %>%
+  semi_join(node_annotations, by = c("from"="node_name")) %>%
+  mutate(corZ = weight) %>%
+  group_by(vertex_type, to, from) %>%
+  do(tidy(lm(DX_lm_formula,.))) 
+}
+
+## had to split this by vertex because of RAM issues on laptop
+pvertex_DX_lm <- results_pheno %>%
+  filter(vertex_type == "pvertex") %>%
+  DX_lm_model_fit()
+tvertex_DX_lm <- results_pheno %>%
+  filter(vertex_type == "tvertex") %>%
+  DX_lm_model_fit()
+tvolume_DX_lm <- results_pheno %>%
+  filter(vertex_type == "tvolume") %>%
+  DX_lm_model_fit()
+
+DX_lm_model_full <- bind_rows(
+  pvertex_DX_lm,
+  tvertex_DX_lm,
+  tvolume_DX_lm
+) 
+```
+
+```r
+DX_lm_formula
+```
+
+```
+## corZ ~ DX + Age_match_pt + Sex + fd_mean_match_pt + Site
 ```
 
 
@@ -223,12 +370,60 @@ DX_lm_model <- DX_lm_model_full %>%
   arrange(p.value)
 ```
 
+
+```r
+DX_lm_model_DXcohenD <- DX_lm_model %>%
+  filter(term == "DXSSD") %>%
+  inner_join(DX_cohensD_results, by = c("vertex_type", "to", "from")) %>%
+  mutate(cohenD_DX_tstatdir = -1 * DX_cohenD)
+DX_lm_model_DXcohenD %>%
+  ggplot(aes(cohenD_DX_tstatdir, statistic, color = (p_FDR < 0.05))) +
+  geom_point()
+```
+
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-12-1.png" width="672" />
+
+```r
+DX_lm_model_DXcohenD %>%
+  filter(p_FDR < 0.05) %>%
+  arrange(desc(p.value)) %>%
+  slice(1:5)
+```
+
+```
+## # A tibble: 5 x 9
+## # Groups:   term [1]
+##   vertex_type to    from  term  statistic p.value  p_FDR DX_cohenD
+##   <chr>       <chr> <chr> <chr>     <dbl>   <dbl>  <dbl>     <dbl>
+## 1 tvertex     DMT1L DAP3R DXSSD     -2.76 0.00603 0.0500     0.268
+## 2 tvolume     VAT1L VAF1L DXSSD      2.76 0.00603 0.0500    -0.268
+## 3 pvertex     R_ce… VAF3L DXSSD      2.76 0.00602 0.0499    -0.268
+## 4 tvolume     L_ce… FPP2R DXSSD     -2.76 0.00601 0.0499     0.268
+## 5 tvolume     L_th… VI01L DXSSD      2.76 0.00600 0.0499    -0.268
+## # … with 1 more variable: cohenD_DX_tstatdir <dbl>
+```
+
+
+
+```r
+saveRDS(DX_lm_model_DXcohenD, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_DXlmfits.rds"))
+```
+
+can get the model fit back from here..
+
+
+```r
+DX_lm_model_DXcohenD <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_DXlmfits.rds"))
+```
+
+
+
 ## Make co
 
 
 ```r
 source(here('code/R/swirly_plot_helpers.R'))
-DX_lm_model %>%
+DX_lm_model_DXcohenD %>%
   ungroup() %>%
   ## filtering steps
   filter(term == "DXSSD") %>%
@@ -241,12 +436,12 @@ DX_lm_model %>%
                       node_annotations = node_annotations)
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-10-1.png" width="960" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-16-1.png" width="960" />
 
 
 
 ```r
-DX_lm_model %>%
+DX_lm_model_DXcohenD %>%
   ungroup() %>%
   filter(term == "DXSSD") %>%
   filter(vertex_type == "tvertex") %>%
@@ -256,12 +451,12 @@ DX_lm_model %>%
                       node_annotations = node_annotations)
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-11-1.png" width="960" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-17-1.png" width="960" />
 
 
 
 ```r
-DX_lm_model %>%
+DX_lm_model_DXcohenD %>%
   ungroup() %>%
   filter(term == "DXSSD") %>%
   filter(vertex_type == "tvolume") %>%
@@ -271,13 +466,13 @@ DX_lm_model %>%
                       node_annotations = node_annotations)
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-12-1.png" width="960" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-18-1.png" width="960" />
 
 ## make table FDR corrected Edges that survive correction
 
 
 ```r
-DX_lm_model %>%
+DX_lm_model_DXcohenD %>%
   inner_join(annotated_graph_edges, by = c("to", "from")) %>%
   mutate(sig_edge = if_else(p_FDR < 0.05, "sig", "ns"),
          stat_pos = if_else(statistic > 0, "pos", "neg")) %>%
@@ -292,16 +487,98 @@ DX_lm_model %>%
 ## # Groups:   term [1]
 ##   term  vertex_type from_to_type       ns   sig perc_sig
 ##   <chr> <chr>       <chr>           <int> <int>    <dbl>
-## 1 DXSSD pvertex     Cort_Cort        2944   216     6.84
-## 2 DXSSD pvertex     SubCort_Cort     2663   537    16.8 
-## 3 DXSSD pvertex     SubCort_SubCort   260   273    51.2 
-## 4 DXSSD tvertex     Cort_Cort        2936   224     7.09
-## 5 DXSSD tvertex     SubCort_Cort     2734   466    14.6 
-## 6 DXSSD tvertex     SubCort_SubCort   260   273    51.2 
-## 7 DXSSD tvolume     Cort_Cort        3034   126     3.99
-## 8 DXSSD tvolume     SubCort_Cort     2883   317     9.91
-## 9 DXSSD tvolume     SubCort_SubCort   260   273    51.2
+## 1 DXSSD pvertex     Cort_Cort        2956   204     6.46
+## 2 DXSSD pvertex     SubCort_Cort     2760   440    13.8 
+## 3 DXSSD pvertex     SubCort_SubCort   249   284    53.3 
+## 4 DXSSD tvertex     Cort_Cort        2952   208     6.58
+## 5 DXSSD tvertex     SubCort_Cort     2829   371    11.6 
+## 6 DXSSD tvertex     SubCort_SubCort   249   284    53.3 
+## 7 DXSSD tvolume     Cort_Cort        3018   142     4.49
+## 8 DXSSD tvolume     SubCort_Cort     2923   277     8.66
+## 9 DXSSD tvolume     SubCort_SubCort   249   284    53.3
 ```
+
+
+```r
+DX_sig_edge_table <- DX_lm_model_DXcohenD %>%
+  inner_join(annotated_graph_edges, by = c("to", "from")) %>%
+  mutate(sig_edge = if_else(p_FDR < 0.05, "sig", "ns"),
+         stat_pos = if_else(statistic > 0, "pos", "neg")) %>%
+  filter(term == "DXSSD", from_to_type != "SubCort_SubCort") %>% 
+  count(vertex_type,  sig_edge) %>%
+  spread(sig_edge, n) %>%
+  mutate(perc_sig = sig/(ns + sig)*100)
+
+DX_sig_edge_table
+```
+
+```
+## # A tibble: 3 x 5
+## # Groups:   term [1]
+##   term  vertex_type    ns   sig perc_sig
+##   <chr> <chr>       <int> <int>    <dbl>
+## 1 DXSSD pvertex      5716   644    10.1 
+## 2 DXSSD tvertex      5781   579     9.10
+## 3 DXSSD tvolume      5941   419     6.59
+```
+
+
+
+```r
+YeoNet7 <- define_YeoNet7_colours()
+node_annotations1 <- node_annotations %>%
+  mutate(node_grouping  = if_else(etype == "Cort",
+                                  str_c("Cort", cort_NET),
+                                  as.character(subcort_ROI))) 
+
+node_groupings <- factor(1:9, 
+                         levels = c(1:9),
+                         labels = c(levels(node_annotations$subcort_ROI),
+                                    str_c("Cort",YeoNet7$network[1:6])))
+edge_grouping_guide <- matrix(1, 
+                  nrow = length(node_groupings),
+                  ncol = length(node_groupings),
+                  dimnames = list(node_groupings,
+                                  node_groupings)) %>%
+    graph_from_adjacency_matrix(mode="upper", 
+                                weighted=T, diag=T) %>%
+    as_data_frame() %>%
+  filter(!(from %in% c("striatum", "thalamus", "cerebellum") & to == from)) %>%
+  select(to, from)
+```
+
+
+
+
+
+
+```r
+DX_lm_model_DXcohenD %>%
+      ungroup() %>%
+      inner_join(node_annotations1, by = c("from"="node_name")) %>%
+      inner_join(node_annotations1, by = c("to"="node_name")) %>%
+      mutate(sig_edge = if_else(p_FDR < 0.05, "sig", "ns"),
+      stat_pos = if_else(statistic > 0, "pos", "neg")) %>%
+      filter(term == "DXSSD") %>% 
+      count(vertex_type, node_grouping.x, node_grouping.y, stat_pos, sig_edge) %>%
+      group_by(vertex_type, node_grouping.x, node_grouping.y, stat_pos) %>%
+      spread(sig_edge, n, fill = 0) %>%
+      mutate(sig_signed = if_else(stat_pos == "pos", sig, sig*-1),
+             node_grouping_x = factor(node_grouping.x, levels = node_groupings),
+             node_grouping_y = factor(node_grouping.y, levels = node_groupings)) %>%
+      mutate(node_grouping_fx = if_else(node_grouping_x == "CortDA" & node_grouping_y %in% c("CortVA", "CortFP", "CortDM"), 
+                                        node_grouping_y, node_grouping_x),
+             node_grouping_fy = if_else(node_grouping_x == "CortDA" & node_grouping_y %in% c("CortVA", "CortFP", "CortDM"), 
+                                        node_grouping_x, node_grouping_y)) %>%
+  ggplot(aes(x = node_grouping_fx, y = node_grouping_fy, fill = sig_signed)) +
+  geom_tile() +
+  geom_text(aes(label = sig)) +
+  scale_fill_distiller(breaks = c(-0.5,0.5), type = "div", palette = 5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_grid(vertex_type ~ stat_pos)
+```
+
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-22-1.png" width="576" />
 
 
 
@@ -335,7 +612,7 @@ return(result)
 
 
 ```r
-DX_lm_model %>%
+DX_lm_model_DXcohenD %>%
   filter(term == "DXSSD") %>%
   mutate(t_filtered = if_else(p_FDR < 0.1, statistic, 0)) %>%
   ungroup() %>%
@@ -355,7 +632,7 @@ DX_lm_model %>%
        x = NULL, y = NULL, fill = "T statistic for DX")
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-15-1.png" width="1152" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-24-1.png" width="1152" />
 
 `
 
@@ -373,7 +650,7 @@ DX_lm_model %>%
 
 
 ```r
-full_DX_mat <- DX_lm_model %>%
+full_DX_mat <- DX_lm_model_DXcohenD %>%
   filter(term == "DXSSD", vertex_type == "pvertex") %>%
   ungroup() %>%
   select(to, from, statistic) %>%
@@ -390,7 +667,331 @@ full_DX_mat %>%
        x = NULL, y = NULL, fill = "T statistic for DX")
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-16-1.png" width="1152" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-25-1.png" width="1152" />
+### trying to plot edges in subgroups
+
+Plotting Subcortical to Cortical Edges
+
+
+```r
+library(ggridges)
+
+make_subcortcort_edges_raincloud <- function(data,D_threshold) {
+
+get_subcort_net_edges <- function(data, this_YeoNet, D_threshold) {
+      data %>%
+      ungroup() %>%
+      select(to, from, cohenD_DX_tstatdir) %>%
+      uppertri_df_to_full() %>%
+      inner_join(node_annotations, by = c("to"="node_name")) %>%
+      inner_join(node_annotations, by = c("from"="node_name")) %>%
+      filter(etype.x == "SubCort") %>%
+      filter(etype.y == "Cort")
+      
+}
+
+DXweigths_pvertex <- data %>%
+  filter(term == "DXSSD", vertex_type == "pvertex") %>%
+  ungroup() %>%
+  get_subcort_net_edges(.,this_YeoNet) 
+
+DXweigths_tvertex <- data %>%
+  filter(term == "DXSSD", vertex_type == "tvertex") %>%
+  ungroup() %>%
+  get_subcort_net_edges(.,this_YeoNet)
+
+DXweigths_tvolume <- data %>%
+  filter(term == "DXSSD", vertex_type == "tvolume") %>%
+  ungroup() %>%
+  get_subcort_net_edges(.,this_YeoNet)
+
+Fz_DXweigths <- bind_rows(pvertex = DXweigths_pvertex,
+                     tvertex = DXweigths_tvertex,
+                     tvolume = DXweigths_tvolume,
+                     .id = "vertex_type") %>%
+      mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
+                             labels = c("Surface Personalized", 
+                                        "Surface Template", 
+                                        "Volume Template")),
+           hyper_hypo = case_when(value < -D_threshold ~ "hypo",
+                                  value > D_threshold ~ "hyper",
+                                  TRUE ~ "notsig"))
+
+plt_counts <- Fz_DXweigths %>%
+  count(corrtype, network.y, hyper_hypo) %>%
+  spread(hyper_hypo, n, fill = 0)
+
+
+make_one_net_ridgelines <- function(plt_data, plt_counts, this_YeoNet, D_threshold, no_ticks = TRUE) {
+    plt <- plt_data %>%
+    filter(as.character(network.y) %in% c(this_YeoNet)) %>%
+    ggplot(aes(y = corrtype, x = value)) +
+    geom_density_ridges(
+      #jittered_points = TRUE, position = "raincloud",
+      alpha = 0.5, scale = 2,
+      quantile_lines = TRUE, quantiles = 2,
+      color = YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode)
+    ) +
+    geom_text(aes(y = corrtype, label = hyper), 
+          x = 0.5, 
+          nudge_y = 0.2, data = plt_counts %>% filter(as.character(network.y) %in% c(this_YeoNet))) +
+    geom_text(aes(y = corrtype, label = hypo), 
+          x = -0.5, 
+          nudge_y = 0.2, data = plt_counts %>% filter(as.character(network.y) %in% c(this_YeoNet))) +
+    geom_vline(xintercept = 0) +
+    geom_vline(xintercept = D_threshold, linetype = "dashed") +
+    geom_vline(xintercept = -D_threshold, linetype = "dashed") +
+    scale_colour_manual(values = c(YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_x_continuous(limits = c(-0.5, 0.6)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+
+if (no_ticks==TRUE) {
+    plt <- plt + theme(axis.title.x=element_blank(),
+                       axis.text.x=element_blank())
+  } else {
+    plt <- plt + labs(x = "Subcortical to Cortical Edges")
+  }
+  return(plt)
+  
+}
+
+
+  DM <- make_one_net_ridgelines(Fz_DXweigths, plt_counts, "DM", D_threshold)
+  FP <- make_one_net_ridgelines(Fz_DXweigths, plt_counts, "FP", D_threshold)
+  VA <- make_one_net_ridgelines(Fz_DXweigths, plt_counts, "VA", D_threshold)
+  DA <- make_one_net_ridgelines(Fz_DXweigths, plt_counts, "DA", D_threshold)
+  SM <- make_one_net_ridgelines(Fz_DXweigths, plt_counts, "SM", D_threshold)
+  VI <- make_one_net_ridgelines(Fz_DXweigths, plt_counts, "VI", D_threshold, no_ticks = FALSE)
+
+  title <- ggdraw() + draw_label("Subcortical to Cortical", fontface='bold')
+  full_plt <- plot_grid(title, DM, FP, VA, DA, SM, VI,
+                   ncol = 1, rel_heights = c(0.5, 1, 1, 1, 1, 1, 1.5))
+  return(full_plt)
+}
+
+
+make_subcortcort_edges_raincloud(DX_lm_model_DXcohenD,D_threshold = 0.2678)
+```
+
+```
+## Picking joint bandwidth of 0.0335
+```
+
+```
+## Picking joint bandwidth of 0.0277
+```
+
+```
+## Picking joint bandwidth of 0.0346
+```
+
+```
+## Picking joint bandwidth of 0.0324
+```
+
+```
+## Picking joint bandwidth of 0.0376
+```
+
+```
+## Picking joint bandwidth of 0.0308
+```
+
+```
+## Warning: Removed 4 rows containing non-finite values (stat_density_ridges).
+```
+
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-26-1.png" width="480" />
+
+
+```r
+library(ggridges)
+
+make_cortcort_edges_raincloud <- function(data,D_threshold) {
+
+get_cortcort_net_edges <- function(data) {
+      data %>%
+      ungroup() %>%
+      select(to, from, cohenD_DX_tstatdir) %>%
+      uppertri_df_to_full() %>%
+      inner_join(node_annotations, by = c("to"="node_name")) %>%
+      inner_join(node_annotations, by = c("from"="node_name")) %>%
+      filter(etype.x == "Cort") %>%
+      filter(etype.y == "Cort")
+      
+}
+
+DXweigths_pvertex <- data %>%
+  filter(term == "DXSSD", vertex_type == "pvertex") %>%
+  ungroup() %>%
+  get_cortcort_net_edges() 
+
+DXweigths_tvertex <- data %>%
+  filter(term == "DXSSD", vertex_type == "tvertex") %>%
+  ungroup() %>%
+  get_cortcort_net_edges()
+
+DXweigths_tvolume <- data %>%
+  filter(term == "DXSSD", vertex_type == "tvolume") %>%
+  ungroup() %>%
+  get_cortcort_net_edges()
+
+Fz_DXweigths <- bind_rows(pvertex = DXweigths_pvertex,
+                     tvertex = DXweigths_tvertex,
+                     tvolume = DXweigths_tvolume,
+                     .id = "vertex_type") %>%
+      mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
+                             labels = c("Surface Personalized", 
+                                        "Surface Template", 
+                                        "Volume Template")),
+           hyper_hypo = case_when(value < -D_threshold ~ "hypo",
+                                  value > D_threshold ~ "hyper",
+                                  TRUE ~ "notsig"))
+
+all_plt_counts <- Fz_DXweigths %>%
+  count(corrtype, network.y, network.x, hyper_hypo) %>%
+  spread(hyper_hypo, n, fill = 0)
+
+
+make_two_net_ridgelines <- function(plt_data, all_plt_counts, network_x, network_y, D_threshold, no_ticks = TRUE) {
+    plt_counts <- all_plt_counts %>%
+      filter(as.character(network.x)== network_x,
+           as.character(network.y)== network_y,)
+  
+    plt <- plt_data %>%
+    filter(as.character(network.x)== network_x,
+           as.character(network.y)== network_y,) %>%
+    ggplot(aes(y = corrtype, x = value)) +
+    geom_density_ridges(
+      #jittered_points = TRUE, position = "raincloud",
+      alpha = 0.5, scale = 2,
+      quantile_lines = TRUE, quantiles = 2,
+      color = YeoNet7 %>% filter(network==network_x) %>% pull(hexcode),
+      fill = YeoNet7 %>% filter(network==network_y) %>% pull(hexcode)
+    ) +
+    geom_text(aes(y = corrtype, label = hyper), 
+          x = 0.5, 
+          nudge_y = 0.2, data = plt_counts) +
+    geom_text(aes(y = corrtype, label = hypo), 
+          x = -0.5, 
+          nudge_y = 0.2, data = plt_counts) +
+    geom_vline(xintercept = 0) +
+    geom_vline(xintercept = D_threshold, linetype = "dashed") +
+    geom_vline(xintercept = -D_threshold, linetype = "dashed") +
+    scale_x_continuous(limits = c(-0.5, 0.6)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+
+if (no_ticks==TRUE) {
+    plt <- plt + theme(axis.title.x=element_blank(),
+                       axis.text.x=element_blank())
+  } else {
+    plt <- plt + labs(x = "Cortical to Cortical Edges")
+  }
+  return(plt)
+  
+}
+
+  DM_DA <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DM", "DA", D_threshold)
+  DM_VA <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DM", "VA", D_threshold)
+  DM_SM <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DM", "SM", D_threshold)
+  FP_SM <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "FP", "SM", D_threshold)
+  VA_DA <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DA", "VA", D_threshold)
+  DA_SM <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DA", "SM", D_threshold)
+  VI_VI <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "VI", "VI", D_threshold, no_ticks = FALSE)
+
+  title <- ggdraw() + draw_label("Subcortical to Cortical", fontface='bold')
+  full_plt <- plot_grid(title, DM_DA, DM_VA, FP_SM, VA_DA, DA_SM, VI_VI,
+                   ncol = 1, rel_heights = c(0.5, 1,  1, 1, 1, 1,1.5))
+  return(full_plt)
+}
+
+
+make_cortcort_edges_raincloud(DX_lm_model_DXcohenD,D_threshold = 0.2678)
+```
+
+```
+## Picking joint bandwidth of 0.0307
+```
+
+```
+## Picking joint bandwidth of 0.0297
+```
+
+```
+## Picking joint bandwidth of 0.0366
+```
+
+```
+## Picking joint bandwidth of 0.031
+```
+
+```
+## Picking joint bandwidth of 0.0329
+```
+
+```
+## Picking joint bandwidth of 0.0497
+```
+
+```
+## Warning: Removed 2 rows containing non-finite values (stat_density_ridges).
+```
+
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-27-1.png" width="480" />
+
+
+```r
+D_threshold = 0.2678
+hypo_cerebullum_to <- DX_lm_model_DXcohenD %>%
+      ungroup() %>%
+      select(to, from, cohenD_DX_tstatdir) %>%
+      uppertri_df_to_full() %>%
+      inner_join(node_annotations, by = c("to"="node_name")) %>%
+      inner_join(node_annotations, by = c("from"="node_name")) %>% 
+    filter(subcort_ROI.x == "cerebellum") %>%
+    filter(subcort_ROI.y %in% c("striatum", "thalamus")) %>%
+    mutate(hyper_hypo = case_when(value < -D_threshold ~ "hypo",
+                                  value > D_threshold ~ "hyper",
+                                  TRUE ~ "notsig"),
+           corrtype = str_c(subcort_ROI.y, " to cerebellum"))
+
+plt_counts <- hypo_cerebullum_to %>%
+  count(corrtype, hyper_hypo) %>%
+  spread(hyper_hypo, n, fill = 0) %>%
+  mutate(hyper = 0) # note this only works because there is no hyper
+
+hypo_cerebullum_to %>%
+    ggplot(aes(y = corrtype, x = value)) +
+    geom_density_ridges(
+      #jittered_points = TRUE, position = "raincloud",
+      alpha = 0.5, scale = 1.5,
+      quantile_lines = TRUE, quantiles = 2
+    ) +
+    geom_text(aes(y = corrtype, label = hyper), 
+          x = 0.5, 
+          nudge_y = 0.2, data = plt_counts) +
+    geom_text(aes(y = corrtype, label = hypo), 
+          x = -2.5, 
+          nudge_y = 0.2, data = plt_counts) +
+    geom_vline(xintercept = 0) +
+    geom_vline(xintercept = D_threshold, linetype = "dashed") +
+    geom_vline(xintercept = -D_threshold, linetype = "dashed") +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+```
+
+```
+## Picking joint bandwidth of 0.121
+```
+
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-28-1.png" width="480" />
+
+
 
 
 ```r
@@ -398,7 +999,7 @@ calc_fc_weights <- function(lm_df, t_threshold) {
   
     full_DX_mat <- lm_df %>%
       ungroup() %>%
-      select(to, from, statistic) %>%
+      select(to, from, cohenD_DX_tstatdir) %>%
       uppertri_df_to_full() %>%
       inner_join(node_annotations, by = c("to"="node_name")) %>%
       inner_join(node_annotations, by = c("from"="node_name")) 
@@ -408,6 +1009,12 @@ hypo_cerebullum_to_striatum <- full_DX_mat %>%
     filter(subcort_ROI.y == "striatum") %>%
     filter(value < -t_threshold) %>%
     select(to, from, value) 
+
+hypo_cerebullum_to_thalamus <- full_DX_mat %>%
+    filter(subcort_ROI.x == "cerebellum") %>%
+    filter(subcort_ROI.y == "thalamus") %>%
+    filter(value < -t_threshold) %>%
+    select(to, from, value)
 
 hyper_subcort_to_SM <- full_DX_mat %>%
     filter(etype.x == "SubCort") %>%
@@ -420,6 +1027,13 @@ hyper_subcort_to_VI <- full_DX_mat %>%
     filter(etype.x == "SubCort") %>%
     filter(etype.y == "Cort") %>%
     filter(as.character(network.y) %in% c("VI")) %>%
+    filter(value > t_threshold) %>%
+    select(to, from, value)
+
+hyper_subcort_to_DA <- full_DX_mat %>%
+    filter(etype.x == "SubCort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.y) %in% c("DA")) %>%
     filter(value > t_threshold) %>%
     select(to, from, value)
 
@@ -444,11 +1058,11 @@ hypo_subcort_to_VA <- full_DX_mat %>%
     filter(value < -t_threshold) %>%
     select(to, from, value)
 
-hyper_cortSMVI_to_rest <- full_DX_mat %>%
+hyper_cortDA_to_SM <- full_DX_mat %>%
     filter(etype.x == "Cort") %>%
     filter(etype.y == "Cort") %>%
-    filter(as.character(network.x) %in% c("SM", "VI")) %>%
-    filter(as.character(network.y) %in% c("FP","DA", "VA", "DM")) %>%
+    filter(as.character(network.x) %in% c("DA")) %>%
+    filter(as.character(network.y) %in% c("SM")) %>%
     filter(value > t_threshold) %>%
     select(to, from, value)
 
@@ -460,23 +1074,52 @@ hyper_cortVA_to_DA <- full_DX_mat %>%
     filter(value > t_threshold) %>%
     select(to, from, value)
 
-hypo_cortDM_to_rest <- full_DX_mat %>%
+hyper_cortFP_to_SM <- full_DX_mat %>%
+    filter(etype.x == "Cort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.x) %in% c("FP")) %>%
+    filter(as.character(network.y) %in% c("SM")) %>%
+    filter(value > t_threshold) %>%
+    select(to, from, value)
+
+hypo_cortDM_to_DA <- full_DX_mat %>%
     filter(etype.x == "Cort") %>%
     filter(etype.y == "Cort") %>%
     filter(as.character(network.x) %in% c("DM")) %>%
-    filter(!(as.character(network.y) %in% c("DM"))) %>%
+    filter(as.character(network.y) %in% c("DA")) %>%
     filter(value < -t_threshold) %>%
     select(to, from, value)
 
-Fz_weigths <-bind_rows(hypo_cortDM_to_rest = hypo_cortDM_to_rest,
-                       hyper_cortSMVI_to_rest = hyper_cortSMVI_to_rest,
+hypo_cortDM_to_VA <- full_DX_mat %>%
+    filter(etype.x == "Cort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.x) %in% c("DM")) %>%
+    filter(as.character(network.y) %in% c("VA")) %>%
+    filter(value < -t_threshold) %>%
+    select(to, from, value)
+
+hypo_cortVI_to_VI <- full_DX_mat %>%
+    filter(etype.x == "Cort") %>%
+    filter(etype.y == "Cort") %>%
+    filter(as.character(network.x) %in% c("VI")) %>%
+    filter(as.character(network.y) %in% c("VI")) %>%
+    filter(value < -t_threshold) %>%
+    select(to, from, value)
+
+Fz_weigths <-bind_rows(hyper_cortDA_to_SM = hyper_cortDA_to_SM,
+                       hyper_cortFP_to_SM = hyper_cortFP_to_SM,
                        hyper_cortVA_to_DA = hyper_cortVA_to_DA,
+                       hypo_cortDM_to_DA = hypo_cortDM_to_DA,
+                       hypo_cortDM_to_VA = hypo_cortDM_to_VA,
+                       hypo_cortVI_to_VI = hypo_cortVI_to_VI,
                        hyper_subcort_to_DM = hyper_subcort_to_DM,
                        hypo_subcort_to_FP = hypo_subcort_to_FP,
                        hypo_subcort_to_VA = hypo_subcort_to_VA,
+                       hyper_subcort_to_DA = hyper_subcort_to_DA,
                        hyper_subcort_to_SM = hyper_subcort_to_SM,
                        hyper_subcort_to_VI = hyper_subcort_to_VI,
                        hypo_cerebullum_to_striatum = hypo_cerebullum_to_striatum,
+                       hypo_cerebullum_to_thalamus = hypo_cerebullum_to_thalamus,
                        .id = "direction_edge_group") %>%
   separate(direction_edge_group, into = c("effect_direction", "edge_group"), extra = "merge") %>%
   rename(edge_FC_weight = value)
@@ -486,40 +1129,39 @@ Fz_weigths <-bind_rows(hypo_cortDM_to_rest = hypo_cortDM_to_rest,
 }
 ```
 
-
+### calculated extract edge weights for per participant scores
 
 
 ```r
-t_threshold = 1.1
+cohenD_threshold = 0.2678
+cohenD_thresname = "pFDR"
 
-Fz_DXweigths_pvertex <- DX_lm_model %>%
+Fz_DXweigths_pvertex <- DX_lm_model_DXcohenD %>%
   filter(term == "DXSSD", vertex_type == "pvertex") %>%
   ungroup() %>%
-  calc_fc_weights(.,t_threshold)
+  calc_fc_weights(.,cohenD_threshold)
 
-Fz_DXweigths_tvertex <- DX_lm_model %>%
+Fz_DXweigths_tvertex <- DX_lm_model_DXcohenD %>%
   filter(term == "DXSSD", vertex_type == "tvertex") %>%
   ungroup() %>%
-  calc_fc_weights(.,t_threshold)
+  calc_fc_weights(.,cohenD_threshold)
 
-Fz_DXweigths_tvolume <- DX_lm_model %>%
+Fz_DXweigths_tvolume <- DX_lm_model_DXcohenD %>%
   filter(term == "DXSSD", vertex_type == "tvolume") %>%
   ungroup() %>%
-  calc_fc_weights(.,t_threshold)
+  calc_fc_weights(.,cohenD_threshold)
 
 Fz_DXweigths <- bind_rows(pvertex = Fz_DXweigths_pvertex,
                      tvertex = Fz_DXweigths_tvertex,
                      tvolume = Fz_DXweigths_tvolume,
                      .id = "vertex_type") 
-Fz_DXweigths %>% 
-  group_by(vertex_type, edge_group, effect_direction) %>%
-  summarise(median_weight = median(edge_FC_weight)) %>%
-  ggplot(aes(y = abs(median_weight), x = vertex_type, color = edge_group)) +
-    geom_point() +
-    geom_line(aes(group = edge_group))
-```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-18-1.png" width="672" />
+write_csv(Fz_DXweigths, file.path(output_base, 
+                                  "all_clinicalplusqa_group", 
+                                  "weighted_subject_FC_weigths",
+                                  str_c("SSD4cohorts_DXtweigths_", 
+                                        cohenD_thresname, ".csv")))
+```
 
 ```r
 Fz_DXweigths %>% 
@@ -528,48 +1170,24 @@ Fz_DXweigths %>%
 ```
 
 ```
-## # A tibble: 9 x 5
-##   edge_group             effect_direction pvertex tvertex tvolume
-##   <chr>                  <chr>              <int>   <int>   <int>
-## 1 cerebullum_to_striatum hypo                 162     162     162
-## 2 cortDM_to_rest         hypo                 402     369     204
-## 3 cortSMVI_to_rest       hyper                419     405     403
-## 4 cortVA_to_DA           hyper                147     139     124
-## 5 subcort_to_DM          hyper                270     225     119
-## 6 subcort_to_FP          hypo                 340     311     299
-## 7 subcort_to_SM          hyper                287     260     256
-## 8 subcort_to_VA          hypo                 218     216     239
-## 9 subcort_to_VI          hyper                371     344     267
+##                edge_group effect_direction pvertex tvertex tvolume
+## 1  cerebullum_to_striatum             hypo      86      86      86
+## 2  cerebullum_to_thalamus             hypo     131     131     131
+## 3            cortDA_to_SM            hyper      30      19      13
+## 4            cortDM_to_DA             hypo      32      15      NA
+## 5            cortDM_to_VA             hypo      23      21       4
+## 6            cortFP_to_SM            hyper       9      12      10
+## 7            cortVA_to_DA            hyper      23      33      30
+## 8            cortVI_to_VI             hypo      48      30       8
+## 9           subcort_to_DA            hyper      25      34      24
+## 10          subcort_to_DM            hyper      44      14      10
+## 11          subcort_to_FP             hypo      29      33      21
+## 12          subcort_to_SM            hyper     101      93      78
+## 13          subcort_to_VA             hypo      26      24      28
+## 14          subcort_to_VI            hyper     194     133      75
 ```
+### calculated scores per participant
 
-```r
-Fz_DXweigths %>% 
-  group_by(vertex_type, edge_group, effect_direction) %>%
-  summarise(median_weight = median(edge_FC_weight)) %>%
-  spread(vertex_type, median_weight)
-```
-
-```
-## # A tibble: 9 x 5
-## # Groups:   edge_group [9]
-##   edge_group             effect_direction pvertex tvertex tvolume
-##   <chr>                  <chr>              <dbl>   <dbl>   <dbl>
-## 1 cerebullum_to_striatum hypo               -2.85   -2.85   -2.85
-## 2 cortDM_to_rest         hypo               -2.03   -1.88   -1.55
-## 3 cortSMVI_to_rest       hyper               1.71    1.78    1.75
-## 4 cortVA_to_DA           hyper               1.96    2.01    1.88
-## 5 subcort_to_DM          hyper               2.05    1.82    1.62
-## 6 subcort_to_FP          hypo               -2.00   -1.91   -1.87
-## 7 subcort_to_SM          hyper               2.42    2.40    2.23
-## 8 subcort_to_VA          hypo               -1.72   -1.89   -1.80
-## 9 subcort_to_VI          hyper               3.00    2.79    2.27
-```
-
-```r
-write_csv(Fz_DXweigths_pvertex, file.path(output_base, "all_qa_passes_group", "weighted_subject_FC_weigths", "SSD4cohorts_DXtweigths_pvertex.csv"))
-write_csv(Fz_DXweigths_tvertex, file.path(output_base, "all_qa_passes_group", "weighted_subject_FC_weigths", "SSD4cohorts_DXtweigths_tvertex.csv"))
-write_csv(Fz_DXweigths_tvolume, file.path(output_base, "all_qa_passes_group", "weighted_subject_FC_weigths", "SSD4cohorts_DXtweigths_tvolume.csv"))
-```
 
 
 ```r
@@ -590,9 +1208,8 @@ calc_subjects_wFC_score <- function(subject_edges_df, edge_weights) {
   unnest(uptri) %>%
   inner_join(edge_weights, by = c("to", "from")) %>%
   ungroup() %>%
-  mutate(wcorZ = abs(edge_FC_weight) * value) %>%
   group_by(subject, dataset, effect_direction, edge_group) %>%
-  summarise(wFC_score = sum(wcorZ)/sum(abs(edge_FC_weight)),
+  summarise(wFC_score = weighted.mean(value, w = edge_FC_weight),
             mFC_score = mean(value)) %>%
   ungroup()
   return(result)
@@ -607,19 +1224,37 @@ pvertex_subject_FC_scores <- results_pheno %>%
   filter(vertex_type == "pvertex") %>%
   select(subject, dataset, to, from, weight) %>%
   calc_subjects_wFC_score(Fz_DXweigths_pvertex)
+```
 
+```
+## `summarise()` regrouping output by 'subject', 'dataset', 'effect_direction' (override with `.groups` argument)
+```
+
+```r
 tvertex_subject_FC_scores <- results_pheno %>%
   ungroup() %>%
   filter(vertex_type == "tvertex") %>%
   select(subject, dataset, to, from, weight) %>%
   calc_subjects_wFC_score(Fz_DXweigths_tvertex)
+```
 
+```
+## `summarise()` regrouping output by 'subject', 'dataset', 'effect_direction' (override with `.groups` argument)
+```
+
+```r
 tvolume_subject_FC_scores <- results_pheno %>%
   ungroup() %>%
   filter(vertex_type == "tvolume") %>%
   select(subject, dataset, to, from, weight) %>%
   calc_subjects_wFC_score(Fz_DXweigths_tvolume)
+```
 
+```
+## `summarise()` regrouping output by 'subject', 'dataset', 'effect_direction' (override with `.groups` argument)
+```
+
+```r
 FC_scores_together <- bind_rows(
   pvertex = pvertex_subject_FC_scores,
   tvertex = tvertex_subject_FC_scores,
@@ -628,10 +1263,26 @@ FC_scores_together <- bind_rows(
 )
 
 write_csv(FC_scores_together, file.path(output_base, 
-                                        "all_qa_passes_group", 
+                                        "all_clinicalplusqa_group", 
                                         "weighted_subject_FC_scores",
                                         "SSD4cohorts_DXweighted_subject_scores.csv"))
 ```
+
+
+```r
+DX_sig_edge_table %>% filter(vertex_type == "pvertex") %>% pull(sig)
+```
+
+```
+## [1] 644
+```
+
+
+## write up to this point..
+
+We observed robust patterns of dysconnectivity that were strengthened using a surface-based approach and PINT (Number of differing pairwise-correlations: volume: {419}, surface: {579},  PINT: {644}, FDR corrected). Moreover, patterns of dyscnnectivity became more interpretable in terms of individual resting state networks and cortical heirarchy (see Supplemental Figure 2 for breakdown by cortical network). Overall, regardless of cortical mapping approach, hypoconnectivity, that is decreased connectivity in participants with schizophrenia relative to controls as observed for edges connecting subcortical regions to the fronto-parietal network. Hyperconnectivity, or increased connectivity in participants with SSD relative to controls was observed for subcortical connections to those visual, somatomor, and dorsal attention networks, which increased when moving from volume-to-surface, and again from surface-to-PINT. Additional patterns of hypoconnectivity where observed between the cortical default-mode network and the dorsal and ventral attention netoworks, as well as within visual network edges. Cortical hyperconnectivity was observed between the dorsal and ventral attenetion networks, as well as the frontoparietal network to the somatomotor network. Moreover, hypoconnectivity was observed for nearly half of edges connecting the cerebellum to the striatum and the cerebellum to the thalamus.
+
+To investigate these patterns further, sub-scored for these groups of edges were calculated to for each participants by taking the weighted-mean of all edges with that survived FDR corretion (Cohen's D threshold = {0.2678}, means were weighted by the SSD diagnosis effect size).
 
 
 
@@ -642,7 +1293,7 @@ FC_scores_lmfit <- FC_scores_together %>%
   inner_join(pheno, by = c("subject", "dataset")) %>%
   ungroup() %>%
   group_by(edge_group, effect_direction, vertex_type) %>%
-  do(tidy(lm(wFC_score ~ DX + Age_pt + Sex + fd_mean_pt + Site,.))) 
+  do(tidy(lm(wFC_score ~ DX + Age_pt + Sex + fd_mean_pt + Scanner,.))) 
 
 FC_scores_lmfit %>%
   select(edge_group, effect_direction, term, statistic, p.value) %>%
@@ -656,35 +1307,49 @@ FC_scores_lmfit %>%
 
 
 
-vertex_type   edge_group               effect_direction   term     statistic   p.value
-------------  -----------------------  -----------------  ------  ----------  --------
-pvertex       cerebullum_to_striatum   hypo               DXSSD    -5.981823     0e+00
-tvertex       cerebullum_to_striatum   hypo               DXSSD    -5.981823     0e+00
-tvolume       cerebullum_to_striatum   hypo               DXSSD    -5.981823     0e+00
-pvertex       cortDM_to_rest           hypo               DXSSD    -6.713980     0e+00
-tvertex       cortDM_to_rest           hypo               DXSSD    -8.129964     0e+00
-tvolume       cortDM_to_rest           hypo               DXSSD    -5.009878     8e-07
-pvertex       cortSMVI_to_rest         hyper              DXSSD     8.110019     0e+00
-tvertex       cortSMVI_to_rest         hyper              DXSSD    10.064882     0e+00
-tvolume       cortSMVI_to_rest         hyper              DXSSD     5.681912     0e+00
-pvertex       cortVA_to_DA             hyper              DXSSD     4.615709     5e-06
-tvertex       cortVA_to_DA             hyper              DXSSD     6.636692     0e+00
-tvolume       cortVA_to_DA             hyper              DXSSD     5.064163     6e-07
-pvertex       subcort_to_DM            hyper              DXSSD     5.711771     0e+00
-tvertex       subcort_to_DM            hyper              DXSSD     6.359039     0e+00
-tvolume       subcort_to_DM            hyper              DXSSD     6.566259     0e+00
-pvertex       subcort_to_FP            hypo               DXSSD    -6.368152     0e+00
-tvertex       subcort_to_FP            hypo               DXSSD    -7.222145     0e+00
-tvolume       subcort_to_FP            hypo               DXSSD    -7.764750     0e+00
-pvertex       subcort_to_SM            hyper              DXSSD     6.349540     0e+00
-tvertex       subcort_to_SM            hyper              DXSSD     7.285989     0e+00
-tvolume       subcort_to_SM            hyper              DXSSD     7.277427     0e+00
-pvertex       subcort_to_VA            hypo               DXSSD    -5.577413     0e+00
-tvertex       subcort_to_VA            hypo               DXSSD    -6.477915     0e+00
-tvolume       subcort_to_VA            hypo               DXSSD    -7.797026     0e+00
-pvertex       subcort_to_VI            hyper              DXSSD     7.487524     0e+00
-tvertex       subcort_to_VI            hyper              DXSSD     7.809095     0e+00
-tvolume       subcort_to_VI            hyper              DXSSD     6.697116     0e+00
+vertex_type   edge_group               effect_direction   term     statistic    p.value
+------------  -----------------------  -----------------  ------  ----------  ---------
+pvertex       cerebullum_to_striatum   hypo               DXSSD    -6.186413   0.00e+00
+tvertex       cerebullum_to_striatum   hypo               DXSSD    -6.186413   0.00e+00
+tvolume       cerebullum_to_striatum   hypo               DXSSD    -6.186413   0.00e+00
+pvertex       cerebullum_to_thalamus   hypo               DXSSD    -8.126418   0.00e+00
+tvertex       cerebullum_to_thalamus   hypo               DXSSD    -8.126418   0.00e+00
+tvolume       cerebullum_to_thalamus   hypo               DXSSD    -8.126418   0.00e+00
+pvertex       cortDA_to_SM             hyper              DXSSD     5.925091   0.00e+00
+tvertex       cortDA_to_SM             hyper              DXSSD     6.876098   0.00e+00
+tvolume       cortDA_to_SM             hyper              DXSSD     5.721400   0.00e+00
+pvertex       cortDM_to_DA             hypo               DXSSD    -5.773509   0.00e+00
+tvertex       cortDM_to_DA             hypo               DXSSD    -6.564210   0.00e+00
+pvertex       cortDM_to_VA             hypo               DXSSD    -5.298831   2.00e-07
+tvertex       cortDM_to_VA             hypo               DXSSD    -6.852014   0.00e+00
+tvolume       cortDM_to_VA             hypo               DXSSD    -5.362809   1.00e-07
+pvertex       cortFP_to_SM             hyper              DXSSD     4.699304   3.60e-06
+tvertex       cortFP_to_SM             hyper              DXSSD     5.919053   0.00e+00
+tvolume       cortFP_to_SM             hyper              DXSSD     5.098214   5.00e-07
+pvertex       cortVA_to_DA             hyper              DXSSD     5.480320   1.00e-07
+tvertex       cortVA_to_DA             hyper              DXSSD     7.651558   0.00e+00
+tvolume       cortVA_to_DA             hyper              DXSSD     6.389303   0.00e+00
+pvertex       cortVI_to_VI             hypo               DXSSD    -5.483734   1.00e-07
+tvertex       cortVI_to_VI             hypo               DXSSD    -6.393396   0.00e+00
+tvolume       cortVI_to_VI             hypo               DXSSD    -4.216663   3.07e-05
+pvertex       subcort_to_DA            hyper              DXSSD     5.273220   2.00e-07
+tvertex       subcort_to_DA            hyper              DXSSD     7.083454   0.00e+00
+tvolume       subcort_to_DA            hyper              DXSSD     7.089347   0.00e+00
+pvertex       subcort_to_DM            hyper              DXSSD     7.142738   0.00e+00
+tvertex       subcort_to_DM            hyper              DXSSD     6.982997   0.00e+00
+tvolume       subcort_to_DM            hyper              DXSSD     6.298543   0.00e+00
+pvertex       subcort_to_FP            hypo               DXSSD    -6.772180   0.00e+00
+tvertex       subcort_to_FP            hypo               DXSSD    -7.289079   0.00e+00
+tvolume       subcort_to_FP            hypo               DXSSD    -7.321904   0.00e+00
+pvertex       subcort_to_SM            hyper              DXSSD     6.820810   0.00e+00
+tvertex       subcort_to_SM            hyper              DXSSD     7.841656   0.00e+00
+tvolume       subcort_to_SM            hyper              DXSSD     7.641352   0.00e+00
+pvertex       subcort_to_VA            hypo               DXSSD    -6.451742   0.00e+00
+tvertex       subcort_to_VA            hypo               DXSSD    -7.155871   0.00e+00
+tvolume       subcort_to_VA            hypo               DXSSD    -8.220291   0.00e+00
+pvertex       subcort_to_VI            hyper              DXSSD     7.338969   0.00e+00
+tvertex       subcort_to_VI            hyper              DXSSD     7.818418   0.00e+00
+tvolume       subcort_to_VI            hyper              DXSSD     7.078653   0.00e+00
 
 ```r
 FC_scores_lmfit %>% 
@@ -696,7 +1361,7 @@ FC_scores_lmfit %>%
     geom_line(aes(group = edge_group))
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-24-1.png" width="672" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-35-1.png" width="672" />
 
 ```r
 FC_scores_lmfit <- FC_scores_together %>%
@@ -719,114 +1384,170 @@ FC_scores_lmfit %>%
 
 effect_direction   edge_group               vertex_type   Site       term      statistic     p.value
 -----------------  -----------------------  ------------  ---------  ------  -----------  ----------
-hypo               cerebullum_to_striatum   pvertex       CMH        DXSSD    -3.3534825   0.0011175
-hypo               cerebullum_to_striatum   pvertex       COBRE      DXSSD    -1.8857567   0.0649193
-hypo               cerebullum_to_striatum   pvertex       ds000030   DXSSD    -3.0826534   0.0024948
-hypo               cerebullum_to_striatum   pvertex       ZHH        DXSSD    -2.9882418   0.0031784
-hypo               cerebullum_to_striatum   tvertex       CMH        DXSSD    -3.3534825   0.0011175
-hypo               cerebullum_to_striatum   tvertex       COBRE      DXSSD    -1.8857567   0.0649193
-hypo               cerebullum_to_striatum   tvertex       ds000030   DXSSD    -3.0826534   0.0024948
-hypo               cerebullum_to_striatum   tvertex       ZHH        DXSSD    -2.9882418   0.0031784
-hypo               cerebullum_to_striatum   tvolume       CMH        DXSSD    -3.3534825   0.0011175
-hypo               cerebullum_to_striatum   tvolume       COBRE      DXSSD    -1.8857567   0.0649193
-hypo               cerebullum_to_striatum   tvolume       ds000030   DXSSD    -3.0826534   0.0024948
-hypo               cerebullum_to_striatum   tvolume       ZHH        DXSSD    -2.9882418   0.0031784
-hypo               cortDM_to_rest           pvertex       CMH        DXSSD    -3.1173421   0.0023657
-hypo               cortDM_to_rest           pvertex       COBRE      DXSSD    -1.7195664   0.0914590
-hypo               cortDM_to_rest           pvertex       ds000030   DXSSD    -3.7485854   0.0002642
-hypo               cortDM_to_rest           pvertex       ZHH        DXSSD    -4.2714684   0.0000307
-hypo               cortDM_to_rest           tvertex       CMH        DXSSD    -4.1848601   0.0000602
-hypo               cortDM_to_rest           tvertex       COBRE      DXSSD    -1.9559975   0.0558472
-hypo               cortDM_to_rest           tvertex       ds000030   DXSSD    -3.8287460   0.0001975
-hypo               cortDM_to_rest           tvertex       ZHH        DXSSD    -5.2842366   0.0000003
-hypo               cortDM_to_rest           tvolume       CMH        DXSSD    -3.9681343   0.0001342
-hypo               cortDM_to_rest           tvolume       COBRE      DXSSD    -3.9463211   0.0002392
-hypo               cortDM_to_rest           tvolume       ds000030   DXSSD    -3.1181371   0.0022313
-hypo               cortDM_to_rest           tvolume       ZHH        DXSSD    -1.6065369   0.1098254
-hyper              cortSMVI_to_rest         pvertex       CMH        DXSSD     4.2021722   0.0000564
-hyper              cortSMVI_to_rest         pvertex       COBRE      DXSSD     2.3769126   0.0211731
-hyper              cortSMVI_to_rest         pvertex       ds000030   DXSSD     3.0984617   0.0023741
-hyper              cortSMVI_to_rest         pvertex       ZHH        DXSSD     5.6380243   0.0000001
-hyper              cortSMVI_to_rest         tvertex       CMH        DXSSD     5.7126595   0.0000001
-hyper              cortSMVI_to_rest         tvertex       COBRE      DXSSD     2.9479669   0.0047813
-hyper              cortSMVI_to_rest         tvertex       ds000030   DXSSD     4.2606756   0.0000383
-hyper              cortSMVI_to_rest         tvertex       ZHH        DXSSD     6.2016302   0.0000000
-hyper              cortSMVI_to_rest         tvolume       CMH        DXSSD     2.8437881   0.0053776
-hyper              cortSMVI_to_rest         tvolume       COBRE      DXSSD     1.3465369   0.1839696
-hyper              cortSMVI_to_rest         tvolume       ds000030   DXSSD     3.1568781   0.0019732
-hyper              cortSMVI_to_rest         tvolume       ZHH        DXSSD     4.0110159   0.0000870
-hyper              cortVA_to_DA             pvertex       CMH        DXSSD     0.4867116   0.6274968
-hyper              cortVA_to_DA             pvertex       COBRE      DXSSD     0.9264011   0.3585174
-hyper              cortVA_to_DA             pvertex       ds000030   DXSSD     2.7689037   0.0064283
-hyper              cortVA_to_DA             pvertex       ZHH        DXSSD     4.2230614   0.0000374
-hyper              cortVA_to_DA             tvertex       CMH        DXSSD     1.5957401   0.1136106
-hyper              cortVA_to_DA             tvertex       COBRE      DXSSD     2.0860644   0.0418955
-hyper              cortVA_to_DA             tvertex       ds000030   DXSSD     2.5497868   0.0119129
-hyper              cortVA_to_DA             tvertex       ZHH        DXSSD     5.9690723   0.0000000
-hyper              cortVA_to_DA             tvolume       CMH        DXSSD     0.9331152   0.3529428
-hyper              cortVA_to_DA             tvolume       COBRE      DXSSD     1.1336427   0.2621440
-hyper              cortVA_to_DA             tvolume       ds000030   DXSSD     2.3626140   0.0195959
-hyper              cortVA_to_DA             tvolume       ZHH        DXSSD     4.3826699   0.0000194
-hyper              subcort_to_DM            pvertex       CMH        DXSSD     1.4445725   0.1516132
-hyper              subcort_to_DM            pvertex       COBRE      DXSSD     2.3510397   0.0225471
-hyper              subcort_to_DM            pvertex       ds000030   DXSSD     3.4960804   0.0006422
-hyper              subcort_to_DM            pvertex       ZHH        DXSSD     3.5391379   0.0005053
-hyper              subcort_to_DM            tvertex       CMH        DXSSD     2.1918853   0.0306399
-hyper              subcort_to_DM            tvertex       COBRE      DXSSD     2.0905878   0.0414705
-hyper              subcort_to_DM            tvertex       ds000030   DXSSD     3.2093325   0.0016677
-hyper              subcort_to_DM            tvertex       ZHH        DXSSD     3.9494379   0.0001105
-hyper              subcort_to_DM            tvolume       CMH        DXSSD     2.8144136   0.0058550
-hyper              subcort_to_DM            tvolume       COBRE      DXSSD     1.4072821   0.1652933
-hyper              subcort_to_DM            tvolume       ds000030   DXSSD     3.9477105   0.0001272
-hyper              subcort_to_DM            tvolume       ZHH        DXSSD     3.8866662   0.0001406
-hypo               subcort_to_FP            pvertex       CMH        DXSSD    -2.8303580   0.0055912
-hypo               subcort_to_FP            pvertex       COBRE      DXSSD    -2.6990373   0.0093582
-hypo               subcort_to_FP            pvertex       ds000030   DXSSD    -2.4055277   0.0175248
-hypo               subcort_to_FP            pvertex       ZHH        DXSSD    -3.8678523   0.0001510
-hypo               subcort_to_FP            tvertex       CMH        DXSSD    -3.1923633   0.0018717
-hypo               subcort_to_FP            tvertex       COBRE      DXSSD    -2.8376839   0.0064650
-hypo               subcort_to_FP            tvertex       ds000030   DXSSD    -2.8696921   0.0047812
-hypo               subcort_to_FP            tvertex       ZHH        DXSSD    -4.5553544   0.0000094
-hypo               subcort_to_FP            tvolume       CMH        DXSSD    -3.5647322   0.0005538
-hypo               subcort_to_FP            tvolume       COBRE      DXSSD    -2.5661304   0.0132045
-hypo               subcort_to_FP            tvolume       ds000030   DXSSD    -2.7864546   0.0061087
-hypo               subcort_to_FP            tvolume       ZHH        DXSSD    -5.8464794   0.0000000
-hyper              subcort_to_SM            pvertex       CMH        DXSSD     3.2832951   0.0014020
-hyper              subcort_to_SM            pvertex       COBRE      DXSSD     3.7221124   0.0004864
-hyper              subcort_to_SM            pvertex       ds000030   DXSSD     2.5036323   0.0135025
-hyper              subcort_to_SM            pvertex       ZHH        DXSSD     3.7145795   0.0002679
-hyper              subcort_to_SM            tvertex       CMH        DXSSD     3.7828435   0.0002605
-hyper              subcort_to_SM            tvertex       COBRE      DXSSD     4.5806882   0.0000293
-hyper              subcort_to_SM            tvertex       ds000030   DXSSD     3.0852984   0.0024742
-hyper              subcort_to_SM            tvertex       ZHH        DXSSD     4.0849576   0.0000651
-hyper              subcort_to_SM            tvolume       CMH        DXSSD     3.9120423   0.0001644
-hyper              subcort_to_SM            tvolume       COBRE      DXSSD     3.2959631   0.0017714
-hyper              subcort_to_SM            tvolume       ds000030   DXSSD     3.1862816   0.0017961
-hyper              subcort_to_SM            tvolume       ZHH        DXSSD     4.5618417   0.0000091
-hypo               subcort_to_VA            pvertex       CMH        DXSSD    -2.7211124   0.0076400
-hypo               subcort_to_VA            pvertex       COBRE      DXSSD    -2.8067964   0.0070267
-hypo               subcort_to_VA            pvertex       ds000030   DXSSD    -1.6293917   0.1055964
-hypo               subcort_to_VA            pvertex       ZHH        DXSSD    -3.7591648   0.0002271
-hypo               subcort_to_VA            tvertex       CMH        DXSSD    -3.2278705   0.0016731
-hypo               subcort_to_VA            tvertex       COBRE      DXSSD    -2.0675986   0.0436703
-hypo               subcort_to_VA            tvertex       ds000030   DXSSD    -2.2925071   0.0234464
-hypo               subcort_to_VA            tvertex       ZHH        DXSSD    -4.4932262   0.0000122
-hypo               subcort_to_VA            tvolume       CMH        DXSSD    -4.0176713   0.0001120
-hypo               subcort_to_VA            tvolume       COBRE      DXSSD    -2.1588428   0.0354984
-hypo               subcort_to_VA            tvolume       ds000030   DXSSD    -3.5319065   0.0005677
-hypo               subcort_to_VA            tvolume       ZHH        DXSSD    -5.1371911   0.0000007
-hyper              subcort_to_VI            pvertex       CMH        DXSSD     3.1767145   0.0019660
-hyper              subcort_to_VI            pvertex       COBRE      DXSSD     3.2543432   0.0020010
-hyper              subcort_to_VI            pvertex       ds000030   DXSSD     2.8334297   0.0053232
-hyper              subcort_to_VI            pvertex       ZHH        DXSSD     4.7891657   0.0000034
-hyper              subcort_to_VI            tvertex       CMH        DXSSD     3.7818884   0.0002614
-hyper              subcort_to_VI            tvertex       COBRE      DXSSD     3.2256365   0.0021754
-hyper              subcort_to_VI            tvertex       ds000030   DXSSD     2.4553657   0.0153650
-hyper              subcort_to_VI            tvertex       ZHH        DXSSD     5.0612146   0.0000010
-hyper              subcort_to_VI            tvolume       CMH        DXSSD     3.3615692   0.0010885
-hyper              subcort_to_VI            tvolume       COBRE      DXSSD     3.2342248   0.0021218
-hyper              subcort_to_VI            tvolume       ds000030   DXSSD     1.3793930   0.1700886
-hyper              subcort_to_VI            tvolume       ZHH        DXSSD     4.4290350   0.0000160
+hypo               cerebullum_to_striatum   pvertex       CMH        DXSSD    -3.5738171   0.0005370
+hypo               cerebullum_to_striatum   pvertex       COBRE      DXSSD    -1.8151375   0.0763226
+hypo               cerebullum_to_striatum   pvertex       ds000030   DXSSD    -2.9588712   0.0044903
+hypo               cerebullum_to_striatum   pvertex       ZHH        DXSSD    -3.4056876   0.0008121
+hypo               cerebullum_to_striatum   tvertex       CMH        DXSSD    -3.5738171   0.0005370
+hypo               cerebullum_to_striatum   tvertex       COBRE      DXSSD    -1.8151375   0.0763226
+hypo               cerebullum_to_striatum   tvertex       ds000030   DXSSD    -2.9588712   0.0044903
+hypo               cerebullum_to_striatum   tvertex       ZHH        DXSSD    -3.4056876   0.0008121
+hypo               cerebullum_to_striatum   tvolume       CMH        DXSSD    -3.5738171   0.0005370
+hypo               cerebullum_to_striatum   tvolume       COBRE      DXSSD    -1.8151375   0.0763226
+hypo               cerebullum_to_striatum   tvolume       ds000030   DXSSD    -2.9588712   0.0044903
+hypo               cerebullum_to_striatum   tvolume       ZHH        DXSSD    -3.4056876   0.0008121
+hypo               cerebullum_to_thalamus   pvertex       CMH        DXSSD    -4.6172504   0.0000113
+hypo               cerebullum_to_thalamus   pvertex       COBRE      DXSSD    -2.6686483   0.0106237
+hypo               cerebullum_to_thalamus   pvertex       ds000030   DXSSD    -4.7326351   0.0000151
+hypo               cerebullum_to_thalamus   pvertex       ZHH        DXSSD    -4.6160245   0.0000074
+hypo               cerebullum_to_thalamus   tvertex       CMH        DXSSD    -4.6172504   0.0000113
+hypo               cerebullum_to_thalamus   tvertex       COBRE      DXSSD    -2.6686483   0.0106237
+hypo               cerebullum_to_thalamus   tvertex       ds000030   DXSSD    -4.7326351   0.0000151
+hypo               cerebullum_to_thalamus   tvertex       ZHH        DXSSD    -4.6160245   0.0000074
+hypo               cerebullum_to_thalamus   tvolume       CMH        DXSSD    -4.6172504   0.0000113
+hypo               cerebullum_to_thalamus   tvolume       COBRE      DXSSD    -2.6686483   0.0106237
+hypo               cerebullum_to_thalamus   tvolume       ds000030   DXSSD    -4.7326351   0.0000151
+hypo               cerebullum_to_thalamus   tvolume       ZHH        DXSSD    -4.6160245   0.0000074
+hyper              cortDA_to_SM             pvertex       CMH        DXSSD     3.4605247   0.0007858
+hyper              cortDA_to_SM             pvertex       COBRE      DXSSD     1.5883789   0.1193616
+hyper              cortDA_to_SM             pvertex       ds000030   DXSSD     0.8064763   0.4233205
+hyper              cortDA_to_SM             pvertex       ZHH        DXSSD     4.9424312   0.0000017
+hyper              cortDA_to_SM             tvertex       CMH        DXSSD     3.9659463   0.0001352
+hyper              cortDA_to_SM             tvertex       COBRE      DXSSD     0.7514483   0.4563836
+hyper              cortDA_to_SM             tvertex       ds000030   DXSSD     1.0769629   0.2860339
+hyper              cortDA_to_SM             tvertex       ZHH        DXSSD     6.0713815   0.0000000
+hyper              cortDA_to_SM             tvolume       CMH        DXSSD     1.6539474   0.1011828
+hyper              cortDA_to_SM             tvolume       COBRE      DXSSD     1.2962903   0.2016335
+hyper              cortDA_to_SM             tvolume       ds000030   DXSSD     1.8397476   0.0710145
+hyper              cortDA_to_SM             tvolume       ZHH        DXSSD     4.8696484   0.0000024
+hypo               cortDM_to_DA             pvertex       CMH        DXSSD    -2.2488685   0.0266498
+hypo               cortDM_to_DA             pvertex       COBRE      DXSSD    -1.0690117   0.2908942
+hypo               cortDM_to_DA             pvertex       ds000030   DXSSD    -2.5656064   0.0129545
+hypo               cortDM_to_DA             pvertex       ZHH        DXSSD    -4.6052396   0.0000077
+hypo               cortDM_to_DA             tvertex       CMH        DXSSD    -3.6694130   0.0003870
+hypo               cortDM_to_DA             tvertex       COBRE      DXSSD    -1.6055266   0.1155322
+hypo               cortDM_to_DA             tvertex       ds000030   DXSSD    -2.9133422   0.0050995
+hypo               cortDM_to_DA             tvertex       ZHH        DXSSD    -4.0026889   0.0000911
+hypo               cortDM_to_VA             pvertex       CMH        DXSSD    -1.5776234   0.1177186
+hypo               cortDM_to_VA             pvertex       COBRE      DXSSD    -2.7644023   0.0082990
+hypo               cortDM_to_VA             pvertex       ds000030   DXSSD    -2.6464987   0.0104955
+hypo               cortDM_to_VA             pvertex       ZHH        DXSSD    -3.6651190   0.0003242
+hypo               cortDM_to_VA             tvertex       CMH        DXSSD    -3.2282384   0.0016711
+hypo               cortDM_to_VA             tvertex       COBRE      DXSSD    -2.1184270   0.0398222
+hypo               cortDM_to_VA             tvertex       ds000030   DXSSD    -2.2714493   0.0269136
+hypo               cortDM_to_VA             tvertex       ZHH        DXSSD    -5.1196647   0.0000008
+hypo               cortDM_to_VA             tvolume       CMH        DXSSD    -2.6572843   0.0091324
+hypo               cortDM_to_VA             tvolume       COBRE      DXSSD    -3.2498433   0.0022164
+hypo               cortDM_to_VA             tvolume       ds000030   DXSSD    -2.3938342   0.0199868
+hypo               cortDM_to_VA             tvolume       ZHH        DXSSD    -2.8874987   0.0043538
+hyper              cortFP_to_SM             pvertex       CMH        DXSSD     3.2998736   0.0013292
+hyper              cortFP_to_SM             pvertex       COBRE      DXSSD     2.1723407   0.0352600
+hyper              cortFP_to_SM             pvertex       ds000030   DXSSD     1.1024222   0.2749112
+hyper              cortFP_to_SM             pvertex       ZHH        DXSSD     3.2467171   0.0013898
+hyper              cortFP_to_SM             tvertex       CMH        DXSSD     3.0989110   0.0025043
+hyper              cortFP_to_SM             tvertex       COBRE      DXSSD     2.5247079   0.0152600
+hyper              cortFP_to_SM             tvertex       ds000030   DXSSD     2.1271389   0.0377484
+hyper              cortFP_to_SM             tvertex       ZHH        DXSSD     3.9391567   0.0001164
+hyper              cortFP_to_SM             tvolume       CMH        DXSSD     2.4541891   0.0157972
+hyper              cortFP_to_SM             tvolume       COBRE      DXSSD     1.1820165   0.2435480
+hyper              cortFP_to_SM             tvolume       ds000030   DXSSD     3.5398854   0.0008050
+hyper              cortFP_to_SM             tvolume       ZHH        DXSSD     3.2232928   0.0015019
+hyper              cortVA_to_DA             pvertex       CMH        DXSSD     1.2679338   0.2076803
+hyper              cortVA_to_DA             pvertex       COBRE      DXSSD     1.4393562   0.1571264
+hyper              cortVA_to_DA             pvertex       ds000030   DXSSD     4.6224661   0.0000222
+hyper              cortVA_to_DA             pvertex       ZHH        DXSSD     4.6879048   0.0000054
+hyper              cortVA_to_DA             tvertex       CMH        DXSSD     2.4925742   0.0142760
+hyper              cortVA_to_DA             tvertex       COBRE      DXSSD     1.6653818   0.1029422
+hyper              cortVA_to_DA             tvertex       ds000030   DXSSD     2.7111927   0.0088442
+hyper              cortVA_to_DA             tvertex       ZHH        DXSSD     6.8510870   0.0000000
+hyper              cortVA_to_DA             tvolume       CMH        DXSSD     1.8850650   0.0622396
+hyper              cortVA_to_DA             tvolume       COBRE      DXSSD     1.7460976   0.0877732
+hyper              cortVA_to_DA             tvolume       ds000030   DXSSD     2.2095616   0.0311682
+hyper              cortVA_to_DA             tvolume       ZHH        DXSSD     5.5822563   0.0000001
+hypo               cortVI_to_VI             pvertex       CMH        DXSSD    -2.1605105   0.0330516
+hypo               cortVI_to_VI             pvertex       COBRE      DXSSD    -2.7408364   0.0088229
+hypo               cortVI_to_VI             pvertex       ds000030   DXSSD    -0.6228427   0.5358720
+hypo               cortVI_to_VI             pvertex       ZHH        DXSSD    -4.2541813   0.0000335
+hypo               cortVI_to_VI             tvertex       CMH        DXSSD    -3.0887756   0.0025837
+hypo               cortVI_to_VI             tvertex       COBRE      DXSSD    -2.0818537   0.0432047
+hypo               cortVI_to_VI             tvertex       ds000030   DXSSD    -1.1142761   0.2698372
+hypo               cortVI_to_VI             tvertex       ZHH        DXSSD    -4.6517386   0.0000063
+hypo               cortVI_to_VI             tvolume       CMH        DXSSD    -1.9895495   0.0492917
+hypo               cortVI_to_VI             tvolume       COBRE      DXSSD    -2.3873398   0.0213328
+hypo               cortVI_to_VI             tvolume       ds000030   DXSSD    -1.3446992   0.1840491
+hypo               cortVI_to_VI             tvolume       ZHH        DXSSD    -2.7534151   0.0064958
+hyper              subcort_to_DA            pvertex       CMH        DXSSD     3.3982361   0.0009654
+hyper              subcort_to_DA            pvertex       COBRE      DXSSD     1.5352888   0.1318731
+hyper              subcort_to_DA            pvertex       ds000030   DXSSD     1.2337519   0.2223585
+hyper              subcort_to_DA            pvertex       ZHH        DXSSD     3.4420805   0.0007161
+hyper              subcort_to_DA            tvertex       CMH        DXSSD     3.5642111   0.0005548
+hyper              subcort_to_DA            tvertex       COBRE      DXSSD     2.9049097   0.0057281
+hyper              subcort_to_DA            tvertex       ds000030   DXSSD     1.9537523   0.0556441
+hyper              subcort_to_DA            tvertex       ZHH        DXSSD     4.7147109   0.0000048
+hyper              subcort_to_DA            tvolume       CMH        DXSSD     4.6478503   0.0000100
+hyper              subcort_to_DA            tvolume       COBRE      DXSSD     3.6634652   0.0006651
+hyper              subcort_to_DA            tvolume       ds000030   DXSSD     1.6065518   0.1136790
+hyper              subcort_to_DA            tvolume       ZHH        DXSSD     4.3301197   0.0000246
+hyper              subcort_to_DM            pvertex       CMH        DXSSD     2.4335530   0.0166734
+hyper              subcort_to_DM            pvertex       COBRE      DXSSD     2.4001209   0.0206874
+hyper              subcort_to_DM            pvertex       ds000030   DXSSD     4.0462588   0.0001584
+hyper              subcort_to_DM            pvertex       ZHH        DXSSD     5.0852633   0.0000009
+hyper              subcort_to_DM            tvertex       CMH        DXSSD     3.7330010   0.0003103
+hyper              subcort_to_DM            tvertex       COBRE      DXSSD     1.7385244   0.0891124
+hyper              subcort_to_DM            tvertex       ds000030   DXSSD     2.8775910   0.0056306
+hyper              subcort_to_DM            tvertex       ZHH        DXSSD     4.9203213   0.0000019
+hyper              subcort_to_DM            tvolume       CMH        DXSSD     3.1692934   0.0020123
+hyper              subcort_to_DM            tvolume       COBRE      DXSSD     2.3938993   0.0209993
+hyper              subcort_to_DM            tvolume       ds000030   DXSSD     4.3655518   0.0000540
+hyper              subcort_to_DM            tvolume       ZHH        DXSSD     3.1015981   0.0022315
+hypo               subcort_to_FP            pvertex       CMH        DXSSD    -3.5016798   0.0006850
+hypo               subcort_to_FP            pvertex       COBRE      DXSSD    -3.0043103   0.0043812
+hypo               subcort_to_FP            pvertex       ds000030   DXSSD    -1.8414043   0.0707679
+hypo               subcort_to_FP            pvertex       ZHH        DXSSD    -4.4278006   0.0000164
+hypo               subcort_to_FP            tvertex       CMH        DXSSD    -3.4612544   0.0007839
+hypo               subcort_to_FP            tvertex       COBRE      DXSSD    -2.6722293   0.0105269
+hypo               subcort_to_FP            tvertex       ds000030   DXSSD    -3.1792338   0.0023876
+hypo               subcort_to_FP            tvertex       ZHH        DXSSD    -4.7722615   0.0000037
+hypo               subcort_to_FP            tvolume       CMH        DXSSD    -4.1782391   0.0000617
+hypo               subcort_to_FP            tvolume       COBRE      DXSSD    -2.2207510   0.0315632
+hypo               subcort_to_FP            tvolume       ds000030   DXSSD    -2.2644789   0.0273656
+hypo               subcort_to_FP            tvolume       ZHH        DXSSD    -4.6832571   0.0000055
+hyper              subcort_to_SM            pvertex       CMH        DXSSD     3.7383364   0.0003046
+hyper              subcort_to_SM            pvertex       COBRE      DXSSD     4.2077278   0.0001250
+hyper              subcort_to_SM            pvertex       ds000030   DXSSD     2.5269281   0.0143061
+hyper              subcort_to_SM            pvertex       ZHH        DXSSD     3.6518668   0.0003402
+hyper              subcort_to_SM            tvertex       CMH        DXSSD     4.3676777   0.0000300
+hyper              subcort_to_SM            tvertex       COBRE      DXSSD     5.2941126   0.0000036
+hyper              subcort_to_SM            tvertex       ds000030   DXSSD     3.0764450   0.0032160
+hyper              subcort_to_SM            tvertex       ZHH        DXSSD     4.0931594   0.0000639
+hyper              subcort_to_SM            tvolume       CMH        DXSSD     4.0651540   0.0000940
+hyper              subcort_to_SM            tvolume       COBRE      DXSSD     3.6926647   0.0006095
+hyper              subcort_to_SM            tvolume       ds000030   DXSSD     3.8141038   0.0003383
+hyper              subcort_to_SM            tvolume       ZHH        DXSSD     4.3247986   0.0000251
+hypo               subcort_to_VA            pvertex       CMH        DXSSD    -2.4042660   0.0179912
+hypo               subcort_to_VA            pvertex       COBRE      DXSSD    -2.9739368   0.0047575
+hypo               subcort_to_VA            pvertex       ds000030   DXSSD    -1.6334286   0.1078912
+hypo               subcort_to_VA            pvertex       ZHH        DXSSD    -4.8313921   0.0000029
+hypo               subcort_to_VA            tvertex       CMH        DXSSD    -3.3339234   0.0011908
+hypo               subcort_to_VA            tvertex       COBRE      DXSSD    -2.4325199   0.0191295
+hypo               subcort_to_VA            tvertex       ds000030   DXSSD    -1.8442373   0.0703477
+hypo               subcort_to_VA            tvertex       ZHH        DXSSD    -5.3522347   0.0000003
+hypo               subcort_to_VA            tvolume       CMH        DXSSD    -4.0091401   0.0001155
+hypo               subcort_to_VA            tvolume       COBRE      DXSSD    -2.0180347   0.0497105
+hypo               subcort_to_VA            tvolume       ds000030   DXSSD    -3.2329145   0.0020392
+hypo               subcort_to_VA            tvolume       ZHH        DXSSD    -6.0844455   0.0000000
+hyper              subcort_to_VI            pvertex       CMH        DXSSD     3.2258252   0.0016840
+hyper              subcort_to_VI            pvertex       COBRE      DXSSD     3.7500601   0.0005129
+hyper              subcort_to_VI            pvertex       ds000030   DXSSD     2.3222757   0.0238129
+hyper              subcort_to_VI            pvertex       ZHH        DXSSD     4.8046872   0.0000032
+hyper              subcort_to_VI            tvertex       CMH        DXSSD     4.0500090   0.0000994
+hyper              subcort_to_VI            tvertex       COBRE      DXSSD     3.6023035   0.0007979
+hyper              subcort_to_VI            tvertex       ds000030   DXSSD     1.7488386   0.0857023
+hyper              subcort_to_VI            tvertex       ZHH        DXSSD     5.0786023   0.0000009
+hyper              subcort_to_VI            tvolume       CMH        DXSSD     3.7015792   0.0003462
+hyper              subcort_to_VI            tvolume       COBRE      DXSSD     3.7992718   0.0004420
+hyper              subcort_to_VI            tvolume       ds000030   DXSSD     1.8780589   0.0654918
+hyper              subcort_to_VI            tvolume       ZHH        DXSSD     4.4637685   0.0000141
 
 ```r
 FC_scores_lmfit %>% 
@@ -838,7 +1559,7 @@ FC_scores_lmfit %>%
   facet_wrap(~Site, nrow = 1)
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-25-1.png" width="672" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-36-1.png" width="672" />
 
 
 ```r
@@ -915,6 +1636,11 @@ fplot <- FC_scores_together %>%
 ```
 
 
+```r
+ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_subcort_to_VI, y = hypo_subcort_to_FP))
+```
+
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-41-1.png" width="480" />
 
 
 
@@ -922,13 +1648,13 @@ fplot <- FC_scores_together %>%
 ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_subcort_to_VI, y = hypo_cerebullum_to_striatum))
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-30-1.png" width="480" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-42-1.png" width="480" />
 
 ```r
-ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_subcort_to_SM, y = hypo_cerebullum_to_striatum))
+ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_subcort_to_SM, y = hypo_subcort_to_FP))
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-31-1.png" width="480" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-43-1.png" width="480" />
 
 
 
@@ -946,7 +1672,7 @@ fig1 <- fplot %>%
 fig1
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-32-1.png" width="576" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-44-1.png" width="576" />
 
 
 
@@ -964,56 +1690,34 @@ fig1 <- fplot %>%
 fig1
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-33-1.png" width="576" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-45-1.png" width="576" />
 
 
 # calculate weighted subject scores by chopping up the matrix
 
 
 
-```r
-YeoNet7 <- define_YeoNet7_colours()
-node_annotations1 <- node_annotations %>%
-  mutate(node_grouping  = if_else(etype == "Cort",
-                                  str_c("Cort", cort_NET),
-                                  as.character(subcort_ROI))) 
 
-node_groupings <- factor(1:9, 
-                         levels = c(1:9),
-                         labels = c(levels(node_annotations$subcort_ROI),
-                                    str_c("Cort",YeoNet7$network[1:6])))
-edge_grouping_guide <- matrix(1, 
-                  nrow = length(node_groupings),
-                  ncol = length(node_groupings),
-                  dimnames = list(node_groupings,
-                                  node_groupings)) %>%
-    graph_from_adjacency_matrix(mode="upper", 
-                                weighted=T, diag=T) %>%
-    as_data_frame() %>%
-  filter(!(from %in% c("striatum", "thalamus", "cerebellum") & to == from)) %>%
-  select(to, from)
-```
 
 
 ```r
-t_threshold = 1.1
-define_hypohyper_weights <- function(lm_df, t_threshold, node_annotations, edge_guide) {
+define_hypohyper_weights <- function(lm_df, cohenD_threshold, node_annotations, edge_guide) {
 full_DX_mat <- lm_df %>%
       ungroup() %>%
-      select(to, from, statistic) %>%
+      select(to, from, cohenD_DX_tstatdir) %>%
       uppertri_df_to_full() %>%
       inner_join(node_annotations, by = c("to"="node_name")) %>%
       inner_join(node_annotations, by = c("from"="node_name")) 
     
 pos_weights <- full_DX_mat %>%
-    filter(value > t_threshold) %>%
+    filter(value > cohenD_threshold) %>%
     semi_join(edge_grouping_guide, by = c("node_grouping.x" = "to",
                                           "node_grouping.y" = "from")) %>%
     unite(edge_group, node_grouping.x, node_grouping.y) %>%
     select(edge_group, to, from, value)
 
 neg_weights <- full_DX_mat %>%
-    filter(value < -t_threshold) %>%
+    filter(value < -cohenD_threshold) %>%
     semi_join(edge_grouping_guide, by = c("node_grouping.x" = "to",
                                           "node_grouping.y" = "from")) %>%
     unite(edge_group, node_grouping.x, node_grouping.y) %>%
@@ -1025,26 +1729,29 @@ all_weights <- bind_rows(hyper = pos_weights,
 return(all_weights)
 }
 
-define_vertex_hypohyper_weights <- function(lm_df, v_type, t_threshold) {
+define_vertex_hypohyper_weights <- function(lm_df, v_type, cohenD_threshold) {
   groupwise_weights <- lm_df %>%
   filter(term == "DXSSD", 
          vertex_type == v_type) %>%
   ungroup() %>%
-  define_hypohyper_weights(., t_threshold,
+  define_hypohyper_weights(., cohenD_threshold,
                            node_annotations = node_annotations1,
                            edge_guide = edge_guide)
   return(groupwise_weights)
 }
-
-groupwise_weights <- tibble(vertex_type = c("pvertex", "tvertex", "tvolume")) %>%
-  mutate(result = map(vertex_type, 
-                      ~ define_vertex_hypohyper_weights(DX_lm_model, .x, t_threshold))) %>%
-  unnest()
 ```
 
 
 ```r
-size_threshold = 30
+size_threshold = 8
+cohenD_threshold = 0.26
+
+groupwise_weights <- tibble(vertex_type = c("pvertex", "tvertex", "tvolume")) %>%
+  mutate(result = map(vertex_type, 
+                      ~ define_vertex_hypohyper_weights(DX_lm_model_DXcohenD, 
+                                                        .x, 
+                                                        cohenD_threshold))) %>%
+  unnest(cols = c(result))
 
 groupwise_weights_table <- groupwise_weights %>%
   count(vertex_type, effect_direction, edge_group) %>%
@@ -1062,7 +1769,31 @@ groupwise_weights_table <- groupwise_weights %>%
   # unite(vertex_meas, tmp_col, vertex_type) %>%
   # spread(vertex_meas, tmp_vals) %>%
   # arrange(-abs(hyperhypo_diff_tvolume))
+groupwise_weights_table
 ```
+
+```
+## # A tibble: 118 x 8
+## # Groups:   edge_group [42]
+##      num use_hypo use_hyper vertex_type edge_group    hyper  hypo hyperhypo_diff
+##    <int> <lgl>    <lgl>     <chr>       <chr>         <dbl> <dbl>          <dbl>
+##  1     0 FALSE    FALSE     pvertex     CortDA_cereb…     2     4         -0.333
+##  2     0 FALSE    FALSE     tvertex     CortDA_cereb…     4     1          0.6  
+##  3     0 FALSE    FALSE     tvolume     CortDA_cereb…     2     2          0    
+##  4     0 FALSE    FALSE     tvolume     CortDA_CortDA     2     0          1    
+##  5     0 FALSE    FALSE     pvertex     CortDA_CortVI     1     0          1    
+##  6     0 FALSE    FALSE     tvertex     CortDA_CortVI     0     1         -1    
+##  7     0 FALSE    FALSE     tvolume     CortDA_CortVI     1     1          0    
+##  8     0 FALSE    FALSE     tvolume     CortDA_stria…     6     0          1    
+##  9     0 FALSE    FALSE     pvertex     CortDM_cereb…    14     5          0.474
+## 10     0 FALSE    FALSE     tvertex     CortDM_cereb…     4    10         -0.429
+## # … with 108 more rows
+```
+
+
+
+
+
 
 
 ```r
@@ -1071,6 +1802,30 @@ edge_groups_to_use <- groupwise_weights_table %>%
   select(use_hypo, use_hyper, edge_group) %>%
   distinct() %>%
   filter(use_hypo | use_hyper)
+
+edge_groups_to_use
+```
+
+```
+## # A tibble: 16 x 3
+##    use_hypo use_hyper edge_group         
+##    <lgl>    <lgl>     <chr>              
+##  1 TRUE     FALSE     cerebellum_striatum
+##  2 TRUE     FALSE     cerebellum_thalamus
+##  3 FALSE    TRUE      CortDA_CortSM      
+##  4 FALSE    TRUE      CortDA_thalamus    
+##  5 TRUE     FALSE     CortDM_CortDA      
+##  6 TRUE     FALSE     CortFP_cerebellum  
+##  7 FALSE    TRUE      CortFP_CortSM      
+##  8 FALSE    TRUE      CortSM_cerebellum  
+##  9 FALSE    TRUE      CortSM_thalamus    
+## 10 FALSE    TRUE      CortVA_CortDA      
+## 11 TRUE     FALSE     CortVA_striatum    
+## 12 FALSE    TRUE      CortVA_thalamus    
+## 13 FALSE    TRUE      CortVI_cerebellum  
+## 14 FALSE    TRUE      CortVI_striatum    
+## 15 FALSE    TRUE      CortVI_thalamus    
+## 16 TRUE     FALSE     thalamus_striatum
 ```
 
 
@@ -1099,18 +1854,9 @@ groupwise_weights_both %>%
   facet_wrap(~effect_direction)
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-38-1.png" width="672" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-49-1.png" width="672" />
 
-```r
-file.path(output_base, 
-                                        "all_qa_passes_group", 
-                                        "weighted_subject_FC_weigths",
-                                        'SSD4cohorts_DXweighted_moregroups_subject_weights.csv')
-```
 
-```
-## [1] "/mnt/tigrlab/projects/edickie/code/SZ_PINT/data/processed/mri//all_qa_passes_group/weighted_subject_FC_weigths/SSD4cohorts_DXweighted_moregroups_subject_weights.csv"
-```
 
 
 
@@ -1127,11 +1873,15 @@ groupwise_weights_both %>%
   facet_wrap(~effect_direction*node_class)
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-40-1.png" width="672" />
+```
+## `summarise()` regrouping output by 'vertex_type', 'effect_direction', 'edge_group' (override with `.groups` argument)
+```
+
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-50-1.png" width="672" />
 
 ```r
 write_csv(groupwise_weights_both, file.path(output_base, 
-                                        "all_qa_passes_group", 
+                                        "all_clinicalplusqa_group", 
                                         "weighted_subject_FC_weigths",
                                         'SSD4cohorts_DXweighted_moregroups_subject_weights.csv'))
 ```
@@ -1152,15 +1902,21 @@ return(result)
 all_subject_FC_weights <- tibble(vertex_type = c("pvertex", "tvertex", "tvolume")) %>%
   mutate(result = map(vertex_type, 
                       ~all_subject_FC_weights_by_vertex(results_pheno, groupwise_weights_both, .x))) %>%
-  unnest()
+  unnest(cols = c(result))
+```
+
+```
+## `summarise()` regrouping output by 'subject', 'dataset', 'effect_direction' (override with `.groups` argument)
+## `summarise()` regrouping output by 'subject', 'dataset', 'effect_direction' (override with `.groups` argument)
+## `summarise()` regrouping output by 'subject', 'dataset', 'effect_direction' (override with `.groups` argument)
 ```
 
 
 ```r
 write_csv(all_subject_FC_weights, file.path(output_base, 
-                                        "all_qa_passes_group", 
+                                        "all_clinicalplusqa_group", 
                                         "weighted_subject_FC_scores",
-                                        'SSD4cohorts_DXweighted_moregroups_subject_scores.csv'))
+                                    'SSD4cohorts_DXweighted_edgegroupwise_subject_scores.csv'))
 ```
 
 
@@ -1179,113 +1935,55 @@ FC_gscores_lmfit %>%
 
 
 
-effect_direction   edge_group            vertex_type   term     statistic     p.value
------------------  --------------------  ------------  ------  ----------  ----------
-hyper              CortDA_cerebellum     pvertex       DXSSD     3.237451   0.0012879
-hyper              CortDA_cerebellum     tvertex       DXSSD     4.150463   0.0000391
-hyper              CortDA_cerebellum     tvolume       DXSSD     4.879937   0.0000014
-hyper              CortDA_CortSM         pvertex       DXSSD     5.017406   0.0000007
-hyper              CortDA_CortSM         tvertex       DXSSD     5.800263   0.0000000
-hyper              CortDA_CortSM         tvolume       DXSSD     4.430104   0.0000116
-hyper              CortDA_thalamus       pvertex       DXSSD     4.542757   0.0000070
-hyper              CortDA_thalamus       tvertex       DXSSD     5.881766   0.0000000
-hyper              CortDA_thalamus       tvolume       DXSSD     6.389888   0.0000000
-hyper              CortDM_cerebellum     pvertex       DXSSD     4.642349   0.0000044
-hyper              CortDM_cerebellum     tvertex       DXSSD     5.302022   0.0000002
-hyper              CortDM_cerebellum     tvolume       DXSSD     5.423749   0.0000001
-hyper              CortDM_CortDM         pvertex       DXSSD     3.750295   0.0001978
-hyper              CortDM_CortDM         tvertex       DXSSD     4.945778   0.0000010
-hyper              CortDM_CortDM         tvolume       DXSSD     3.402300   0.0007230
-hyper              CortDM_striatum       pvertex       DXSSD     4.491751   0.0000088
-hyper              CortDM_striatum       tvertex       DXSSD     4.785079   0.0000023
-hyper              CortDM_striatum       tvolume       DXSSD     3.504970   0.0004987
-hyper              CortDM_thalamus       pvertex       DXSSD     3.988825   0.0000766
-hyper              CortDM_thalamus       tvertex       DXSSD     4.454424   0.0000104
-hyper              CortDM_thalamus       tvolume       DXSSD     4.215423   0.0000297
-hyper              CortFP_CortDA         pvertex       DXSSD     3.926352   0.0000986
-hyper              CortFP_CortDA         tvertex       DXSSD     5.826878   0.0000000
-hyper              CortFP_CortDA         tvolume       DXSSD     4.514464   0.0000080
-hyper              CortFP_CortSM         pvertex       DXSSD     4.670951   0.0000039
-hyper              CortFP_CortSM         tvertex       DXSSD     5.814223   0.0000000
-hyper              CortFP_CortSM         tvolume       DXSSD     4.476600   0.0000094
-hyper              CortFP_CortVA         pvertex       DXSSD     4.342411   0.0000171
-hyper              CortFP_CortVA         tvertex       DXSSD     5.919580   0.0000000
-hyper              CortFP_CortVA         tvolume       DXSSD     4.544195   0.0000070
-hyper              CortSM_cerebellum     pvertex       DXSSD     5.222505   0.0000003
-hyper              CortSM_cerebellum     tvertex       DXSSD     6.206560   0.0000000
-hyper              CortSM_cerebellum     tvolume       DXSSD     5.283414   0.0000002
-hyper              CortSM_CortVI         pvertex       DXSSD     3.316109   0.0009807
-hyper              CortSM_CortVI         tvertex       DXSSD     4.409429   0.0000128
-hyper              CortSM_CortVI         tvolume       DXSSD     3.778039   0.0001776
-hyper              CortSM_striatum       pvertex       DXSSD     3.039343   0.0024979
-hyper              CortSM_striatum       tvertex       DXSSD     3.332670   0.0009254
-hyper              CortSM_striatum       tvolume       DXSSD     4.223272   0.0000287
-hyper              CortSM_thalamus       pvertex       DXSSD     5.780605   0.0000000
-hyper              CortSM_thalamus       tvertex       DXSSD     6.355291   0.0000000
-hyper              CortSM_thalamus       tvolume       DXSSD     6.332004   0.0000000
-hyper              CortVA_CortDA         pvertex       DXSSD     4.615709   0.0000050
-hyper              CortVA_CortDA         tvertex       DXSSD     6.636692   0.0000000
-hyper              CortVA_CortDA         tvolume       DXSSD     5.064163   0.0000006
-hyper              CortVA_CortSM         pvertex       DXSSD     4.341260   0.0000172
-hyper              CortVA_CortSM         tvertex       DXSSD     5.873598   0.0000000
-hyper              CortVA_CortSM         tvolume       DXSSD     4.571869   0.0000061
-hyper              CortVA_CortVA         pvertex       DXSSD     3.574728   0.0003854
-hyper              CortVA_CortVA         tvertex       DXSSD     4.631029   0.0000047
-hyper              CortVA_CortVA         tvolume       DXSSD     4.976830   0.0000009
-hyper              CortVA_CortVI         pvertex       DXSSD     3.312321   0.0009938
-hyper              CortVA_CortVI         tvertex       DXSSD     4.771213   0.0000024
-hyper              CortVA_CortVI         tvolume       DXSSD     3.905806   0.0001071
-hyper              CortVI_cerebellum     pvertex       DXSSD     4.773760   0.0000024
-hyper              CortVI_cerebellum     tvertex       DXSSD     5.095417   0.0000005
-hyper              CortVI_cerebellum     tvolume       DXSSD     4.229329   0.0000280
-hyper              CortVI_striatum       pvertex       DXSSD     4.508477   0.0000082
-hyper              CortVI_striatum       tvertex       DXSSD     4.704747   0.0000033
-hyper              CortVI_striatum       tvolume       DXSSD     3.967064   0.0000837
-hyper              CortVI_thalamus       pvertex       DXSSD     7.513960   0.0000000
-hyper              CortVI_thalamus       tvertex       DXSSD     7.897544   0.0000000
-hyper              CortVI_thalamus       tvolume       DXSSD     6.078778   0.0000000
-hypo               cerebellum_striatum   pvertex       DXSSD    -5.981823   0.0000000
-hypo               cerebellum_striatum   tvertex       DXSSD    -5.981823   0.0000000
-hypo               cerebellum_striatum   tvolume       DXSSD    -5.981823   0.0000000
-hypo               cerebellum_thalamus   pvertex       DXSSD    -7.824828   0.0000000
-hypo               cerebellum_thalamus   tvertex       DXSSD    -7.824828   0.0000000
-hypo               cerebellum_thalamus   tvolume       DXSSD    -7.824828   0.0000000
-hypo               CortDM_CortDA         pvertex       DXSSD    -4.648709   0.0000043
-hypo               CortDM_CortDA         tvertex       DXSSD    -5.247558   0.0000002
-hypo               CortDM_CortDA         tvolume       DXSSD    -3.254804   0.0012133
-hypo               CortDM_CortSM         pvertex       DXSSD    -5.392256   0.0000001
-hypo               CortDM_CortSM         tvertex       DXSSD    -6.231482   0.0000000
-hypo               CortDM_CortSM         tvolume       DXSSD    -3.624750   0.0003195
-hypo               CortDM_CortVA         pvertex       DXSSD    -4.368380   0.0000153
-hypo               CortDM_CortVA         tvertex       DXSSD    -6.127277   0.0000000
-hypo               CortDM_CortVA         tvolume       DXSSD    -4.228984   0.0000280
-hypo               CortFP_cerebellum     pvertex       DXSSD    -5.345261   0.0000001
-hypo               CortFP_cerebellum     tvertex       DXSSD    -6.405003   0.0000000
-hypo               CortFP_cerebellum     tvolume       DXSSD    -6.184458   0.0000000
-hypo               CortFP_CortFP         pvertex       DXSSD    -4.037718   0.0000626
-hypo               CortFP_CortFP         tvertex       DXSSD    -5.144663   0.0000004
-hypo               CortFP_CortFP         tvolume       DXSSD    -4.181040   0.0000344
-hypo               CortFP_striatum       pvertex       DXSSD    -3.927768   0.0000981
-hypo               CortFP_striatum       tvertex       DXSSD    -4.862426   0.0000016
-hypo               CortFP_striatum       tvolume       DXSSD    -4.882349   0.0000014
-hypo               CortFP_thalamus       pvertex       DXSSD    -4.750162   0.0000027
-hypo               CortFP_thalamus       tvertex       DXSSD    -5.530944   0.0000001
-hypo               CortFP_thalamus       tvolume       DXSSD    -6.159073   0.0000000
-hypo               CortSM_CortSM         pvertex       DXSSD    -4.606963   0.0000052
-hypo               CortSM_CortSM         tvertex       DXSSD    -4.957989   0.0000010
-hypo               CortSM_CortSM         tvolume       DXSSD    -4.339779   0.0000173
-hypo               CortVA_cerebellum     pvertex       DXSSD    -4.735371   0.0000029
-hypo               CortVA_cerebellum     tvertex       DXSSD    -5.513551   0.0000001
-hypo               CortVA_cerebellum     tvolume       DXSSD    -5.950585   0.0000000
-hypo               CortVA_striatum       pvertex       DXSSD    -3.993228   0.0000752
-hypo               CortVA_striatum       tvertex       DXSSD    -4.671661   0.0000039
-hypo               CortVA_striatum       tvolume       DXSSD    -5.332617   0.0000001
-hypo               CortVI_CortVI         pvertex       DXSSD    -5.322826   0.0000002
-hypo               CortVI_CortVI         tvertex       DXSSD    -5.840072   0.0000000
-hypo               CortVI_CortVI         tvolume       DXSSD    -3.991611   0.0000757
-hypo               thalamus_striatum     pvertex       DXSSD    -5.655035   0.0000000
-hypo               thalamus_striatum     tvertex       DXSSD    -5.655035   0.0000000
-hypo               thalamus_striatum     tvolume       DXSSD    -5.655035   0.0000000
+effect_direction   edge_group            vertex_type   term     statistic    p.value
+-----------------  --------------------  ------------  ------  ----------  ---------
+hyper              CortDA_CortSM         pvertex       DXSSD     5.845282   0.00e+00
+hyper              CortDA_CortSM         tvertex       DXSSD     6.776400   0.00e+00
+hyper              CortDA_CortSM         tvolume       DXSSD     5.671978   0.00e+00
+hyper              CortDA_thalamus       pvertex       DXSSD     5.196846   3.00e-07
+hyper              CortDA_thalamus       tvertex       DXSSD     6.969710   0.00e+00
+hyper              CortDA_thalamus       tvolume       DXSSD     6.589500   0.00e+00
+hyper              CortFP_CortSM         pvertex       DXSSD     4.828552   2.00e-06
+hyper              CortFP_CortSM         tvertex       DXSSD     5.966246   0.00e+00
+hyper              CortFP_CortSM         tvolume       DXSSD     5.252345   2.00e-07
+hyper              CortSM_cerebellum     pvertex       DXSSD     5.640554   0.00e+00
+hyper              CortSM_cerebellum     tvertex       DXSSD     6.534012   0.00e+00
+hyper              CortSM_cerebellum     tvolume       DXSSD     5.840569   0.00e+00
+hyper              CortSM_thalamus       pvertex       DXSSD     5.884949   0.00e+00
+hyper              CortSM_thalamus       tvertex       DXSSD     6.571101   0.00e+00
+hyper              CortSM_thalamus       tvolume       DXSSD     6.559769   0.00e+00
+hyper              CortVA_CortDA         pvertex       DXSSD     5.557345   1.00e-07
+hyper              CortVA_CortDA         tvertex       DXSSD     7.656908   0.00e+00
+hyper              CortVA_CortDA         tvolume       DXSSD     6.425023   0.00e+00
+hyper              CortVA_thalamus       pvertex       DXSSD     4.221236   3.01e-05
+hyper              CortVA_thalamus       tvertex       DXSSD     6.121716   0.00e+00
+hyper              CortVA_thalamus       tvolume       DXSSD     7.025053   0.00e+00
+hyper              CortVI_cerebellum     pvertex       DXSSD     5.260644   2.00e-07
+hyper              CortVI_cerebellum     tvertex       DXSSD     5.600676   0.00e+00
+hyper              CortVI_cerebellum     tvolume       DXSSD     4.854027   1.70e-06
+hyper              CortVI_striatum       pvertex       DXSSD     4.662483   4.30e-06
+hyper              CortVI_striatum       tvertex       DXSSD     4.798883   2.30e-06
+hyper              CortVI_striatum       tvolume       DXSSD     4.632696   4.90e-06
+hyper              CortVI_thalamus       pvertex       DXSSD     6.659482   0.00e+00
+hyper              CortVI_thalamus       tvertex       DXSSD     7.237281   0.00e+00
+hyper              CortVI_thalamus       tvolume       DXSSD     6.049776   0.00e+00
+hypo               cerebellum_striatum   pvertex       DXSSD    -6.215017   0.00e+00
+hypo               cerebellum_striatum   tvertex       DXSSD    -6.215017   0.00e+00
+hypo               cerebellum_striatum   tvolume       DXSSD    -6.215017   0.00e+00
+hypo               cerebellum_thalamus   pvertex       DXSSD    -8.142185   0.00e+00
+hypo               cerebellum_thalamus   tvertex       DXSSD    -8.142185   0.00e+00
+hypo               cerebellum_thalamus   tvolume       DXSSD    -8.142185   0.00e+00
+hypo               CortDM_CortDA         pvertex       DXSSD    -5.750990   0.00e+00
+hypo               CortDM_CortDA         tvertex       DXSSD    -6.724222   0.00e+00
+hypo               CortFP_cerebellum     pvertex       DXSSD    -5.734453   0.00e+00
+hypo               CortFP_cerebellum     tvertex       DXSSD    -6.925592   0.00e+00
+hypo               CortFP_cerebellum     tvolume       DXSSD    -5.936426   0.00e+00
+hypo               CortVA_striatum       pvertex       DXSSD    -4.234918   2.84e-05
+hypo               CortVA_striatum       tvertex       DXSSD    -4.595880   5.80e-06
+hypo               CortVA_striatum       tvolume       DXSSD    -4.558391   6.90e-06
+hypo               thalamus_striatum     pvertex       DXSSD    -5.839593   0.00e+00
+hypo               thalamus_striatum     tvertex       DXSSD    -5.839593   0.00e+00
+hypo               thalamus_striatum     tvolume       DXSSD    -5.839593   0.00e+00
 
 ```r
 FC_gscores_lmfit %>% 
@@ -1300,7 +1998,7 @@ FC_gscores_lmfit %>%
   facet_wrap(~effect_direction*node_class)
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-44-1.png" width="672" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-54-1.png" width="672" />
 
 ```r
 FC_gscores_lmfitbySite <- all_subject_FC_weights %>%
@@ -1319,426 +2017,194 @@ FC_gscores_lmfitbySite %>%
 
 effect_direction   edge_group            Site       vertex_type   term      statistic     p.value
 -----------------  --------------------  ---------  ------------  ------  -----------  ----------
-hyper              CortDA_cerebellum     CMH        pvertex       DXSSD     1.7374955   0.0852888
-hyper              CortDA_cerebellum     COBRE      pvertex       DXSSD     2.0368488   0.0467709
-hyper              CortDA_cerebellum     ds000030   pvertex       DXSSD     1.0867583   0.2791093
-hyper              CortDA_cerebellum     ZHH        pvertex       DXSSD     2.4154261   0.0166689
-hyper              CortDA_cerebellum     CMH        tvertex       DXSSD     2.2540640   0.0263098
-hyper              CortDA_cerebellum     COBRE      tvertex       DXSSD     2.4082091   0.0196118
-hyper              CortDA_cerebellum     ds000030   tvertex       DXSSD     2.1546596   0.0329901
-hyper              CortDA_cerebellum     ZHH        tvertex       DXSSD     2.5439867   0.0117596
-hyper              CortDA_cerebellum     CMH        tvolume       DXSSD     3.3266046   0.0012194
-hyper              CortDA_cerebellum     COBRE      tvolume       DXSSD     2.9415289   0.0048671
-hyper              CortDA_cerebellum     ds000030   tvolume       DXSSD     2.3512449   0.0201796
-hyper              CortDA_cerebellum     ZHH        tvolume       DXSSD     2.1505617   0.0327809
-hyper              CortDA_CortSM         CMH        pvertex       DXSSD     3.1666252   0.0020292
-hyper              CortDA_CortSM         COBRE      pvertex       DXSSD     0.8392285   0.4051828
-hyper              CortDA_CortSM         ds000030   pvertex       DXSSD    -0.4757464   0.6350355
-hyper              CortDA_CortSM         ZHH        pvertex       DXSSD     4.8711478   0.0000023
-hyper              CortDA_CortSM         CMH        tvertex       DXSSD     3.8014589   0.0002439
-hyper              CortDA_CortSM         COBRE      tvertex       DXSSD     0.1848932   0.8540321
-hyper              CortDA_CortSM         ds000030   tvertex       DXSSD    -0.4474403   0.6552851
-hyper              CortDA_CortSM         ZHH        tvertex       DXSSD     5.7625283   0.0000000
-hyper              CortDA_CortSM         CMH        tvolume       DXSSD     1.5773010   0.1177928
-hyper              CortDA_CortSM         COBRE      tvolume       DXSSD     0.1115481   0.9116112
-hyper              CortDA_CortSM         ds000030   tvolume       DXSSD     1.1764293   0.2415247
-hyper              CortDA_CortSM         ZHH        tvolume       DXSSD     4.1865347   0.0000434
-hyper              CortDA_thalamus       CMH        pvertex       DXSSD     2.7625395   0.0067938
-hyper              CortDA_thalamus       COBRE      pvertex       DXSSD     1.5366846   0.1304336
-hyper              CortDA_thalamus       ds000030   pvertex       DXSSD     1.6499348   0.1013160
-hyper              CortDA_thalamus       ZHH        pvertex       DXSSD     2.8448237   0.0049334
-hyper              CortDA_thalamus       CMH        tvertex       DXSSD     3.0948300   0.0025360
-hyper              CortDA_thalamus       COBRE      tvertex       DXSSD     2.9207419   0.0051541
-hyper              CortDA_thalamus       ds000030   tvertex       DXSSD     2.0023558   0.0472800
-hyper              CortDA_thalamus       ZHH        tvertex       DXSSD     3.7253037   0.0002575
-hyper              CortDA_thalamus       CMH        tvolume       DXSSD     4.2073878   0.0000553
-hyper              CortDA_thalamus       COBRE      tvolume       DXSSD     2.4303981   0.0185684
-hyper              CortDA_thalamus       ds000030   tvolume       DXSSD     2.9111664   0.0042235
-hyper              CortDA_thalamus       ZHH        tvolume       DXSSD     2.9711563   0.0033522
-hyper              CortDM_cerebellum     CMH        pvertex       DXSSD     1.2073842   0.2300495
-hyper              CortDM_cerebellum     COBRE      pvertex       DXSSD     1.9354767   0.0583780
-hyper              CortDM_cerebellum     ds000030   pvertex       DXSSD     2.6694634   0.0085440
-hyper              CortDM_cerebellum     ZHH        pvertex       DXSSD     2.6196498   0.0095169
-hyper              CortDM_cerebellum     CMH        tvertex       DXSSD     2.4207076   0.0172404
-hyper              CortDM_cerebellum     COBRE      tvertex       DXSSD     1.6594706   0.1030410
-hyper              CortDM_cerebellum     ds000030   tvertex       DXSSD     2.6741752   0.0084310
-hyper              CortDM_cerebellum     ZHH        tvertex       DXSSD     3.0567941   0.0025612
-hyper              CortDM_cerebellum     CMH        tvolume       DXSSD     2.6408227   0.0095579
-hyper              CortDM_cerebellum     COBRE      tvolume       DXSSD     0.9471332   0.3479517
-hyper              CortDM_cerebellum     ds000030   tvolume       DXSSD     3.4609494   0.0007241
-hyper              CortDM_cerebellum     ZHH        tvolume       DXSSD     3.0573898   0.0025564
-hyper              CortDM_CortDM         CMH        pvertex       DXSSD     3.6218486   0.0004559
-hyper              CortDM_CortDM         COBRE      pvertex       DXSSD     0.5076200   0.6138663
-hyper              CortDM_CortDM         ds000030   pvertex       DXSSD     1.2080836   0.2291588
-hyper              CortDM_CortDM         ZHH        pvertex       DXSSD     2.4368557   0.0157419
-hyper              CortDM_CortDM         CMH        tvertex       DXSSD     3.3903875   0.0009906
-hyper              CortDM_CortDM         COBRE      tvertex       DXSSD     0.4172288   0.6782286
-hyper              CortDM_CortDM         ds000030   tvertex       DXSSD     1.7701311   0.0789966
-hyper              CortDM_CortDM         ZHH        tvertex       DXSSD     3.8835592   0.0001422
-hyper              CortDM_CortDM         CMH        tvolume       DXSSD     3.1889257   0.0018921
-hyper              CortDM_CortDM         COBRE      tvolume       DXSSD     0.1336728   0.8941773
-hyper              CortDM_CortDM         ds000030   tvolume       DXSSD     1.2156566   0.2262692
-hyper              CortDM_CortDM         ZHH        tvolume       DXSSD     2.5854593   0.0104778
-hyper              CortDM_striatum       CMH        pvertex       DXSSD     1.2588212   0.2109405
-hyper              CortDM_striatum       COBRE      pvertex       DXSSD     1.3408207   0.1858068
-hyper              CortDM_striatum       ds000030   pvertex       DXSSD     3.4442708   0.0007663
-hyper              CortDM_striatum       ZHH        pvertex       DXSSD     2.7812883   0.0059629
-hyper              CortDM_striatum       CMH        tvertex       DXSSD     1.4534348   0.1491432
-hyper              CortDM_striatum       COBRE      tvertex       DXSSD     1.5266770   0.1329014
-hyper              CortDM_striatum       ds000030   tvertex       DXSSD     3.1938050   0.0017532
-hyper              CortDM_striatum       ZHH        tvertex       DXSSD     2.6951939   0.0076690
-hyper              CortDM_striatum       CMH        tvolume       DXSSD     1.9924327   0.0489696
-hyper              CortDM_striatum       COBRE      tvolume       DXSSD     0.1977576   0.8440058
-hyper              CortDM_striatum       ds000030   tvolume       DXSSD     2.0784043   0.0395943
-hyper              CortDM_striatum       ZHH        tvolume       DXSSD     2.1482781   0.0329643
-hyper              CortDM_thalamus       CMH        pvertex       DXSSD     0.6980543   0.4867162
-hyper              CortDM_thalamus       COBRE      pvertex       DXSSD     2.1287211   0.0380341
-hyper              CortDM_thalamus       ds000030   pvertex       DXSSD     1.5188205   0.1311813
-hyper              CortDM_thalamus       ZHH        pvertex       DXSSD     2.8328728   0.0051137
-hyper              CortDM_thalamus       CMH        tvertex       DXSSD     1.3427008   0.1823205
-hyper              CortDM_thalamus       COBRE      tvertex       DXSSD     1.4029312   0.1665802
-hyper              CortDM_thalamus       ds000030   tvertex       DXSSD     1.1398627   0.2563921
-hyper              CortDM_thalamus       ZHH        tvertex       DXSSD     3.5166679   0.0005472
-hyper              CortDM_thalamus       CMH        tvolume       DXSSD     1.0764402   0.2842453
-hyper              CortDM_thalamus       COBRE      tvolume       DXSSD     1.6172346   0.1118787
-hyper              CortDM_thalamus       ds000030   tvolume       DXSSD     2.2088500   0.0288971
-hyper              CortDM_thalamus       ZHH        tvolume       DXSSD     2.7313841   0.0069043
-hyper              CortFP_CortDA         CMH        pvertex       DXSSD     0.4739461   0.6365415
-hyper              CortFP_CortDA         COBRE      pvertex       DXSSD     1.2766115   0.2074113
-hyper              CortFP_CortDA         ds000030   pvertex       DXSSD     2.1372678   0.0344059
-hyper              CortFP_CortDA         ZHH        pvertex       DXSSD     2.7887667   0.0058323
-hyper              CortFP_CortDA         CMH        tvertex       DXSSD     3.2183070   0.0017246
-hyper              CortFP_CortDA         COBRE      tvertex       DXSSD     2.2702908   0.0273617
-hyper              CortFP_CortDA         ds000030   tvertex       DXSSD     3.3143712   0.0011837
-hyper              CortFP_CortDA         ZHH        tvertex       DXSSD     2.9780209   0.0032814
-hyper              CortFP_CortDA         CMH        tvolume       DXSSD     3.4504564   0.0008126
-hyper              CortFP_CortDA         COBRE      tvolume       DXSSD     0.1150147   0.9088765
-hyper              CortFP_CortDA         ds000030   tvolume       DXSSD     2.8103822   0.0056963
-hyper              CortFP_CortDA         ZHH        tvolume       DXSSD     3.0149363   0.0029234
-hyper              CortFP_CortSM         CMH        pvertex       DXSSD     3.6579939   0.0004026
-hyper              CortFP_CortSM         COBRE      pvertex       DXSSD     1.5205593   0.1344283
-hyper              CortFP_CortSM         ds000030   pvertex       DXSSD     2.0378379   0.0435490
-hyper              CortFP_CortSM         ZHH        pvertex       DXSSD     2.8871218   0.0043409
-hyper              CortFP_CortSM         CMH        tvertex       DXSSD     3.8936310   0.0001756
-hyper              CortFP_CortSM         COBRE      tvertex       DXSSD     2.1433045   0.0367873
-hyper              CortFP_CortSM         ds000030   tvertex       DXSSD     1.9911145   0.0485174
-hyper              CortFP_CortSM         ZHH        tvertex       DXSSD     3.5910133   0.0004198
-hyper              CortFP_CortSM         CMH        tvolume       DXSSD     2.2914994   0.0239700
-hyper              CortFP_CortSM         COBRE      tvolume       DXSSD     1.2746075   0.2081146
-hyper              CortFP_CortSM         ds000030   tvolume       DXSSD     2.6951162   0.0079450
-hyper              CortFP_CortSM         ZHH        tvolume       DXSSD     2.8607653   0.0047019
-hyper              CortFP_CortVA         CMH        pvertex       DXSSD     2.1659714   0.0326204
-hyper              CortFP_CortVA         COBRE      pvertex       DXSSD     2.1032304   0.0403023
-hyper              CortFP_CortVA         ds000030   pvertex       DXSSD     0.8537622   0.3947718
-hyper              CortFP_CortVA         ZHH        pvertex       DXSSD     3.0700193   0.0024557
-hyper              CortFP_CortVA         CMH        tvertex       DXSSD     2.8808808   0.0048257
-hyper              CortFP_CortVA         COBRE      tvertex       DXSSD     1.3092248   0.1962141
-hyper              CortFP_CortVA         ds000030   tvertex       DXSSD     1.9448699   0.0539008
-hyper              CortFP_CortVA         ZHH        tvertex       DXSSD     4.6022378   0.0000077
-hyper              CortFP_CortVA         CMH        tvolume       DXSSD     3.0539564   0.0028747
-hyper              CortFP_CortVA         COBRE      tvolume       DXSSD     0.3615991   0.7191169
-hyper              CortFP_CortVA         ds000030   tvolume       DXSSD     2.5101161   0.0132683
-hyper              CortFP_CortVA         ZHH        tvolume       DXSSD     3.3625878   0.0009346
-hyper              CortSM_cerebellum     CMH        pvertex       DXSSD     2.7097284   0.0078887
-hyper              CortSM_cerebellum     COBRE      pvertex       DXSSD     2.4608729   0.0172167
-hyper              CortSM_cerebellum     ds000030   pvertex       DXSSD     1.7704973   0.0789353
-hyper              CortSM_cerebellum     ZHH        pvertex       DXSSD     3.3630039   0.0009333
-hyper              CortSM_cerebellum     CMH        tvertex       DXSSD     3.0749305   0.0026960
-hyper              CortSM_cerebellum     COBRE      tvertex       DXSSD     3.2319968   0.0021356
-hyper              CortSM_cerebellum     ds000030   tvertex       DXSSD     2.4685865   0.0148333
-hyper              CortSM_cerebellum     ZHH        tvertex       DXSSD     3.7132928   0.0002691
-hyper              CortSM_cerebellum     CMH        tvolume       DXSSD     2.9567847   0.0038549
-hyper              CortSM_cerebellum     COBRE      tvolume       DXSSD     1.7609999   0.0841179
-hyper              CortSM_cerebellum     ds000030   tvolume       DXSSD     1.3854590   0.1682312
-hyper              CortSM_cerebellum     ZHH        tvolume       DXSSD     3.9578911   0.0001069
-hyper              CortSM_CortVI         CMH        pvertex       DXSSD     0.2748946   0.7839478
-hyper              CortSM_CortVI         COBRE      pvertex       DXSSD     1.2831689   0.2051224
-hyper              CortSM_CortVI         ds000030   pvertex       DXSSD     2.1673428   0.0319896
-hyper              CortSM_CortVI         ZHH        pvertex       DXSSD     1.9774422   0.0494454
-hyper              CortSM_CortVI         CMH        tvertex       DXSSD     0.7953483   0.4282400
-hyper              CortSM_CortVI         COBRE      tvertex       DXSSD     2.3736459   0.0213424
-hyper              CortSM_CortVI         ds000030   tvertex       DXSSD     2.3158044   0.0220989
-hyper              CortSM_CortVI         ZHH        tvertex       DXSSD     2.4796313   0.0140271
-hyper              CortSM_CortVI         CMH        tvolume       DXSSD    -0.4698862   0.6394296
-hyper              CortSM_CortVI         COBRE      tvolume       DXSSD     1.7822755   0.0805432
-hyper              CortSM_CortVI         ds000030   tvolume       DXSSD     1.6065827   0.1105176
-hyper              CortSM_CortVI         ZHH        tvolume       DXSSD     2.9016271   0.0041531
-hyper              CortSM_striatum       CMH        pvertex       DXSSD     0.2605506   0.7949593
-hyper              CortSM_striatum       COBRE      pvertex       DXSSD     2.0792960   0.0425386
-hyper              CortSM_striatum       ds000030   pvertex       DXSSD     1.5600102   0.1211338
-hyper              CortSM_striatum       ZHH        pvertex       DXSSD     1.8768436   0.0620805
-hyper              CortSM_striatum       CMH        tvertex       DXSSD     0.7297645   0.4671906
-hyper              CortSM_striatum       COBRE      tvertex       DXSSD     2.4573623   0.0173678
-hyper              CortSM_striatum       ds000030   tvertex       DXSSD     1.8377888   0.0683251
-hyper              CortSM_striatum       ZHH        tvertex       DXSSD     1.3934623   0.1651165
-hyper              CortSM_striatum       CMH        tvolume       DXSSD     1.7636093   0.0807631
-hyper              CortSM_striatum       COBRE      tvolume       DXSSD     1.8952572   0.0636233
-hyper              CortSM_striatum       ds000030   tvolume       DXSSD     2.1861582   0.0305539
-hyper              CortSM_striatum       ZHH        tvolume       DXSSD     2.5127614   0.0128153
-hyper              CortSM_thalamus       CMH        pvertex       DXSSD     3.2240339   0.0016936
-hyper              CortSM_thalamus       COBRE      pvertex       DXSSD     3.8921296   0.0002844
-hyper              CortSM_thalamus       ds000030   pvertex       DXSSD     2.6918354   0.0080195
-hyper              CortSM_thalamus       ZHH        pvertex       DXSSD     2.7661609   0.0062351
-hyper              CortSM_thalamus       CMH        tvertex       DXSSD     3.5457285   0.0005906
-hyper              CortSM_thalamus       COBRE      tvertex       DXSSD     4.6013756   0.0000273
-hyper              CortSM_thalamus       ds000030   tvertex       DXSSD     3.0360294   0.0028849
-hyper              CortSM_thalamus       ZHH        tvertex       DXSSD     3.1868185   0.0016833
-hyper              CortSM_thalamus       CMH        tvolume       DXSSD     3.5640151   0.0005552
-hyper              CortSM_thalamus       COBRE      tvolume       DXSSD     3.3040196   0.0017299
-hyper              CortSM_thalamus       ds000030   tvolume       DXSSD     3.5341170   0.0005633
-hyper              CortSM_thalamus       ZHH        tvolume       DXSSD     3.2628326   0.0013090
-hyper              CortVA_CortDA         CMH        pvertex       DXSSD     0.4867116   0.6274968
-hyper              CortVA_CortDA         COBRE      pvertex       DXSSD     0.9264011   0.3585174
-hyper              CortVA_CortDA         ds000030   pvertex       DXSSD     2.7689037   0.0064283
-hyper              CortVA_CortDA         ZHH        pvertex       DXSSD     4.2230614   0.0000374
-hyper              CortVA_CortDA         CMH        tvertex       DXSSD     1.5957401   0.1136106
-hyper              CortVA_CortDA         COBRE      tvertex       DXSSD     2.0860644   0.0418955
-hyper              CortVA_CortDA         ds000030   tvertex       DXSSD     2.5497868   0.0119129
-hyper              CortVA_CortDA         ZHH        tvertex       DXSSD     5.9690723   0.0000000
-hyper              CortVA_CortDA         CMH        tvolume       DXSSD     0.9331152   0.3529428
-hyper              CortVA_CortDA         COBRE      tvolume       DXSSD     1.1336427   0.2621440
-hyper              CortVA_CortDA         ds000030   tvolume       DXSSD     2.3626140   0.0195959
-hyper              CortVA_CortDA         ZHH        tvolume       DXSSD     4.3826699   0.0000194
-hyper              CortVA_CortSM         CMH        pvertex       DXSSD     1.7004253   0.0920686
-hyper              CortVA_CortSM         COBRE      pvertex       DXSSD     1.7117271   0.0929059
-hyper              CortVA_CortSM         ds000030   pvertex       DXSSD     1.5442871   0.1248949
-hyper              CortVA_CortSM         ZHH        pvertex       DXSSD     2.7057896   0.0074375
-hyper              CortVA_CortSM         CMH        tvertex       DXSSD     2.3799190   0.0191564
-hyper              CortVA_CortSM         COBRE      tvertex       DXSSD     2.6437329   0.0108131
-hyper              CortVA_CortSM         ds000030   tvertex       DXSSD     2.5649526   0.0114285
-hyper              CortVA_CortSM         ZHH        tvertex       DXSSD     3.2635612   0.0013058
-hyper              CortVA_CortSM         CMH        tvolume       DXSSD     2.3936387   0.0184918
-hyper              CortVA_CortSM         COBRE      tvolume       DXSSD     1.2925540   0.2018795
-hyper              CortVA_CortSM         ds000030   tvolume       DXSSD     2.4583595   0.0152431
-hyper              CortVA_CortSM         ZHH        tvolume       DXSSD     2.9379051   0.0037157
-hyper              CortVA_CortVA         CMH        pvertex       DXSSD     2.2446942   0.0269258
-hyper              CortVA_CortVA         COBRE      pvertex       DXSSD     0.4157504   0.6793034
-hyper              CortVA_CortVA         ds000030   pvertex       DXSSD     1.2632100   0.2087237
-hyper              CortVA_CortVA         ZHH        pvertex       DXSSD     2.1254765   0.0348455
-hyper              CortVA_CortVA         CMH        tvertex       DXSSD     2.5747693   0.0114515
-hyper              CortVA_CortVA         COBRE      tvertex       DXSSD     1.1572436   0.2524612
-hyper              CortVA_CortVA         ds000030   tvertex       DXSSD     1.9914933   0.0484752
-hyper              CortVA_CortVA         ZHH        tvertex       DXSSD     2.3198560   0.0214169
-hyper              CortVA_CortVA         CMH        tvolume       DXSSD     3.4113668   0.0009246
-hyper              CortVA_CortVA         COBRE      tvolume       DXSSD     1.0612296   0.2934897
-hyper              CortVA_CortVA         ds000030   tvolume       DXSSD     2.1138136   0.0363983
-hyper              CortVA_CortVA         ZHH        tvolume       DXSSD     2.9146407   0.0039911
-hyper              CortVA_CortVI         CMH        pvertex       DXSSD     0.6827189   0.4963172
-hyper              CortVA_CortVI         COBRE      pvertex       DXSSD     1.0229561   0.3110642
-hyper              CortVA_CortVI         ds000030   pvertex       DXSSD     3.0727475   0.0025734
-hyper              CortVA_CortVI         ZHH        pvertex       DXSSD     1.4801113   0.1405085
-hyper              CortVA_CortVI         CMH        tvertex       DXSSD     2.3272312   0.0219094
-hyper              CortVA_CortVI         COBRE      tvertex       DXSSD     1.5395771   0.1297271
-hyper              CortVA_CortVI         ds000030   tvertex       DXSSD     3.1374473   0.0020990
-hyper              CortVA_CortVI         ZHH        tvertex       DXSSD     2.0133353   0.0454980
-hyper              CortVA_CortVI         CMH        tvolume       DXSSD     0.9426892   0.3480458
-hyper              CortVA_CortVI         COBRE      tvolume       DXSSD     1.2794436   0.2064204
-hyper              CortVA_CortVI         ds000030   tvolume       DXSSD     2.7831883   0.0061670
-hyper              CortVA_CortVI         ZHH        tvolume       DXSSD     2.5564101   0.0113616
-hyper              CortVI_cerebellum     CMH        pvertex       DXSSD     2.3291219   0.0218049
-hyper              CortVI_cerebellum     COBRE      pvertex       DXSSD     1.7264770   0.0901990
-hyper              CortVI_cerebellum     ds000030   pvertex       DXSSD     2.0342402   0.0439154
-hyper              CortVI_cerebellum     ZHH        pvertex       DXSSD     2.8879322   0.0043302
-hyper              CortVI_cerebellum     CMH        tvertex       DXSSD     2.7441493   0.0071583
-hyper              CortVI_cerebellum     COBRE      tvertex       DXSSD     2.5276532   0.0145605
-hyper              CortVI_cerebellum     ds000030   tvertex       DXSSD     1.6914522   0.0930923
-hyper              CortVI_cerebellum     ZHH        tvertex       DXSSD     2.9203600   0.0039217
-hyper              CortVI_cerebellum     CMH        tvolume       DXSSD     2.3218663   0.0222085
-hyper              CortVI_cerebellum     COBRE      tvolume       DXSSD     2.6037537   0.0119907
-hyper              CortVI_cerebellum     ds000030   tvolume       DXSSD     0.8117156   0.4184052
-hyper              CortVI_cerebellum     ZHH        tvolume       DXSSD     2.3819988   0.0182115
-hyper              CortVI_striatum       CMH        pvertex       DXSSD     2.3460921   0.0208862
-hyper              CortVI_striatum       COBRE      pvertex       DXSSD     2.2465321   0.0289424
-hyper              CortVI_striatum       ds000030   pvertex       DXSSD     0.8743826   0.3834861
-hyper              CortVI_striatum       ZHH        pvertex       DXSSD     3.2016581   0.0016032
-hyper              CortVI_striatum       CMH        tvertex       DXSSD     2.7377926   0.0072884
-hyper              CortVI_striatum       COBRE      tvertex       DXSSD     1.8191165   0.0746536
-hyper              CortVI_striatum       ds000030   tvertex       DXSSD     0.5196227   0.6041903
-hyper              CortVI_striatum       ZHH        tvertex       DXSSD     3.7396555   0.0002442
-hyper              CortVI_striatum       CMH        tvolume       DXSSD     2.5462371   0.0123692
-hyper              CortVI_striatum       COBRE      tvolume       DXSSD     2.0086668   0.0497782
-hyper              CortVI_striatum       ds000030   tvolume       DXSSD    -0.1318823   0.8952767
-hyper              CortVI_striatum       ZHH        tvolume       DXSSD     3.2819638   0.0012278
-hyper              CortVI_thalamus       CMH        pvertex       DXSSD     2.8024509   0.0060603
-hyper              CortVI_thalamus       COBRE      pvertex       DXSSD     3.5012716   0.0009597
-hyper              CortVI_thalamus       ds000030   pvertex       DXSSD     3.2299200   0.0015603
-hyper              CortVI_thalamus       ZHH        pvertex       DXSSD     4.6652957   0.0000058
-hyper              CortVI_thalamus       CMH        tvertex       DXSSD     3.5579995   0.0005666
-hyper              CortVI_thalamus       COBRE      tvertex       DXSSD     3.2452837   0.0020546
-hyper              CortVI_thalamus       ds000030   tvertex       DXSSD     3.0461158   0.0027961
-hyper              CortVI_thalamus       ZHH        tvertex       DXSSD     4.8417975   0.0000027
-hyper              CortVI_thalamus       CMH        tvolume       DXSSD     2.8411209   0.0054194
-hyper              CortVI_thalamus       COBRE      tvolume       DXSSD     2.6973117   0.0094007
-hyper              CortVI_thalamus       ds000030   tvolume       DXSSD     1.8616563   0.0648588
-hyper              CortVI_thalamus       ZHH        tvolume       DXSSD     3.8032763   0.0001926
-hypo               cerebellum_striatum   CMH        pvertex       DXSSD    -3.3534825   0.0011175
-hypo               cerebellum_striatum   COBRE      pvertex       DXSSD    -1.8857567   0.0649193
-hypo               cerebellum_striatum   ds000030   pvertex       DXSSD    -3.0826534   0.0024948
-hypo               cerebellum_striatum   ZHH        pvertex       DXSSD    -2.9882418   0.0031784
-hypo               cerebellum_striatum   CMH        tvertex       DXSSD    -3.3534825   0.0011175
-hypo               cerebellum_striatum   COBRE      tvertex       DXSSD    -1.8857567   0.0649193
-hypo               cerebellum_striatum   ds000030   tvertex       DXSSD    -3.0826534   0.0024948
-hypo               cerebellum_striatum   ZHH        tvertex       DXSSD    -2.9882418   0.0031784
-hypo               cerebellum_striatum   CMH        tvolume       DXSSD    -3.3534825   0.0011175
-hypo               cerebellum_striatum   COBRE      tvolume       DXSSD    -1.8857567   0.0649193
-hypo               cerebellum_striatum   ds000030   tvolume       DXSSD    -3.0826534   0.0024948
-hypo               cerebellum_striatum   ZHH        tvolume       DXSSD    -2.9882418   0.0031784
-hypo               cerebellum_thalamus   CMH        pvertex       DXSSD    -4.6024851   0.0000119
-hypo               cerebellum_thalamus   COBRE      pvertex       DXSSD    -2.8289252   0.0066199
-hypo               cerebellum_thalamus   ds000030   pvertex       DXSSD    -4.9577759   0.0000021
-hypo               cerebellum_thalamus   ZHH        pvertex       DXSSD    -3.7733609   0.0002154
-hypo               cerebellum_thalamus   CMH        tvertex       DXSSD    -4.6024851   0.0000119
-hypo               cerebellum_thalamus   COBRE      tvertex       DXSSD    -2.8289252   0.0066199
-hypo               cerebellum_thalamus   ds000030   tvertex       DXSSD    -4.9577759   0.0000021
-hypo               cerebellum_thalamus   ZHH        tvertex       DXSSD    -3.7733609   0.0002154
-hypo               cerebellum_thalamus   CMH        tvolume       DXSSD    -4.6024851   0.0000119
-hypo               cerebellum_thalamus   COBRE      tvolume       DXSSD    -2.8289252   0.0066199
-hypo               cerebellum_thalamus   ds000030   tvolume       DXSSD    -4.9577759   0.0000021
-hypo               cerebellum_thalamus   ZHH        tvolume       DXSSD    -3.7733609   0.0002154
-hypo               CortDM_CortDA         CMH        pvertex       DXSSD    -2.2560244   0.0261824
-hypo               CortDM_CortDA         COBRE      pvertex       DXSSD    -0.7232765   0.4727510
-hypo               CortDM_CortDA         ds000030   pvertex       DXSSD    -2.7361472   0.0070657
-hypo               CortDM_CortDA         ZHH        pvertex       DXSSD    -3.2630661   0.0013080
-hypo               CortDM_CortDA         CMH        tvertex       DXSSD    -3.2087983   0.0017772
-hypo               CortDM_CortDA         COBRE      tvertex       DXSSD    -0.8824291   0.3816060
-hypo               CortDM_CortDA         ds000030   tvertex       DXSSD    -2.5106685   0.0132485
-hypo               CortDM_CortDA         ZHH        tvertex       DXSSD    -3.5920062   0.0004184
-hypo               CortDM_CortDA         CMH        tvolume       DXSSD    -2.7317537   0.0074139
-hypo               CortDM_CortDA         COBRE      tvolume       DXSSD    -2.9493650   0.0047628
-hypo               CortDM_CortDA         ds000030   tvolume       DXSSD    -2.3452434   0.0204939
-hypo               CortDM_CortDA         ZHH        tvolume       DXSSD    -0.7233457   0.4703618
-hypo               CortDM_CortSM         CMH        pvertex       DXSSD    -1.6708763   0.0977820
-hypo               CortDM_CortSM         COBRE      pvertex       DXSSD    -1.8643502   0.0679217
-hypo               CortDM_CortSM         ds000030   pvertex       DXSSD    -2.4701625   0.0147710
-hypo               CortDM_CortSM         ZHH        pvertex       DXSSD    -3.5514958   0.0004836
-hypo               CortDM_CortSM         CMH        tvertex       DXSSD    -2.0927402   0.0388295
-hypo               CortDM_CortSM         COBRE      tvertex       DXSSD    -2.3346725   0.0234569
-hypo               CortDM_CortSM         ds000030   tvertex       DXSSD    -2.6706946   0.0085143
-hypo               CortDM_CortSM         ZHH        tvertex       DXSSD    -4.1580278   0.0000486
-hypo               CortDM_CortSM         CMH        tvolume       DXSSD    -1.9151804   0.0582433
-hypo               CortDM_CortSM         COBRE      tvolume       DXSSD    -2.4764216   0.0165619
-hypo               CortDM_CortSM         ds000030   tvolume       DXSSD    -2.6177976   0.0098757
-hypo               CortDM_CortSM         ZHH        tvolume       DXSSD    -1.0103370   0.3136256
-hypo               CortDM_CortVA         CMH        pvertex       DXSSD    -1.6035013   0.1118862
-hypo               CortDM_CortVA         COBRE      pvertex       DXSSD    -1.5698577   0.1225139
-hypo               CortDM_CortVA         ds000030   pvertex       DXSSD    -2.4962652   0.0137730
-hypo               CortDM_CortVA         ZHH        pvertex       DXSSD    -2.8406146   0.0049963
-hypo               CortDM_CortVA         CMH        tvertex       DXSSD    -3.2815291   0.0014100
-hypo               CortDM_CortVA         COBRE      tvertex       DXSSD    -1.7197909   0.0914178
-hypo               CortDM_CortVA         ds000030   tvertex       DXSSD    -2.7096517   0.0076228
-hypo               CortDM_CortVA         ZHH        tvertex       DXSSD    -3.8675047   0.0001512
-hypo               CortDM_CortVA         CMH        tvolume       DXSSD    -2.6409976   0.0095533
-hypo               CortDM_CortVA         COBRE      tvolume       DXSSD    -2.7658202   0.0078416
-hypo               CortDM_CortVA         ds000030   tvolume       DXSSD    -2.4337400   0.0162712
-hypo               CortDM_CortVA         ZHH        tvolume       DXSSD    -1.7772463   0.0771360
-hypo               CortFP_cerebellum     CMH        pvertex       DXSSD    -2.0611873   0.0418041
-hypo               CortFP_cerebellum     COBRE      pvertex       DXSSD    -2.6783097   0.0098810
-hypo               CortFP_cerebellum     ds000030   pvertex       DXSSD    -2.4186495   0.0169315
-hypo               CortFP_cerebellum     ZHH        pvertex       DXSSD    -3.2013339   0.0016049
-hypo               CortFP_cerebellum     CMH        tvertex       DXSSD    -2.5642201   0.0117834
-hypo               CortFP_cerebellum     COBRE      tvertex       DXSSD    -2.5212974   0.0147963
-hypo               CortFP_cerebellum     ds000030   tvertex       DXSSD    -3.2085835   0.0016717
-hypo               CortFP_cerebellum     ZHH        tvertex       DXSSD    -3.9994997   0.0000910
-hypo               CortFP_cerebellum     CMH        tvolume       DXSSD    -3.1366145   0.0022283
-hypo               CortFP_cerebellum     COBRE      tvolume       DXSSD    -2.0075902   0.0498963
-hypo               CortFP_cerebellum     ds000030   tvolume       DXSSD    -1.8831489   0.0618641
-hypo               CortFP_cerebellum     ZHH        tvolume       DXSSD    -4.3608235   0.0000213
-hypo               CortFP_CortFP         CMH        pvertex       DXSSD    -1.6915318   0.0937588
-hypo               CortFP_CortFP         COBRE      pvertex       DXSSD     0.3130960   0.7554601
-hypo               CortFP_CortFP         ds000030   pvertex       DXSSD    -0.8235043   0.4116955
-hypo               CortFP_CortFP         ZHH        pvertex       DXSSD    -3.9265666   0.0001207
-hypo               CortFP_CortFP         CMH        tvertex       DXSSD    -2.0442120   0.0434839
-hypo               CortFP_CortFP         COBRE      tvertex       DXSSD    -0.2785650   0.7816835
-hypo               CortFP_CortFP         ds000030   tvertex       DXSSD    -2.9344840   0.0039368
-hypo               CortFP_CortFP         ZHH        tvertex       DXSSD    -3.4516558   0.0006874
-hypo               CortFP_CortFP         CMH        tvolume       DXSSD    -3.3975298   0.0009676
-hypo               CortFP_CortFP         COBRE      tvolume       DXSSD    -2.5915232   0.0123736
-hypo               CortFP_CortFP         ds000030   tvolume       DXSSD    -2.2421766   0.0266058
-hypo               CortFP_CortFP         ZHH        tvolume       DXSSD    -1.1529933   0.2503692
-hypo               CortFP_striatum       CMH        pvertex       DXSSD    -2.4958565   0.0141523
-hypo               CortFP_striatum       COBRE      pvertex       DXSSD    -1.8768745   0.0661511
-hypo               CortFP_striatum       ds000030   pvertex       DXSSD    -1.1323177   0.2595382
-hypo               CortFP_striatum       ZHH        pvertex       DXSSD    -2.4527895   0.0150825
-hypo               CortFP_striatum       CMH        tvertex       DXSSD    -2.8189633   0.0057786
-hypo               CortFP_striatum       COBRE      tvertex       DXSSD    -1.7196722   0.0914396
-hypo               CortFP_striatum       ds000030   tvertex       DXSSD    -1.5722287   0.1182735
-hypo               CortFP_striatum       ZHH        tvertex       DXSSD    -3.2542404   0.0013470
-hypo               CortFP_striatum       CMH        tvolume       DXSSD    -2.8009796   0.0060860
-hypo               CortFP_striatum       COBRE      tvolume       DXSSD    -1.7085801   0.0934921
-hypo               CortFP_striatum       ds000030   tvolume       DXSSD    -1.9181856   0.0572307
-hypo               CortFP_striatum       ZHH        tvolume       DXSSD    -3.6339907   0.0003596
-hypo               CortFP_thalamus       CMH        pvertex       DXSSD    -1.9924583   0.0489668
-hypo               CortFP_thalamus       COBRE      pvertex       DXSSD    -0.9842972   0.3295272
-hypo               CortFP_thalamus       ds000030   pvertex       DXSSD    -2.0337942   0.0439611
-hypo               CortFP_thalamus       ZHH        pvertex       DXSSD    -2.7048828   0.0074571
-hypo               CortFP_thalamus       CMH        tvertex       DXSSD    -2.5178522   0.0133473
-hypo               CortFP_thalamus       COBRE      tvertex       DXSSD    -1.6657624   0.1017747
-hypo               CortFP_thalamus       ds000030   tvertex       DXSSD    -2.1166318   0.0361538
-hypo               CortFP_thalamus       ZHH        tvertex       DXSSD    -3.2395004   0.0014147
-hypo               CortFP_thalamus       CMH        tvolume       DXSSD    -2.4395410   0.0164148
-hypo               CortFP_thalamus       COBRE      tvolume       DXSSD    -1.9211782   0.0601989
-hypo               CortFP_thalamus       ds000030   tvolume       DXSSD    -2.5837349   0.0108531
-hypo               CortFP_thalamus       ZHH        tvolume       DXSSD    -4.4500637   0.0000146
-hypo               CortSM_CortSM         CMH        pvertex       DXSSD    -1.0792849   0.2829816
-hypo               CortSM_CortSM         COBRE      pvertex       DXSSD    -2.4624976   0.0171472
-hypo               CortSM_CortSM         ds000030   pvertex       DXSSD    -1.4053967   0.1622350
-hypo               CortSM_CortSM         ZHH        pvertex       DXSSD    -3.7111175   0.0002713
-hypo               CortSM_CortSM         CMH        tvertex       DXSSD    -1.6756740   0.0968353
-hypo               CortSM_CortSM         COBRE      tvertex       DXSSD    -1.9099844   0.0616579
-hypo               CortSM_CortSM         ds000030   tvertex       DXSSD    -1.5081278   0.1338936
-hypo               CortSM_CortSM         ZHH        tvertex       DXSSD    -4.1196315   0.0000567
-hypo               CortSM_CortSM         CMH        tvolume       DXSSD    -1.3175041   0.1905929
-hypo               CortSM_CortSM         COBRE      tvolume       DXSSD    -3.0980951   0.0031385
-hypo               CortSM_CortSM         ds000030   tvolume       DXSSD    -1.0759209   0.2839105
-hypo               CortSM_CortSM         ZHH        tvolume       DXSSD    -3.3632274   0.0009326
-hypo               CortVA_cerebellum     CMH        pvertex       DXSSD    -2.1805853   0.0314902
-hypo               CortVA_cerebellum     COBRE      pvertex       DXSSD    -1.6948023   0.0960944
-hypo               CortVA_cerebellum     ds000030   pvertex       DXSSD    -0.6561597   0.5128549
-hypo               CortVA_cerebellum     ZHH        pvertex       DXSSD    -3.5240046   0.0005331
-hypo               CortVA_cerebellum     CMH        tvertex       DXSSD    -2.8364141   0.0054939
-hypo               CortVA_cerebellum     COBRE      tvertex       DXSSD    -1.5944892   0.1168872
-hypo               CortVA_cerebellum     ds000030   tvertex       DXSSD    -1.3520364   0.1786583
-hypo               CortVA_cerebellum     ZHH        tvertex       DXSSD    -3.6982713   0.0002844
-hypo               CortVA_cerebellum     CMH        tvolume       DXSSD    -3.0873916   0.0025947
-hypo               CortVA_cerebellum     COBRE      tvolume       DXSSD    -1.8899284   0.0643475
-hypo               CortVA_cerebellum     ds000030   tvolume       DXSSD    -1.6743326   0.0964153
-hypo               CortVA_cerebellum     ZHH        tvolume       DXSSD    -3.6838911   0.0002998
-hypo               CortVA_striatum       CMH        pvertex       DXSSD    -1.3904505   0.1673893
-hypo               CortVA_striatum       COBRE      pvertex       DXSSD    -2.0138762   0.0492100
-hypo               CortVA_striatum       ds000030   pvertex       DXSSD    -1.6663945   0.0979883
-hypo               CortVA_striatum       ZHH        pvertex       DXSSD    -2.9101121   0.0040468
-hypo               CortVA_striatum       CMH        tvertex       DXSSD    -1.6748020   0.0970068
-hypo               CortVA_striatum       COBRE      tvertex       DXSSD    -1.2826641   0.2052980
-hypo               CortVA_striatum       ds000030   tvertex       DXSSD    -1.9587146   0.0522386
-hypo               CortVA_striatum       ZHH        tvertex       DXSSD    -3.7770492   0.0002125
-hypo               CortVA_striatum       CMH        tvolume       DXSSD    -2.1824223   0.0313506
-hypo               CortVA_striatum       COBRE      tvolume       DXSSD    -1.6669464   0.1015378
-hypo               CortVA_striatum       ds000030   tvolume       DXSSD    -2.6448294   0.0091572
-hypo               CortVA_striatum       ZHH        tvolume       DXSSD    -4.3120516   0.0000260
-hypo               CortVI_CortVI         CMH        pvertex       DXSSD    -1.7902389   0.0763536
-hypo               CortVI_CortVI         COBRE      pvertex       DXSSD    -2.1977459   0.0324439
-hypo               CortVI_CortVI         ds000030   pvertex       DXSSD    -0.6445396   0.5203357
-hypo               CortVI_CortVI         ZHH        pvertex       DXSSD    -4.3359015   0.0000236
-hypo               CortVI_CortVI         CMH        tvertex       DXSSD    -2.8328820   0.0055505
-hypo               CortVI_CortVI         COBRE      tvertex       DXSSD    -1.8373925   0.0718690
-hypo               CortVI_CortVI         ds000030   tvertex       DXSSD    -0.9048920   0.3671588
-hypo               CortVI_CortVI         ZHH        tvertex       DXSSD    -4.4533176   0.0000144
-hypo               CortVI_CortVI         CMH        tvolume       DXSSD    -1.5788484   0.1174371
-hypo               CortVI_CortVI         COBRE      tvolume       DXSSD    -3.0631002   0.0034657
-hypo               CortVI_CortVI         ds000030   tvolume       DXSSD    -0.9038517   0.3677082
-hypo               CortVI_CortVI         ZHH        tvolume       DXSSD    -2.5580468   0.0113101
-hypo               thalamus_striatum     CMH        pvertex       DXSSD    -1.3411883   0.1828093
-hypo               thalamus_striatum     COBRE      pvertex       DXSSD    -1.8400302   0.0714744
-hypo               thalamus_striatum     ds000030   pvertex       DXSSD    -3.1958438   0.0017418
-hypo               thalamus_striatum     ZHH        pvertex       DXSSD    -4.3307761   0.0000241
-hypo               thalamus_striatum     CMH        tvertex       DXSSD    -1.3411883   0.1828093
-hypo               thalamus_striatum     COBRE      tvertex       DXSSD    -1.8400302   0.0714744
-hypo               thalamus_striatum     ds000030   tvertex       DXSSD    -3.1958438   0.0017418
-hypo               thalamus_striatum     ZHH        tvertex       DXSSD    -4.3307761   0.0000241
-hypo               thalamus_striatum     CMH        tvolume       DXSSD    -1.3411883   0.1828093
-hypo               thalamus_striatum     COBRE      tvolume       DXSSD    -1.8400302   0.0714744
-hypo               thalamus_striatum     ds000030   tvolume       DXSSD    -3.1958438   0.0017418
-hypo               thalamus_striatum     ZHH        tvolume       DXSSD    -4.3307761   0.0000241
+hyper              CortDA_CortSM         CMH        pvertex       DXSSD     3.4344896   0.0008567
+hyper              CortDA_CortSM         COBRE      pvertex       DXSSD     1.5512773   0.1279991
+hyper              CortDA_CortSM         ds000030   pvertex       DXSSD     0.8355214   0.4069129
+hyper              CortDA_CortSM         ZHH        pvertex       DXSSD     4.9413579   0.0000018
+hyper              CortDA_CortSM         CMH        tvertex       DXSSD     4.0828814   0.0000881
+hyper              CortDA_CortSM         COBRE      tvertex       DXSSD     0.5466634   0.5873718
+hyper              CortDA_CortSM         ds000030   tvertex       DXSSD     1.1560392   0.2524877
+hyper              CortDA_CortSM         ZHH        tvertex       DXSSD     6.0846098   0.0000000
+hyper              CortDA_CortSM         CMH        tvolume       DXSSD     2.0362326   0.0442933
+hyper              CortDA_CortSM         COBRE      tvolume       DXSSD     1.1798602   0.2443957
+hyper              CortDA_CortSM         ds000030   tvolume       DXSSD     1.8918418   0.0635959
+hyper              CortDA_CortSM         ZHH        tvolume       DXSSD     4.7461613   0.0000042
+hyper              CortDA_thalamus       CMH        pvertex       DXSSD     3.3563766   0.0011070
+hyper              CortDA_thalamus       COBRE      pvertex       DXSSD     1.5344736   0.1320732
+hyper              CortDA_thalamus       ds000030   pvertex       DXSSD     1.3263653   0.1900088
+hyper              CortDA_thalamus       ZHH        pvertex       DXSSD     3.2899980   0.0012030
+hyper              CortDA_thalamus       CMH        tvertex       DXSSD     3.5460097   0.0005901
+hyper              CortDA_thalamus       COBRE      tvertex       DXSSD     2.9370505   0.0052552
+hyper              CortDA_thalamus       ds000030   tvertex       DXSSD     1.8103877   0.0755076
+hyper              CortDA_thalamus       ZHH        tvertex       DXSSD     4.5593559   0.0000094
+hyper              CortDA_thalamus       CMH        tvolume       DXSSD     4.5482130   0.0000148
+hyper              CortDA_thalamus       COBRE      tvolume       DXSSD     2.9873379   0.0045879
+hyper              CortDA_thalamus       ds000030   tvolume       DXSSD     2.1713130   0.0340847
+hyper              CortDA_thalamus       ZHH        tvolume       DXSSD     3.4018269   0.0008229
+hyper              CortFP_CortSM         CMH        pvertex       DXSSD     3.3184448   0.0012520
+hyper              CortFP_CortSM         COBRE      pvertex       DXSSD     2.1281709   0.0389612
+hyper              CortFP_CortSM         ds000030   pvertex       DXSSD     1.3250661   0.1904366
+hyper              CortFP_CortSM         ZHH        pvertex       DXSSD     3.2848092   0.0012241
+hyper              CortFP_CortSM         CMH        tvertex       DXSSD     3.0989110   0.0025043
+hyper              CortFP_CortSM         COBRE      tvertex       DXSSD     2.5247079   0.0152600
+hyper              CortFP_CortSM         ds000030   tvertex       DXSSD     2.1271389   0.0377484
+hyper              CortFP_CortSM         ZHH        tvertex       DXSSD     3.9391567   0.0001164
+hyper              CortFP_CortSM         CMH        tvolume       DXSSD     2.5880489   0.0110456
+hyper              CortFP_CortSM         COBRE      tvolume       DXSSD     1.1398047   0.2605346
+hyper              CortFP_CortSM         ds000030   tvolume       DXSSD     3.4509512   0.0010587
+hyper              CortFP_CortSM         ZHH        tvolume       DXSSD     3.3432662   0.0010052
+hyper              CortSM_cerebellum     CMH        pvertex       DXSSD     2.8530052   0.0052353
+hyper              CortSM_cerebellum     COBRE      pvertex       DXSSD     2.6343940   0.0115915
+hyper              CortSM_cerebellum     ds000030   pvertex       DXSSD     2.1377744   0.0368362
+hyper              CortSM_cerebellum     ZHH        pvertex       DXSSD     3.5767739   0.0004457
+hyper              CortSM_cerebellum     CMH        tvertex       DXSSD     3.0642189   0.0027859
+hyper              CortSM_cerebellum     COBRE      tvertex       DXSSD     3.5177224   0.0010240
+hyper              CortSM_cerebellum     ds000030   tvertex       DXSSD     2.7013132   0.0090799
+hyper              CortSM_cerebellum     ZHH        tvertex       DXSSD     3.9495271   0.0001118
+hyper              CortSM_cerebellum     CMH        tvolume       DXSSD     2.7271361   0.0075112
+hyper              CortSM_cerebellum     COBRE      tvolume       DXSSD     2.2549213   0.0291650
+hyper              CortSM_cerebellum     ds000030   tvolume       DXSSD     2.4511537   0.0173297
+hyper              CortSM_cerebellum     ZHH        tvolume       DXSSD     4.2348927   0.0000363
+hyper              CortSM_thalamus       CMH        pvertex       DXSSD     3.2647429   0.0014878
+hyper              CortSM_thalamus       COBRE      pvertex       DXSSD     4.0880853   0.0001818
+hyper              CortSM_thalamus       ds000030   pvertex       DXSSD     2.3518344   0.0221596
+hyper              CortSM_thalamus       ZHH        pvertex       DXSSD     2.7078940   0.0074167
+hyper              CortSM_thalamus       CMH        tvertex       DXSSD     3.8683176   0.0001923
+hyper              CortSM_thalamus       COBRE      tvertex       DXSSD     5.0883117   0.0000072
+hyper              CortSM_thalamus       ds000030   tvertex       DXSSD     2.7376128   0.0082412
+hyper              CortSM_thalamus       ZHH        tvertex       DXSSD     2.9532402   0.0035596
+hyper              CortSM_thalamus       CMH        tvolume       DXSSD     3.8441078   0.0002096
+hyper              CortSM_thalamus       COBRE      tvolume       DXSSD     3.4946287   0.0010957
+hyper              CortSM_thalamus       ds000030   tvolume       DXSSD     3.3985227   0.0012420
+hyper              CortSM_thalamus       ZHH        tvolume       DXSSD     3.1167000   0.0021258
+hyper              CortVA_CortDA         CMH        pvertex       DXSSD     1.2350005   0.2196401
+hyper              CortVA_CortDA         COBRE      pvertex       DXSSD     1.4682423   0.1491515
+hyper              CortVA_CortDA         ds000030   pvertex       DXSSD     4.6806422   0.0000181
+hyper              CortVA_CortDA         ZHH        pvertex       DXSSD     4.7349298   0.0000044
+hyper              CortVA_CortDA         CMH        tvertex       DXSSD     2.4541491   0.0157989
+hyper              CortVA_CortDA         COBRE      tvertex       DXSSD     1.7526491   0.0866283
+hyper              CortVA_CortDA         ds000030   tvertex       DXSSD     2.6914350   0.0093213
+hyper              CortVA_CortDA         ZHH        tvertex       DXSSD     6.7740919   0.0000000
+hyper              CortVA_CortDA         CMH        tvolume       DXSSD     1.8739505   0.0637715
+hyper              CortVA_CortDA         COBRE      tvolume       DXSSD     1.4976249   0.1413709
+hyper              CortVA_CortDA         ds000030   tvolume       DXSSD     2.0857786   0.0414860
+hyper              CortVA_CortDA         ZHH        tvolume       DXSSD     5.6883141   0.0000001
+hyper              CortVA_thalamus       CMH        pvertex       DXSSD     2.3601089   0.0201533
+hyper              CortVA_thalamus       COBRE      pvertex       DXSSD     0.6577569   0.5141210
+hyper              CortVA_thalamus       ds000030   pvertex       DXSSD     1.9176334   0.0601731
+hyper              CortVA_thalamus       ZHH        pvertex       DXSSD     3.3143369   0.0011085
+hyper              CortVA_thalamus       CMH        tvertex       DXSSD     3.1683196   0.0020184
+hyper              CortVA_thalamus       COBRE      tvertex       DXSSD     1.3026996   0.1994545
+hyper              CortVA_thalamus       ds000030   tvertex       DXSSD     1.3776201   0.1737058
+hyper              CortVA_thalamus       ZHH        tvertex       DXSSD     4.9695406   0.0000015
+hyper              CortVA_thalamus       CMH        tvolume       DXSSD     2.6689238   0.0088419
+hyper              CortVA_thalamus       COBRE      tvolume       DXSSD     2.6159512   0.0121455
+hyper              CortVA_thalamus       ds000030   tvolume       DXSSD     2.9280756   0.0048944
+hyper              CortVA_thalamus       ZHH        tvolume       DXSSD     5.1325790   0.0000007
+hyper              CortVI_cerebellum     CMH        pvertex       DXSSD     2.5059463   0.0137777
+hyper              CortVI_cerebellum     COBRE      pvertex       DXSSD     2.2640232   0.0285542
+hyper              CortVI_cerebellum     ds000030   pvertex       DXSSD     2.2382208   0.0291293
+hyper              CortVI_cerebellum     ZHH        pvertex       DXSSD     3.3906721   0.0008551
+hyper              CortVI_cerebellum     CMH        tvertex       DXSSD     3.0193319   0.0031939
+hyper              CortVI_cerebellum     COBRE      tvertex       DXSSD     3.2432960   0.0022578
+hyper              CortVI_cerebellum     ds000030   tvertex       DXSSD     1.1326796   0.2620910
+hyper              CortVI_cerebellum     ZHH        tvertex       DXSSD     3.4705313   0.0006486
+hyper              CortVI_cerebellum     CMH        tvolume       DXSSD     2.4872823   0.0144776
+hyper              CortVI_cerebellum     COBRE      tvolume       DXSSD     2.8430943   0.0067510
+hyper              CortVI_cerebellum     ds000030   tvolume       DXSSD     0.9611283   0.3405472
+hyper              CortVI_cerebellum     ZHH        tvolume       DXSSD     3.2230787   0.0015029
+hyper              CortVI_striatum       CMH        pvertex       DXSSD     2.6426214   0.0095105
+hyper              CortVI_striatum       COBRE      pvertex       DXSSD     2.1283515   0.0389454
+hyper              CortVI_striatum       ds000030   pvertex       DXSSD     0.0498187   0.9604410
+hyper              CortVI_striatum       ZHH        pvertex       DXSSD     3.4868579   0.0006126
+hyper              CortVI_striatum       CMH        tvertex       DXSSD     3.2838928   0.0013993
+hyper              CortVI_striatum       COBRE      tvertex       DXSSD     1.5306756   0.1330083
+hyper              CortVI_striatum       ds000030   tvertex       DXSSD    -0.4477015   0.6560656
+hyper              CortVI_striatum       ZHH        tvertex       DXSSD     3.7865589   0.0002073
+hyper              CortVI_striatum       CMH        tvolume       DXSSD     2.7896505   0.0062873
+hyper              CortVI_striatum       COBRE      tvolume       DXSSD     2.5025433   0.0161190
+hyper              CortVI_striatum       ds000030   tvolume       DXSSD     0.1800368   0.8577622
+hyper              CortVI_striatum       ZHH        tvolume       DXSSD     3.4075568   0.0008069
+hyper              CortVI_thalamus       CMH        pvertex       DXSSD     2.6853600   0.0084461
+hyper              CortVI_thalamus       COBRE      pvertex       DXSSD     3.6812734   0.0006306
+hyper              CortVI_thalamus       ds000030   pvertex       DXSSD     2.2409145   0.0289439
+hyper              CortVI_thalamus       ZHH        pvertex       DXSSD     4.2162657   0.0000391
+hyper              CortVI_thalamus       CMH        tvertex       DXSSD     3.6256455   0.0004500
+hyper              CortVI_thalamus       COBRE      tvertex       DXSSD     3.4204297   0.0013599
+hyper              CortVI_thalamus       ds000030   tvertex       DXSSD     1.9176961   0.0601650
+hyper              CortVI_thalamus       ZHH        tvertex       DXSSD     4.5426685   0.0000101
+hyper              CortVI_thalamus       CMH        tvolume       DXSSD     3.1809944   0.0019398
+hyper              CortVI_thalamus       COBRE      tvolume       DXSSD     3.3324263   0.0017522
+hyper              CortVI_thalamus       ds000030   tvolume       DXSSD     1.8220013   0.0737026
+hyper              CortVI_thalamus       ZHH        tvolume       DXSSD     3.5645743   0.0004656
+hypo               cerebellum_striatum   CMH        pvertex       DXSSD    -3.5999616   0.0004913
+hypo               cerebellum_striatum   COBRE      pvertex       DXSSD    -1.8077813   0.0774795
+hypo               cerebellum_striatum   ds000030   pvertex       DXSSD    -2.9621033   0.0044498
+hypo               cerebellum_striatum   ZHH        pvertex       DXSSD    -3.3963618   0.0008385
+hypo               cerebellum_striatum   CMH        tvertex       DXSSD    -3.5999616   0.0004913
+hypo               cerebellum_striatum   COBRE      tvertex       DXSSD    -1.8077813   0.0774795
+hypo               cerebellum_striatum   ds000030   tvertex       DXSSD    -2.9621033   0.0044498
+hypo               cerebellum_striatum   ZHH        tvertex       DXSSD    -3.3963618   0.0008385
+hypo               cerebellum_striatum   CMH        tvolume       DXSSD    -3.5999616   0.0004913
+hypo               cerebellum_striatum   COBRE      tvolume       DXSSD    -1.8077813   0.0774795
+hypo               cerebellum_striatum   ds000030   tvolume       DXSSD    -2.9621033   0.0044498
+hypo               cerebellum_striatum   ZHH        tvolume       DXSSD    -3.3963618   0.0008385
+hypo               cerebellum_thalamus   CMH        pvertex       DXSSD    -4.6015074   0.0000120
+hypo               cerebellum_thalamus   COBRE      pvertex       DXSSD    -2.6812577   0.0102866
+hypo               cerebellum_thalamus   ds000030   pvertex       DXSSD    -4.7403172   0.0000147
+hypo               cerebellum_thalamus   ZHH        pvertex       DXSSD    -4.5891934   0.0000083
+hypo               cerebellum_thalamus   CMH        tvertex       DXSSD    -4.6015074   0.0000120
+hypo               cerebellum_thalamus   COBRE      tvertex       DXSSD    -2.6812577   0.0102866
+hypo               cerebellum_thalamus   ds000030   tvertex       DXSSD    -4.7403172   0.0000147
+hypo               cerebellum_thalamus   ZHH        tvertex       DXSSD    -4.5891934   0.0000083
+hypo               cerebellum_thalamus   CMH        tvolume       DXSSD    -4.6015074   0.0000120
+hypo               cerebellum_thalamus   COBRE      tvolume       DXSSD    -2.6812577   0.0102866
+hypo               cerebellum_thalamus   ds000030   tvolume       DXSSD    -4.7403172   0.0000147
+hypo               cerebellum_thalamus   ZHH        tvolume       DXSSD    -4.5891934   0.0000083
+hypo               CortDM_CortDA         CMH        pvertex       DXSSD    -2.2385297   0.0273380
+hypo               CortDM_CortDA         COBRE      pvertex       DXSSD    -1.1462114   0.2579032
+hypo               CortDM_CortDA         ds000030   pvertex       DXSSD    -2.5832313   0.0123780
+hypo               CortDM_CortDA         ZHH        pvertex       DXSSD    -4.4924489   0.0000125
+hypo               CortDM_CortDA         CMH        tvertex       DXSSD    -3.7948583   0.0002497
+hypo               CortDM_CortDA         COBRE      tvertex       DXSSD    -1.6071827   0.1151678
+hypo               CortDM_CortDA         ds000030   tvertex       DXSSD    -2.8753738   0.0056652
+hypo               CortDM_CortDA         ZHH        tvertex       DXSSD    -4.1312970   0.0000549
+hypo               CortFP_cerebellum     CMH        pvertex       DXSSD    -3.0274325   0.0031164
+hypo               CortFP_cerebellum     COBRE      pvertex       DXSSD    -2.4144515   0.0199847
+hypo               CortFP_cerebellum     ds000030   pvertex       DXSSD    -2.2988879   0.0251978
+hypo               CortFP_cerebellum     ZHH        pvertex       DXSSD    -3.4484459   0.0007005
+hypo               CortFP_cerebellum     CMH        tvertex       DXSSD    -3.2782075   0.0014250
+hypo               CortFP_cerebellum     COBRE      tvertex       DXSSD    -1.8266465   0.0745419
+hypo               CortFP_cerebellum     ds000030   tvertex       DXSSD    -3.9203669   0.0002397
+hypo               CortFP_cerebellum     ZHH        tvertex       DXSSD    -4.3649517   0.0000213
+hypo               CortFP_cerebellum     CMH        tvolume       DXSSD    -3.7529968   0.0002893
+hypo               CortFP_cerebellum     COBRE      tvolume       DXSSD    -1.0983332   0.2780330
+hypo               CortFP_cerebellum     ds000030   tvolume       DXSSD    -2.1921521   0.0324673
+hypo               CortFP_cerebellum     ZHH        tvolume       DXSSD    -3.9193496   0.0001256
+hypo               CortVA_striatum       CMH        pvertex       DXSSD    -1.5934447   0.1141247
+hypo               CortVA_striatum       COBRE      pvertex       DXSSD    -2.5633210   0.0138624
+hypo               CortVA_striatum       ds000030   pvertex       DXSSD    -0.5908363   0.5569657
+hypo               CortVA_striatum       ZHH        pvertex       DXSSD    -3.5838948   0.0004345
+hypo               CortVA_striatum       CMH        tvertex       DXSSD    -1.8999148   0.0602411
+hypo               CortVA_striatum       COBRE      tvertex       DXSSD    -1.5178655   0.1362013
+hypo               CortVA_striatum       ds000030   tvertex       DXSSD    -0.5884030   0.5585863
+hypo               CortVA_striatum       ZHH        tvertex       DXSSD    -4.2883953   0.0000292
+hypo               CortVA_striatum       CMH        tvolume       DXSSD    -2.2259698   0.0281950
+hypo               CortVA_striatum       COBRE      tvolume       DXSSD    -1.2274397   0.2261841
+hypo               CortVA_striatum       ds000030   tvolume       DXSSD    -0.7110836   0.4799323
+hypo               CortVA_striatum       ZHH        tvolume       DXSSD    -4.0229863   0.0000842
+hypo               thalamus_striatum     CMH        pvertex       DXSSD    -1.6761060   0.0967504
+hypo               thalamus_striatum     COBRE      pvertex       DXSSD    -1.7888432   0.0805259
+hypo               thalamus_striatum     ds000030   pvertex       DXSSD    -3.8062880   0.0003469
+hypo               thalamus_striatum     ZHH        pvertex       DXSSD    -4.7618743   0.0000039
+hypo               thalamus_striatum     CMH        tvertex       DXSSD    -1.6761060   0.0967504
+hypo               thalamus_striatum     COBRE      tvertex       DXSSD    -1.7888432   0.0805259
+hypo               thalamus_striatum     ds000030   tvertex       DXSSD    -3.8062880   0.0003469
+hypo               thalamus_striatum     ZHH        tvertex       DXSSD    -4.7618743   0.0000039
+hypo               thalamus_striatum     CMH        tvolume       DXSSD    -1.6761060   0.0967504
+hypo               thalamus_striatum     COBRE      tvolume       DXSSD    -1.7888432   0.0805259
+hypo               thalamus_striatum     ds000030   tvolume       DXSSD    -3.8062880   0.0003469
+hypo               thalamus_striatum     ZHH        tvolume       DXSSD    -4.7618743   0.0000039
 
 ```r
 FC_gscores_lmfitbySite %>% 
@@ -1753,7 +2219,7 @@ FC_gscores_lmfitbySite %>%
   facet_wrap(~Site)
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-45-1.png" width="672" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-55-1.png" width="672" />
 
 
 ```r
@@ -1773,426 +2239,194 @@ FC_gscores_lmfitbySite_mFC %>%
 
 effect_direction   edge_group            Site       vertex_type   term      statistic     p.value
 -----------------  --------------------  ---------  ------------  ------  -----------  ----------
-hyper              CortDA_cerebellum     CMH        pvertex       DXSSD     1.7041489   0.0913683
-hyper              CortDA_cerebellum     COBRE      pvertex       DXSSD     2.1395474   0.0371050
-hyper              CortDA_cerebellum     ds000030   pvertex       DXSSD     0.9890094   0.3244544
-hyper              CortDA_cerebellum     ZHH        pvertex       DXSSD     2.2281242   0.0270513
-hyper              CortDA_cerebellum     CMH        tvertex       DXSSD     2.2320632   0.0277763
-hyper              CortDA_cerebellum     COBRE      tvertex       DXSSD     2.5145384   0.0150508
-hyper              CortDA_cerebellum     ds000030   tvertex       DXSSD     2.0079366   0.0466757
-hyper              CortDA_cerebellum     ZHH        tvertex       DXSSD     2.3232617   0.0212292
-hyper              CortDA_cerebellum     CMH        tvolume       DXSSD     3.0511193   0.0028997
-hyper              CortDA_cerebellum     COBRE      tvolume       DXSSD     2.8725457   0.0058811
-hyper              CortDA_cerebellum     ds000030   tvolume       DXSSD     2.3824032   0.0186154
-hyper              CortDA_cerebellum     ZHH        tvolume       DXSSD     1.8972552   0.0593190
-hyper              CortDA_CortSM         CMH        pvertex       DXSSD     2.9083298   0.0044513
-hyper              CortDA_CortSM         COBRE      pvertex       DXSSD     0.5528093   0.5827628
-hyper              CortDA_CortSM         ds000030   pvertex       DXSSD    -0.5840160   0.5601987
-hyper              CortDA_CortSM         ZHH        pvertex       DXSSD     4.2892733   0.0000286
-hyper              CortDA_CortSM         CMH        tvertex       DXSSD     3.3633193   0.0010823
-hyper              CortDA_CortSM         COBRE      tvertex       DXSSD    -0.0353173   0.9719619
-hyper              CortDA_CortSM         ds000030   tvertex       DXSSD    -0.6547818   0.5137391
-hyper              CortDA_CortSM         ZHH        tvertex       DXSSD     5.1700251   0.0000006
-hyper              CortDA_CortSM         CMH        tvolume       DXSSD     1.4324888   0.1550320
-hyper              CortDA_CortSM         COBRE      tvolume       DXSSD    -0.1983390   0.8435532
-hyper              CortDA_CortSM         ds000030   tvolume       DXSSD     0.9367734   0.3505730
-hyper              CortDA_CortSM         ZHH        tvolume       DXSSD     3.8500636   0.0001615
-hyper              CortDA_thalamus       CMH        pvertex       DXSSD     2.6159763   0.0102342
-hyper              CortDA_thalamus       COBRE      pvertex       DXSSD     1.5772290   0.1208076
-hyper              CortDA_thalamus       ds000030   pvertex       DXSSD     1.4869712   0.1393893
-hyper              CortDA_thalamus       ZHH        pvertex       DXSSD     2.5956016   0.0101841
-hyper              CortDA_thalamus       CMH        tvertex       DXSSD     2.9061504   0.0044800
-hyper              CortDA_thalamus       COBRE      tvertex       DXSSD     2.8304850   0.0065921
-hyper              CortDA_thalamus       ds000030   tvertex       DXSSD     1.8233346   0.0704982
-hyper              CortDA_thalamus       ZHH        tvertex       DXSSD     3.4192867   0.0007691
-hyper              CortDA_thalamus       CMH        tvolume       DXSSD     3.7832142   0.0002601
-hyper              CortDA_thalamus       COBRE      tvolume       DXSSD     2.3478947   0.0227194
-hyper              CortDA_thalamus       ds000030   tvolume       DXSSD     2.6468036   0.0091066
-hyper              CortDA_thalamus       ZHH        tvolume       DXSSD     2.6664642   0.0083297
-hyper              CortDM_cerebellum     CMH        pvertex       DXSSD     0.8170876   0.4157643
-hyper              CortDM_cerebellum     COBRE      pvertex       DXSSD     1.7048081   0.0941987
-hyper              CortDM_cerebellum     ds000030   pvertex       DXSSD     2.3324496   0.0211783
-hyper              CortDM_cerebellum     ZHH        pvertex       DXSSD     2.3694880   0.0188205
-hyper              CortDM_cerebellum     CMH        tvertex       DXSSD     2.1814384   0.0314253
-hyper              CortDM_cerebellum     COBRE      tvertex       DXSSD     1.6177444   0.1117684
-hyper              CortDM_cerebellum     ds000030   tvertex       DXSSD     2.5412822   0.0121926
-hyper              CortDM_cerebellum     ZHH        tvertex       DXSSD     2.7987352   0.0056623
-hyper              CortDM_cerebellum     CMH        tvolume       DXSSD     2.3391471   0.0212579
-hyper              CortDM_cerebellum     COBRE      tvolume       DXSSD     0.6609114   0.5115868
-hyper              CortDM_cerebellum     ds000030   tvolume       DXSSD     3.3090747   0.0012046
-hyper              CortDM_cerebellum     ZHH        tvolume       DXSSD     2.9722361   0.0033410
-hyper              CortDM_CortDM         CMH        pvertex       DXSSD     3.8929815   0.0001760
-hyper              CortDM_CortDM         COBRE      pvertex       DXSSD     0.5552437   0.5811089
-hyper              CortDM_CortDM         ds000030   pvertex       DXSSD     1.1203390   0.2645883
-hyper              CortDM_CortDM         ZHH        pvertex       DXSSD     2.0961342   0.0374016
-hyper              CortDM_CortDM         CMH        tvertex       DXSSD     3.3524537   0.0011212
-hyper              CortDM_CortDM         COBRE      tvertex       DXSSD     0.3368415   0.7375921
-hyper              CortDM_CortDM         ds000030   tvertex       DXSSD     1.5735263   0.1179729
-hyper              CortDM_CortDM         ZHH        tvertex       DXSSD     3.6010417   0.0004050
-hyper              CortDM_CortDM         CMH        tvolume       DXSSD     3.2322586   0.0016500
-hyper              CortDM_CortDM         COBRE      tvolume       DXSSD     0.2014585   0.8411261
-hyper              CortDM_CortDM         ds000030   tvolume       DXSSD     1.2329240   0.2197789
-hyper              CortDM_CortDM         ZHH        tvolume       DXSSD     2.3464214   0.0199905
-hyper              CortDM_striatum       CMH        pvertex       DXSSD     1.0813133   0.2820830
-hyper              CortDM_striatum       COBRE      pvertex       DXSSD     1.2410348   0.2201626
-hyper              CortDM_striatum       ds000030   pvertex       DXSSD     3.1544829   0.0019883
-hyper              CortDM_striatum       ZHH        pvertex       DXSSD     2.5193329   0.0125863
-hyper              CortDM_striatum       CMH        tvertex       DXSSD     1.2675873   0.2078036
-hyper              CortDM_striatum       COBRE      tvertex       DXSSD     1.4313427   0.1583150
-hyper              CortDM_striatum       ds000030   tvertex       DXSSD     3.0308128   0.0029319
-hyper              CortDM_striatum       ZHH        tvertex       DXSSD     2.3925341   0.0177123
-hyper              CortDM_striatum       CMH        tvolume       DXSSD     1.8250408   0.0708930
-hyper              CortDM_striatum       COBRE      tvolume       DXSSD     0.2286594   0.8200306
-hyper              CortDM_striatum       ds000030   tvolume       DXSSD     2.0820081   0.0392583
-hyper              CortDM_striatum       ZHH        tvolume       DXSSD     1.9960242   0.0473670
-hyper              CortDM_thalamus       CMH        pvertex       DXSSD     0.4847816   0.6288607
-hyper              CortDM_thalamus       COBRE      pvertex       DXSSD     2.1641338   0.0350687
-hyper              CortDM_thalamus       ds000030   pvertex       DXSSD     1.2192904   0.2248920
-hyper              CortDM_thalamus       ZHH        pvertex       DXSSD     2.4376350   0.0157091
-hyper              CortDM_thalamus       CMH        tvertex       DXSSD     1.2820041   0.2027193
-hyper              CortDM_thalamus       COBRE      tvertex       DXSSD     1.3627677   0.1788285
-hyper              CortDM_thalamus       ds000030   tvertex       DXSSD     1.0094589   0.3145876
-hyper              CortDM_thalamus       ZHH        tvertex       DXSSD     3.1291867   0.0020308
-hyper              CortDM_thalamus       CMH        tvolume       DXSSD     0.8775881   0.3822097
-hyper              CortDM_thalamus       COBRE      tvolume       DXSSD     1.5011162   0.1393737
-hyper              CortDM_thalamus       ds000030   tvolume       DXSSD     1.8781654   0.0625479
-hyper              CortDM_thalamus       ZHH        tvolume       DXSSD     2.5308566   0.0121936
-hyper              CortFP_CortDA         CMH        pvertex       DXSSD     0.4616531   0.6453037
-hyper              CortFP_CortDA         COBRE      pvertex       DXSSD     1.0229568   0.3110638
-hyper              CortFP_CortDA         ds000030   pvertex       DXSSD     2.0106942   0.0463796
-hyper              CortFP_CortDA         ZHH        pvertex       DXSSD     2.7985529   0.0056654
-hyper              CortFP_CortDA         CMH        tvertex       DXSSD     3.1137101   0.0023924
-hyper              CortFP_CortDA         COBRE      tvertex       DXSSD     2.1501901   0.0362112
-hyper              CortFP_CortDA         ds000030   tvertex       DXSSD     3.1495313   0.0020199
-hyper              CortFP_CortDA         ZHH        tvertex       DXSSD     2.7952415   0.0057214
-hyper              CortFP_CortDA         CMH        tvolume       DXSSD     3.3445116   0.0011506
-hyper              CortFP_CortDA         COBRE      tvolume       DXSSD     0.0210175   0.9833121
-hyper              CortFP_CortDA         ds000030   tvolume       DXSSD     2.6877596   0.0081128
-hyper              CortFP_CortDA         ZHH        tvolume       DXSSD     2.7009063   0.0075434
-hyper              CortFP_CortSM         CMH        pvertex       DXSSD     3.5763655   0.0005324
-hyper              CortFP_CortSM         COBRE      pvertex       DXSSD     1.2446850   0.2188282
-hyper              CortFP_CortSM         ds000030   pvertex       DXSSD     1.9618571   0.0518674
-hyper              CortFP_CortSM         ZHH        pvertex       DXSSD     2.7230303   0.0070744
-hyper              CortFP_CortSM         CMH        tvertex       DXSSD     3.7277787   0.0003160
-hyper              CortFP_CortSM         COBRE      tvertex       DXSSD     1.8950435   0.0636523
-hyper              CortFP_CortSM         ds000030   tvertex       DXSSD     2.0572553   0.0416158
-hyper              CortFP_CortSM         ZHH        tvertex       DXSSD     3.3585673   0.0009475
-hyper              CortFP_CortSM         CMH        tvolume       DXSSD     2.0388116   0.0440303
-hyper              CortFP_CortSM         COBRE      tvolume       DXSSD     1.1769423   0.2445779
-hyper              CortFP_CortSM         ds000030   tvolume       DXSSD     2.4926174   0.0139088
-hyper              CortFP_CortSM         ZHH        tvolume       DXSSD     2.7335373   0.0068610
-hyper              CortFP_CortVA         CMH        pvertex       DXSSD     2.1044432   0.0377735
-hyper              CortFP_CortVA         COBRE      pvertex       DXSSD     1.9183948   0.0605589
-hyper              CortFP_CortVA         ds000030   pvertex       DXSSD     0.7690444   0.4432305
-hyper              CortFP_CortVA         ZHH        pvertex       DXSSD     2.9605383   0.0034646
-hyper              CortFP_CortVA         CMH        tvertex       DXSSD     2.7047406   0.0080000
-hyper              CortFP_CortVA         COBRE      tvertex       DXSSD     1.1854063   0.2412458
-hyper              CortFP_CortVA         ds000030   tvertex       DXSSD     1.7129179   0.0890578
-hyper              CortFP_CortVA         ZHH        tvertex       DXSSD     4.4590389   0.0000141
-hyper              CortFP_CortVA         CMH        tvolume       DXSSD     3.1257076   0.0023051
-hyper              CortFP_CortVA         COBRE      tvolume       DXSSD     0.1984910   0.8434350
-hyper              CortFP_CortVA         ds000030   tvolume       DXSSD     2.5108790   0.0132410
-hyper              CortFP_CortVA         ZHH        tvolume       DXSSD     3.0580249   0.0025512
-hyper              CortSM_cerebellum     CMH        pvertex       DXSSD     2.5168336   0.0133836
-hyper              CortSM_cerebellum     COBRE      pvertex       DXSSD     2.3488196   0.0226686
-hyper              CortSM_cerebellum     ds000030   pvertex       DXSSD     1.6179033   0.1080526
-hyper              CortSM_cerebellum     ZHH        pvertex       DXSSD     2.9934868   0.0031268
-hyper              CortSM_cerebellum     CMH        tvertex       DXSSD     3.0012296   0.0033735
-hyper              CortSM_cerebellum     COBRE      tvertex       DXSSD     2.9672189   0.0045330
-hyper              CortSM_cerebellum     ds000030   tvertex       DXSSD     2.1594854   0.0326063
-hyper              CortSM_cerebellum     ZHH        tvertex       DXSSD     3.1946879   0.0016404
-hyper              CortSM_cerebellum     CMH        tvolume       DXSSD     3.0292771   0.0030990
-hyper              CortSM_cerebellum     COBRE      tvolume       DXSSD     1.5340527   0.1310790
-hyper              CortSM_cerebellum     ds000030   tvolume       DXSSD     1.0567099   0.2925596
-hyper              CortSM_cerebellum     ZHH        tvolume       DXSSD     3.5761318   0.0004429
-hyper              CortSM_CortVI         CMH        pvertex       DXSSD     0.1622000   0.8714662
-hyper              CortSM_CortVI         COBRE      pvertex       DXSSD     1.1996311   0.2357202
-hyper              CortSM_CortVI         ds000030   pvertex       DXSSD     2.1939221   0.0299780
-hyper              CortSM_CortVI         ZHH        pvertex       DXSSD     1.7874050   0.0754744
-hyper              CortSM_CortVI         CMH        tvertex       DXSSD     0.5529251   0.5815128
-hyper              CortSM_CortVI         COBRE      tvertex       DXSSD     2.1926653   0.0328292
-hyper              CortSM_CortVI         ds000030   tvertex       DXSSD     2.2097029   0.0288364
-hyper              CortSM_CortVI         ZHH        tvertex       DXSSD     2.3184187   0.0214965
-hyper              CortSM_CortVI         CMH        tvolume       DXSSD    -0.6370507   0.5255052
-hyper              CortSM_CortVI         COBRE      tvolume       DXSSD     1.6373859   0.1075882
-hyper              CortSM_CortVI         ds000030   tvolume       DXSSD     1.4749940   0.1425775
-hyper              CortSM_CortVI         ZHH        tvolume       DXSSD     2.8060374   0.0055407
-hyper              CortSM_striatum       CMH        pvertex       DXSSD     0.2805678   0.7796047
-hyper              CortSM_striatum       COBRE      pvertex       DXSSD     2.0612353   0.0442969
-hyper              CortSM_striatum       ds000030   pvertex       DXSSD     1.5191265   0.1311043
-hyper              CortSM_striatum       ZHH        pvertex       DXSSD     1.6142919   0.1081324
-hyper              CortSM_striatum       CMH        tvertex       DXSSD     0.8057249   0.4222577
-hyper              CortSM_striatum       COBRE      tvertex       DXSSD     2.4593275   0.0172831
-hyper              CortSM_striatum       ds000030   tvertex       DXSSD     1.6918035   0.0930251
-hyper              CortSM_striatum       ZHH        tvertex       DXSSD     1.1073241   0.2695611
-hyper              CortSM_striatum       CMH        tvolume       DXSSD     1.7364706   0.0854706
-hyper              CortSM_striatum       COBRE      tvolume       DXSSD     1.7723448   0.0821956
-hyper              CortSM_striatum       ds000030   tvolume       DXSSD     1.8941231   0.0603802
-hyper              CortSM_striatum       ZHH        tvolume       DXSSD     2.1569819   0.0322697
-hyper              CortSM_thalamus       CMH        pvertex       DXSSD     3.2193583   0.0017188
-hyper              CortSM_thalamus       COBRE      pvertex       DXSSD     3.6747241   0.0005637
-hyper              CortSM_thalamus       ds000030   pvertex       DXSSD     2.5636935   0.0114680
-hyper              CortSM_thalamus       ZHH        pvertex       DXSSD     2.5502237   0.0115583
-hyper              CortSM_thalamus       CMH        tvertex       DXSSD     3.3136582   0.0012715
-hyper              CortSM_thalamus       COBRE      tvertex       DXSSD     4.2908063   0.0000777
-hyper              CortSM_thalamus       ds000030   tvertex       DXSSD     2.9539752   0.0037109
-hyper              CortSM_thalamus       ZHH        tvertex       DXSSD     3.0493966   0.0026220
-hyper              CortSM_thalamus       CMH        tvolume       DXSSD     3.3051020   0.0013071
-hyper              CortSM_thalamus       COBRE      tvolume       DXSSD     3.2857460   0.0018253
-hyper              CortSM_thalamus       ds000030   tvolume       DXSSD     3.3652661   0.0009997
-hyper              CortSM_thalamus       ZHH        tvolume       DXSSD     2.8726849   0.0045354
-hyper              CortVA_CortDA         CMH        pvertex       DXSSD     0.2992271   0.7653697
-hyper              CortVA_CortDA         COBRE      pvertex       DXSSD     0.8381811   0.4057653
-hyper              CortVA_CortDA         ds000030   pvertex       DXSSD     2.5048433   0.0134585
-hyper              CortVA_CortDA         ZHH        pvertex       DXSSD     3.9970354   0.0000919
-hyper              CortVA_CortDA         CMH        tvertex       DXSSD     1.3019324   0.1958436
-hyper              CortVA_CortDA         COBRE      tvertex       DXSSD     1.9580026   0.0556051
-hyper              CortVA_CortDA         ds000030   tvertex       DXSSD     2.3108891   0.0223774
-hyper              CortVA_CortDA         ZHH        tvertex       DXSSD     5.5386799   0.0000001
-hyper              CortVA_CortDA         CMH        tvolume       DXSSD     0.5892500   0.5569838
-hyper              CortVA_CortDA         COBRE      tvolume       DXSSD     1.0102980   0.3170306
-hyper              CortVA_CortDA         ds000030   tvolume       DXSSD     2.1326851   0.0347876
-hyper              CortVA_CortDA         ZHH        tvolume       DXSSD     4.1205387   0.0000565
-hyper              CortVA_CortSM         CMH        pvertex       DXSSD     1.6153599   0.1092919
-hyper              CortVA_CortSM         COBRE      pvertex       DXSSD     1.5024253   0.1390363
-hyper              CortVA_CortSM         ds000030   pvertex       DXSSD     1.3767705   0.1708964
-hyper              CortVA_CortSM         ZHH        pvertex       DXSSD     2.6075617   0.0098472
-hyper              CortVA_CortSM         CMH        tvertex       DXSSD     2.2490751   0.0266362
-hyper              CortVA_CortSM         COBRE      tvertex       DXSSD     2.1582143   0.0355498
-hyper              CortVA_CortSM         ds000030   tvertex       DXSSD     1.9500228   0.0532770
-hyper              CortVA_CortSM         ZHH        tvertex       DXSSD     3.1850716   0.0016930
-hyper              CortVA_CortSM         CMH        tvolume       DXSSD     2.0241833   0.0455400
-hyper              CortVA_CortSM         COBRE      tvolume       DXSSD     1.0814293   0.2844960
-hyper              CortVA_CortSM         ds000030   tvolume       DXSSD     2.3857152   0.0184556
-hyper              CortVA_CortSM         ZHH        tvolume       DXSSD     2.7749333   0.0060759
-hyper              CortVA_CortVA         CMH        pvertex       DXSSD     2.1372824   0.0349418
-hyper              CortVA_CortVA         COBRE      pvertex       DXSSD     0.3699214   0.7129434
-hyper              CortVA_CortVA         ds000030   pvertex       DXSSD     1.3116572   0.1918955
-hyper              CortVA_CortVA         ZHH        pvertex       DXSSD     1.8901839   0.0602638
-hyper              CortVA_CortVA         CMH        tvertex       DXSSD     2.4551448   0.0157576
-hyper              CortVA_CortVA         COBRE      tvertex       DXSSD     1.1507836   0.2550857
-hyper              CortVA_CortVA         ds000030   tvertex       DXSSD     1.9664282   0.0513315
-hyper              CortVA_CortVA         ZHH        tvertex       DXSSD     2.1283381   0.0346044
-hyper              CortVA_CortVA         CMH        tvolume       DXSSD     3.2968060   0.0013424
-hyper              CortVA_CortVA         COBRE      tvolume       DXSSD     0.9239841   0.3597625
-hyper              CortVA_CortVA         ds000030   tvolume       DXSSD     1.9892648   0.0487236
-hyper              CortVA_CortVA         ZHH        tvolume       DXSSD     2.7604507   0.0063408
-hyper              CortVA_CortVI         CMH        pvertex       DXSSD     0.5588492   0.5774776
-hyper              CortVA_CortVI         COBRE      pvertex       DXSSD     0.9161408   0.3638223
-hyper              CortVA_CortVI         ds000030   pvertex       DXSSD     2.9314519   0.0039730
-hyper              CortVA_CortVI         ZHH        pvertex       DXSSD     1.3241213   0.1870619
-hyper              CortVA_CortVI         CMH        tvertex       DXSSD     2.0369499   0.0442201
-hyper              CortVA_CortVI         COBRE      tvertex       DXSSD     1.4368822   0.1567414
-hyper              CortVA_CortVI         ds000030   tvertex       DXSSD     2.9004484   0.0043616
-hyper              CortVA_CortVI         ZHH        tvertex       DXSSD     1.8544161   0.0652376
-hyper              CortVA_CortVI         CMH        tvolume       DXSSD     0.9415708   0.3486156
-hyper              CortVA_CortVI         COBRE      tvolume       DXSSD     1.2382158   0.2211972
-hyper              CortVA_CortVI         ds000030   tvolume       DXSSD     2.5586346   0.0116281
-hyper              CortVA_CortVI         ZHH        tvolume       DXSSD     2.3273490   0.0210058
-hyper              CortVI_cerebellum     CMH        pvertex       DXSSD     2.2787608   0.0247447
-hyper              CortVI_cerebellum     COBRE      pvertex       DXSSD     1.5018198   0.1391923
-hyper              CortVI_cerebellum     ds000030   pvertex       DXSSD     1.7930824   0.0752324
-hyper              CortVI_cerebellum     ZHH        pvertex       DXSSD     2.5000908   0.0132673
-hyper              CortVI_cerebellum     CMH        tvertex       DXSSD     2.6449713   0.0094490
-hyper              CortVI_cerebellum     COBRE      tvertex       DXSSD     2.2157861   0.0311078
-hyper              CortVI_cerebellum     ds000030   tvertex       DXSSD     1.4820312   0.1406975
-hyper              CortVI_cerebellum     ZHH        tvertex       DXSSD     2.6113165   0.0097435
-hyper              CortVI_cerebellum     CMH        tvolume       DXSSD     2.3025141   0.0233173
-hyper              CortVI_cerebellum     COBRE      tvolume       DXSSD     2.5327720   0.0143731
-hyper              CortVI_cerebellum     ds000030   tvolume       DXSSD     0.6903728   0.4911628
-hyper              CortVI_cerebellum     ZHH        tvolume       DXSSD     2.1089153   0.0362691
-hyper              CortVI_striatum       CMH        pvertex       DXSSD     2.1041169   0.0378026
-hyper              CortVI_striatum       COBRE      pvertex       DXSSD     2.3129868   0.0247127
-hyper              CortVI_striatum       ds000030   pvertex       DXSSD     0.8651578   0.3885100
-hyper              CortVI_striatum       ZHH        pvertex       DXSSD     2.6957528   0.0076566
-hyper              CortVI_striatum       CMH        tvertex       DXSSD     2.5190951   0.0133030
-hyper              CortVI_striatum       COBRE      tvertex       DXSSD     1.8755302   0.0663393
-hyper              CortVI_striatum       ds000030   tvertex       DXSSD     0.3711250   0.7111349
-hyper              CortVI_striatum       ZHH        tvertex       DXSSD     3.3376546   0.0010175
-hyper              CortVI_striatum       CMH        tvolume       DXSSD     2.4910229   0.0143349
-hyper              CortVI_striatum       COBRE      tvolume       DXSSD     2.0765706   0.0428000
-hyper              CortVI_striatum       ds000030   tvolume       DXSSD    -0.2333819   0.8158237
-hyper              CortVI_striatum       ZHH        tvolume       DXSSD     2.9649067   0.0034179
-hyper              CortVI_thalamus       CMH        pvertex       DXSSD     2.8413063   0.0054165
-hyper              CortVI_thalamus       COBRE      pvertex       DXSSD     3.3199867   0.0016504
-hyper              CortVI_thalamus       ds000030   pvertex       DXSSD     2.8797013   0.0046407
-hyper              CortVI_thalamus       ZHH        pvertex       DXSSD     4.3317063   0.0000240
-hyper              CortVI_thalamus       CMH        tvertex       DXSSD     3.5259834   0.0006313
-hyper              CortVI_thalamus       COBRE      tvertex       DXSSD     2.9895612   0.0042599
-hyper              CortVI_thalamus       ds000030   tvertex       DXSSD     2.5927574   0.0105861
-hyper              CortVI_thalamus       ZHH        tvertex       DXSSD     4.4414525   0.0000152
-hyper              CortVI_thalamus       CMH        tvolume       DXSSD     2.7877410   0.0063218
-hyper              CortVI_thalamus       COBRE      tvolume       DXSSD     2.6026136   0.0120259
-hyper              CortVI_thalamus       ds000030   tvolume       DXSSD     1.5882270   0.1146095
-hyper              CortVI_thalamus       ZHH        tvolume       DXSSD     3.4112535   0.0007908
-hypo               cerebellum_striatum   CMH        pvertex       DXSSD    -3.0963067   0.0025245
-hypo               cerebellum_striatum   COBRE      pvertex       DXSSD    -1.7046852   0.0942218
-hypo               cerebellum_striatum   ds000030   pvertex       DXSSD    -2.9317301   0.0039697
-hypo               cerebellum_striatum   ZHH        pvertex       DXSSD    -2.6933717   0.0077095
-hypo               cerebellum_striatum   CMH        tvertex       DXSSD    -3.0963067   0.0025245
-hypo               cerebellum_striatum   COBRE      tvertex       DXSSD    -1.7046852   0.0942218
-hypo               cerebellum_striatum   ds000030   tvertex       DXSSD    -2.9317301   0.0039697
-hypo               cerebellum_striatum   ZHH        tvertex       DXSSD    -2.6933717   0.0077095
-hypo               cerebellum_striatum   CMH        tvolume       DXSSD    -3.0963067   0.0025245
-hypo               cerebellum_striatum   COBRE      tvolume       DXSSD    -1.7046852   0.0942218
-hypo               cerebellum_striatum   ds000030   tvolume       DXSSD    -2.9317301   0.0039697
-hypo               cerebellum_striatum   ZHH        tvolume       DXSSD    -2.6933717   0.0077095
-hypo               cerebellum_thalamus   CMH        pvertex       DXSSD    -4.4093631   0.0000255
-hypo               cerebellum_thalamus   COBRE      pvertex       DXSSD    -2.7128837   0.0090232
-hypo               cerebellum_thalamus   ds000030   pvertex       DXSSD    -4.9151729   0.0000026
-hypo               cerebellum_thalamus   ZHH        pvertex       DXSSD    -3.3185502   0.0010855
-hypo               cerebellum_thalamus   CMH        tvertex       DXSSD    -4.4093631   0.0000255
-hypo               cerebellum_thalamus   COBRE      tvertex       DXSSD    -2.7128837   0.0090232
-hypo               cerebellum_thalamus   ds000030   tvertex       DXSSD    -4.9151729   0.0000026
-hypo               cerebellum_thalamus   ZHH        tvertex       DXSSD    -3.3185502   0.0010855
-hypo               cerebellum_thalamus   CMH        tvolume       DXSSD    -4.4093631   0.0000255
-hypo               cerebellum_thalamus   COBRE      tvolume       DXSSD    -2.7128837   0.0090232
-hypo               cerebellum_thalamus   ds000030   tvolume       DXSSD    -4.9151729   0.0000026
-hypo               cerebellum_thalamus   ZHH        tvolume       DXSSD    -3.3185502   0.0010855
-hypo               CortDM_CortDA         CMH        pvertex       DXSSD    -2.2633220   0.0257132
-hypo               CortDM_CortDA         COBRE      pvertex       DXSSD    -0.5518928   0.5833860
-hypo               CortDM_CortDA         ds000030   pvertex       DXSSD    -2.5942432   0.0105427
-hypo               CortDM_CortDA         ZHH        pvertex       DXSSD    -3.0115844   0.0029544
-hypo               CortDM_CortDA         CMH        tvertex       DXSSD    -2.9727421   0.0036752
-hypo               CortDM_CortDA         COBRE      tvertex       DXSSD    -0.7169275   0.4766268
-hypo               CortDM_CortDA         ds000030   tvertex       DXSSD    -2.3672312   0.0193631
-hypo               CortDM_CortDA         ZHH        tvertex       DXSSD    -3.4046095   0.0008091
-hypo               CortDM_CortDA         CMH        tvolume       DXSSD    -2.5547593   0.0120884
-hypo               CortDM_CortDA         COBRE      tvolume       DXSSD    -2.8642430   0.0060155
-hypo               CortDM_CortDA         ds000030   tvolume       DXSSD    -2.1526593   0.0331503
-hypo               CortDM_CortDA         ZHH        tvolume       DXSSD    -0.7317792   0.4652097
-hypo               CortDM_CortSM         CMH        pvertex       DXSSD    -1.2227402   0.2242183
-hypo               CortDM_CortSM         COBRE      pvertex       DXSSD    -1.7926330   0.0788494
-hypo               CortDM_CortSM         ds000030   pvertex       DXSSD    -2.4579947   0.0152579
-hypo               CortDM_CortSM         ZHH        pvertex       DXSSD    -3.2721498   0.0012689
-hypo               CortDM_CortSM         CMH        tvertex       DXSSD    -1.7064379   0.0909400
-hypo               CortDM_CortSM         COBRE      tvertex       DXSSD    -2.4694162   0.0168541
-hypo               CortDM_CortSM         ds000030   tvertex       DXSSD    -2.6823457   0.0082383
-hypo               CortDM_CortSM         ZHH        tvertex       DXSSD    -3.5906619   0.0004204
-hypo               CortDM_CortSM         CMH        tvolume       DXSSD    -1.8754587   0.0635618
-hypo               CortDM_CortSM         COBRE      tvolume       DXSSD    -2.6711976   0.0100665
-hypo               CortDM_CortSM         ds000030   tvolume       DXSSD    -2.5253502   0.0127323
-hypo               CortDM_CortSM         ZHH        tvolume       DXSSD    -0.7356404   0.4628615
-hypo               CortDM_CortVA         CMH        pvertex       DXSSD    -1.5536565   0.1233337
-hypo               CortDM_CortVA         COBRE      pvertex       DXSSD    -1.3633770   0.1786377
-hypo               CortDM_CortVA         ds000030   pvertex       DXSSD    -2.3778204   0.0188385
-hypo               CortDM_CortVA         ZHH        pvertex       DXSSD    -2.5782813   0.0106903
-hypo               CortDM_CortVA         CMH        tvertex       DXSSD    -3.1938009   0.0018632
-hypo               CortDM_CortVA         COBRE      tvertex       DXSSD    -1.6096112   0.1135376
-hypo               CortDM_CortVA         ds000030   tvertex       DXSSD    -2.5482363   0.0119635
-hypo               CortDM_CortVA         ZHH        tvertex       DXSSD    -3.5584969   0.0004717
-hypo               CortDM_CortVA         CMH        tvolume       DXSSD    -2.6095904   0.0104148
-hypo               CortDM_CortVA         COBRE      tvolume       DXSSD    -2.6460322   0.0107487
-hypo               CortDM_CortVA         ds000030   tvolume       DXSSD    -2.2605360   0.0254127
-hypo               CortDM_CortVA         ZHH        tvolume       DXSSD    -1.5431111   0.1244765
-hypo               CortFP_cerebellum     CMH        pvertex       DXSSD    -1.8640329   0.0651650
-hypo               CortFP_cerebellum     COBRE      pvertex       DXSSD    -2.5639438   0.0132784
-hypo               CortFP_cerebellum     ds000030   pvertex       DXSSD    -2.2399346   0.0267548
-hypo               CortFP_cerebellum     ZHH        pvertex       DXSSD    -2.9427926   0.0036601
-hypo               CortFP_cerebellum     CMH        tvertex       DXSSD    -2.2907139   0.0240171
-hypo               CortFP_cerebellum     COBRE      tvertex       DXSSD    -2.4153505   0.0192704
-hypo               CortFP_cerebellum     ds000030   tvertex       DXSSD    -2.8915977   0.0044787
-hypo               CortFP_cerebellum     ZHH        tvertex       DXSSD    -3.6513489   0.0003376
-hypo               CortFP_cerebellum     CMH        tvolume       DXSSD    -2.8755374   0.0049018
-hypo               CortFP_cerebellum     COBRE      tvolume       DXSSD    -1.8974105   0.0633327
-hypo               CortFP_cerebellum     ds000030   tvolume       DXSSD    -1.7251933   0.0868154
-hypo               CortFP_cerebellum     ZHH        tvolume       DXSSD    -4.2257289   0.0000370
-hypo               CortFP_CortFP         CMH        pvertex       DXSSD    -1.6731597   0.0973305
-hypo               CortFP_CortFP         COBRE      pvertex       DXSSD     0.3493518   0.7282360
-hypo               CortFP_CortFP         ds000030   pvertex       DXSSD    -0.7434515   0.4585197
-hypo               CortFP_CortFP         ZHH        pvertex       DXSSD    -3.6065586   0.0003970
-hypo               CortFP_CortFP         CMH        tvertex       DXSSD    -1.8360996   0.0692274
-hypo               CortFP_CortFP         COBRE      tvertex       DXSSD    -0.2780994   0.7820388
-hypo               CortFP_CortFP         ds000030   tvertex       DXSSD    -2.8573028   0.0049604
-hypo               CortFP_CortFP         ZHH        tvertex       DXSSD    -3.0638281   0.0025046
-hypo               CortFP_CortFP         CMH        tvolume       DXSSD    -3.3101909   0.0012858
-hypo               CortFP_CortFP         COBRE      tvolume       DXSSD    -2.4271889   0.0187161
-hypo               CortFP_CortFP         ds000030   tvolume       DXSSD    -2.3062922   0.0226406
-hypo               CortFP_CortFP         ZHH        tvolume       DXSSD    -1.0110559   0.3132823
-hypo               CortFP_striatum       CMH        pvertex       DXSSD    -2.4147377   0.0175098
-hypo               CortFP_striatum       COBRE      pvertex       DXSSD    -1.8834410   0.0652386
-hypo               CortFP_striatum       ds000030   pvertex       DXSSD    -1.1380990   0.2571251
-hypo               CortFP_striatum       ZHH        pvertex       DXSSD    -2.2468438   0.0258066
-hypo               CortFP_striatum       CMH        tvertex       DXSSD    -2.7568944   0.0069038
-hypo               CortFP_striatum       COBRE      tvertex       DXSSD    -1.6221875   0.1108114
-hypo               CortFP_striatum       ds000030   tvertex       DXSSD    -1.5316896   0.1279742
-hypo               CortFP_striatum       ZHH        tvertex       DXSSD    -3.0340831   0.0027522
-hypo               CortFP_striatum       CMH        tvolume       DXSSD    -2.6833867   0.0084927
-hypo               CortFP_striatum       COBRE      tvolume       DXSSD    -1.7291973   0.0897069
-hypo               CortFP_striatum       ds000030   tvolume       DXSSD    -1.8493262   0.0666307
-hypo               CortFP_striatum       ZHH        tvolume       DXSSD    -3.4132667   0.0007853
-hypo               CortFP_thalamus       CMH        pvertex       DXSSD    -1.9009225   0.0601075
-hypo               CortFP_thalamus       COBRE      pvertex       DXSSD    -0.7720949   0.4435532
-hypo               CortFP_thalamus       ds000030   pvertex       DXSSD    -1.9223307   0.0567024
-hypo               CortFP_thalamus       ZHH        pvertex       DXSSD    -2.5039691   0.0131274
-hypo               CortFP_thalamus       CMH        tvertex       DXSSD    -2.4140058   0.0175430
-hypo               CortFP_thalamus       COBRE      tvertex       DXSSD    -1.5225140   0.1339389
-hypo               CortFP_thalamus       ds000030   tvertex       DXSSD    -1.9850730   0.0491937
-hypo               CortFP_thalamus       ZHH        tvertex       DXSSD    -2.9610832   0.0034587
-hypo               CortFP_thalamus       CMH        tvolume       DXSSD    -2.2441952   0.0269590
-hypo               CortFP_thalamus       COBRE      tvolume       DXSSD    -1.7469572   0.0865490
-hypo               CortFP_thalamus       ds000030   tvolume       DXSSD    -2.4916303   0.0139457
-hypo               CortFP_thalamus       ZHH        tvolume       DXSSD    -4.2368316   0.0000354
-hypo               CortSM_CortSM         CMH        pvertex       DXSSD    -1.0052551   0.3171298
-hypo               CortSM_CortSM         COBRE      pvertex       DXSSD    -2.3501482   0.0225958
-hypo               CortSM_CortSM         ds000030   pvertex       DXSSD    -1.3614729   0.1756663
-hypo               CortSM_CortSM         ZHH        pvertex       DXSSD    -3.5478244   0.0004899
-hypo               CortSM_CortSM         CMH        tvertex       DXSSD    -1.1561610   0.2502900
-hypo               CortSM_CortSM         COBRE      tvertex       DXSSD    -1.7990767   0.0778107
-hypo               CortSM_CortSM         ds000030   tvertex       DXSSD    -1.4335279   0.1540537
-hypo               CortSM_CortSM         ZHH        tvertex       DXSSD    -3.3772053   0.0008890
-hypo               CortSM_CortSM         CMH        tvolume       DXSSD    -0.8402091   0.4027373
-hypo               CortSM_CortSM         COBRE      tvolume       DXSSD    -2.9399465   0.0048884
-hypo               CortSM_CortSM         ds000030   tvolume       DXSSD    -1.0223597   0.3084667
-hypo               CortSM_CortSM         ZHH        tvolume       DXSSD    -2.8804466   0.0044298
-hypo               CortVA_cerebellum     CMH        pvertex       DXSSD    -2.0409770   0.0438105
-hypo               CortVA_cerebellum     COBRE      pvertex       DXSSD    -1.5409779   0.1293861
-hypo               CortVA_cerebellum     ds000030   pvertex       DXSSD    -0.3592037   0.7200123
-hypo               CortVA_cerebellum     ZHH        pvertex       DXSSD    -3.1014579   0.0022207
-hypo               CortVA_cerebellum     CMH        tvertex       DXSSD    -2.6714910   0.0087790
-hypo               CortVA_cerebellum     COBRE      tvertex       DXSSD    -1.5870681   0.1185601
-hypo               CortVA_cerebellum     ds000030   tvertex       DXSSD    -0.9364176   0.3507555
-hypo               CortVA_cerebellum     ZHH        tvertex       DXSSD    -3.3229864   0.0010693
-hypo               CortVA_cerebellum     CMH        tvolume       DXSSD    -2.9829351   0.0035645
-hypo               CortVA_cerebellum     COBRE      tvolume       DXSSD    -1.8215710   0.0742745
-hypo               CortVA_cerebellum     ds000030   tvolume       DXSSD    -1.1524774   0.2511922
-hypo               CortVA_cerebellum     ZHH        tvolume       DXSSD    -3.2275577   0.0014719
-hypo               CortVA_striatum       CMH        pvertex       DXSSD    -1.4469438   0.1509492
-hypo               CortVA_striatum       COBRE      pvertex       DXSSD    -1.7172511   0.0918844
-hypo               CortVA_striatum       ds000030   pvertex       DXSSD    -1.6619461   0.0988788
-hypo               CortVA_striatum       ZHH        pvertex       DXSSD    -2.5904398   0.0103326
-hypo               CortVA_striatum       CMH        tvertex       DXSSD    -1.5609376   0.1216059
-hypo               CortVA_striatum       COBRE      tvertex       DXSSD    -1.1787276   0.2438723
-hypo               CortVA_striatum       ds000030   tvertex       DXSSD    -1.9159367   0.0575191
-hypo               CortVA_striatum       ZHH        tvertex       DXSSD    -3.4643171   0.0006577
-hypo               CortVA_striatum       CMH        tvolume       DXSSD    -2.0800496   0.0400032
-hypo               CortVA_striatum       COBRE      tvolume       DXSSD    -1.6429324   0.1064310
-hypo               CortVA_striatum       ds000030   tvolume       DXSSD    -2.7928557   0.0059958
-hypo               CortVA_striatum       ZHH        tvolume       DXSSD    -3.9148156   0.0001262
-hypo               CortVI_CortVI         CMH        pvertex       DXSSD    -1.6274546   0.1066960
-hypo               CortVI_CortVI         COBRE      pvertex       DXSSD    -1.7971835   0.0781147
-hypo               CortVI_CortVI         ds000030   pvertex       DXSSD    -0.6112232   0.5420951
-hypo               CortVI_CortVI         ZHH        pvertex       DXSSD    -4.0672489   0.0000698
-hypo               CortVI_CortVI         CMH        tvertex       DXSSD    -2.6039224   0.0105776
-hypo               CortVI_CortVI         COBRE      tvertex       DXSSD    -1.5946657   0.1168477
-hypo               CortVI_CortVI         ds000030   tvertex       DXSSD    -0.6962678   0.4874762
-hypo               CortVI_CortVI         ZHH        tvertex       DXSSD    -4.0623396   0.0000712
-hypo               CortVI_CortVI         CMH        tvolume       DXSSD    -1.3924146   0.1667957
-hypo               CortVI_CortVI         COBRE      tvolume       DXSSD    -3.0038151   0.0040938
-hypo               CortVI_CortVI         ds000030   tvolume       DXSSD    -0.7798490   0.4368653
-hypo               CortVI_CortVI         ZHH        tvolume       DXSSD    -2.3588096   0.0193544
-hypo               thalamus_striatum     CMH        pvertex       DXSSD    -1.1485601   0.2533978
-hypo               thalamus_striatum     COBRE      pvertex       DXSSD    -1.7359431   0.0884964
-hypo               thalamus_striatum     ds000030   pvertex       DXSSD    -3.0191939   0.0030391
-hypo               thalamus_striatum     ZHH        pvertex       DXSSD    -3.8137435   0.0001852
-hypo               thalamus_striatum     CMH        tvertex       DXSSD    -1.1485601   0.2533978
-hypo               thalamus_striatum     COBRE      tvertex       DXSSD    -1.7359431   0.0884964
-hypo               thalamus_striatum     ds000030   tvertex       DXSSD    -3.0191939   0.0030391
-hypo               thalamus_striatum     ZHH        tvertex       DXSSD    -3.8137435   0.0001852
-hypo               thalamus_striatum     CMH        tvolume       DXSSD    -1.1485601   0.2533978
-hypo               thalamus_striatum     COBRE      tvolume       DXSSD    -1.7359431   0.0884964
-hypo               thalamus_striatum     ds000030   tvolume       DXSSD    -3.0191939   0.0030391
-hypo               thalamus_striatum     ZHH        tvolume       DXSSD    -3.8137435   0.0001852
+hyper              CortDA_CortSM         CMH        pvertex       DXSSD     3.4307831   0.0008673
+hyper              CortDA_CortSM         COBRE      pvertex       DXSSD     1.4297202   0.1598599
+hyper              CortDA_CortSM         ds000030   pvertex       DXSSD     0.8898616   0.3772807
+hyper              CortDA_CortSM         ZHH        pvertex       DXSSD     4.8705102   0.0000024
+hyper              CortDA_CortSM         CMH        tvertex       DXSSD     4.0865458   0.0000869
+hyper              CortDA_CortSM         COBRE      tvertex       DXSSD     0.4606818   0.6472958
+hyper              CortDA_CortSM         ds000030   tvertex       DXSSD     1.3658362   0.1773557
+hyper              CortDA_CortSM         ZHH        tvertex       DXSSD     5.9353567   0.0000000
+hyper              CortDA_CortSM         CMH        tvolume       DXSSD     2.1163903   0.0367212
+hyper              CortDA_CortSM         COBRE      tvolume       DXSSD     1.1158132   0.2705591
+hyper              CortDA_CortSM         ds000030   tvolume       DXSSD     1.8909728   0.0637141
+hyper              CortDA_CortSM         ZHH        tvolume       DXSSD     4.6916826   0.0000053
+hyper              CortDA_thalamus       CMH        pvertex       DXSSD     3.2795216   0.0014191
+hyper              CortDA_thalamus       COBRE      pvertex       DXSSD     1.5761312   0.1221592
+hyper              CortDA_thalamus       ds000030   pvertex       DXSSD     1.3630007   0.1782426
+hyper              CortDA_thalamus       ZHH        pvertex       DXSSD     3.2095767   0.0015713
+hyper              CortDA_thalamus       CMH        tvertex       DXSSD     3.4832581   0.0007285
+hyper              CortDA_thalamus       COBRE      tvertex       DXSSD     2.9730426   0.0047690
+hyper              CortDA_thalamus       ds000030   tvertex       DXSSD     1.8303839   0.0724224
+hyper              CortDA_thalamus       ZHH        tvertex       DXSSD     4.5539688   0.0000096
+hyper              CortDA_thalamus       CMH        tvolume       DXSSD     4.4753669   0.0000197
+hyper              CortDA_thalamus       COBRE      tvolume       DXSSD     2.9252450   0.0054245
+hyper              CortDA_thalamus       ds000030   tvolume       DXSSD     2.0558319   0.0443891
+hyper              CortDA_thalamus       ZHH        tvolume       DXSSD     3.3514208   0.0009777
+hyper              CortFP_CortSM         CMH        pvertex       DXSSD     3.2950360   0.0013501
+hyper              CortFP_CortSM         COBRE      pvertex       DXSSD     2.1243536   0.0392965
+hyper              CortFP_CortSM         ds000030   pvertex       DXSSD     1.3545793   0.1808968
+hyper              CortFP_CortSM         ZHH        pvertex       DXSSD     3.3034184   0.0011500
+hyper              CortFP_CortSM         CMH        tvertex       DXSSD     3.0923611   0.0025554
+hyper              CortFP_CortSM         COBRE      tvertex       DXSSD     2.4394421   0.0188107
+hyper              CortFP_CortSM         ds000030   tvertex       DXSSD     2.1964282   0.0321439
+hyper              CortFP_CortSM         ZHH        tvertex       DXSSD     3.8966111   0.0001370
+hyper              CortFP_CortSM         CMH        tvolume       DXSSD     2.5811025   0.0112563
+hyper              CortFP_CortSM         COBRE      tvolume       DXSSD     1.0987144   0.2778685
+hyper              CortFP_CortSM         ds000030   tvolume       DXSSD     3.3993770   0.0012388
+hyper              CortFP_CortSM         ZHH        tvolume       DXSSD     3.3354669   0.0010321
+hyper              CortSM_cerebellum     CMH        pvertex       DXSSD     2.8419054   0.0054071
+hyper              CortSM_cerebellum     COBRE      pvertex       DXSSD     2.6414208   0.0113866
+hyper              CortSM_cerebellum     ds000030   pvertex       DXSSD     2.0966782   0.0404710
+hyper              CortSM_cerebellum     ZHH        pvertex       DXSSD     3.4324427   0.0007404
+hyper              CortSM_cerebellum     CMH        tvertex       DXSSD     3.1435967   0.0021804
+hyper              CortSM_cerebellum     COBRE      tvertex       DXSSD     3.5036518   0.0010671
+hyper              CortSM_cerebellum     ds000030   tvertex       DXSSD     2.6616182   0.0100861
+hyper              CortSM_cerebellum     ZHH        tvertex       DXSSD     3.8410350   0.0001690
+hyper              CortSM_cerebellum     CMH        tvolume       DXSSD     2.7356209   0.0073333
+hyper              CortSM_cerebellum     COBRE      tvolume       DXSSD     2.2608830   0.0287636
+hyper              CortSM_cerebellum     ds000030   tvolume       DXSSD     2.4384035   0.0178917
+hyper              CortSM_cerebellum     ZHH        tvolume       DXSSD     4.1944266   0.0000427
+hyper              CortSM_thalamus       CMH        pvertex       DXSSD     3.2567289   0.0015264
+hyper              CortSM_thalamus       COBRE      pvertex       DXSSD     4.0523578   0.0002032
+hyper              CortSM_thalamus       ds000030   pvertex       DXSSD     2.2998461   0.0251397
+hyper              CortSM_thalamus       ZHH        pvertex       DXSSD     2.6609259   0.0084891
+hyper              CortSM_thalamus       CMH        tvertex       DXSSD     3.7932260   0.0002511
+hyper              CortSM_thalamus       COBRE      tvertex       DXSSD     5.0398104   0.0000085
+hyper              CortSM_thalamus       ds000030   tvertex       DXSSD     2.7801334   0.0073495
+hyper              CortSM_thalamus       ZHH        tvertex       DXSSD     2.8791553   0.0044654
+hyper              CortSM_thalamus       CMH        tvolume       DXSSD     3.8139460   0.0002334
+hyper              CortSM_thalamus       COBRE      tvolume       DXSSD     3.5671379   0.0008854
+hyper              CortSM_thalamus       ds000030   tvolume       DXSSD     3.3706408   0.0013514
+hyper              CortSM_thalamus       ZHH        tvolume       DXSSD     3.0662577   0.0024979
+hyper              CortVA_CortDA         CMH        pvertex       DXSSD     1.1942827   0.2351105
+hyper              CortVA_CortDA         COBRE      pvertex       DXSSD     1.4891082   0.1435922
+hyper              CortVA_CortDA         ds000030   pvertex       DXSSD     4.6235019   0.0000221
+hyper              CortVA_CortDA         ZHH        pvertex       DXSSD     4.7363092   0.0000044
+hyper              CortVA_CortDA         CMH        tvertex       DXSSD     2.4500596   0.0159692
+hyper              CortVA_CortDA         COBRE      tvertex       DXSSD     1.6777851   0.1004796
+hyper              CortVA_CortDA         ds000030   tvertex       DXSSD     2.6399326   0.0106779
+hyper              CortVA_CortDA         ZHH        tvertex       DXSSD     6.6943833   0.0000000
+hyper              CortVA_CortDA         CMH        tvolume       DXSSD     1.8291741   0.0702667
+hyper              CortVA_CortDA         COBRE      tvolume       DXSSD     1.4308434   0.1595394
+hyper              CortVA_CortDA         ds000030   tvolume       DXSSD     2.0456072   0.0454198
+hyper              CortVA_CortDA         ZHH        tvolume       DXSSD     5.6784223   0.0000001
+hyper              CortVA_thalamus       CMH        pvertex       DXSSD     2.3485462   0.0207562
+hyper              CortVA_thalamus       COBRE      pvertex       DXSSD     0.6636740   0.5103617
+hyper              CortVA_thalamus       ds000030   pvertex       DXSSD     1.8543685   0.0688623
+hyper              CortVA_thalamus       ZHH        pvertex       DXSSD     3.2957164   0.0011801
+hyper              CortVA_thalamus       CMH        tvertex       DXSSD     3.1460918   0.0021636
+hyper              CortVA_thalamus       COBRE      tvertex       DXSSD     1.2630874   0.2132102
+hyper              CortVA_thalamus       ds000030   tvertex       DXSSD     1.3294243   0.1890044
+hyper              CortVA_thalamus       ZHH        tvertex       DXSSD     4.9802654   0.0000015
+hyper              CortVA_thalamus       CMH        tvolume       DXSSD     2.5225142   0.0131820
+hyper              CortVA_thalamus       COBRE      tvolume       DXSSD     2.3386630   0.0239600
+hyper              CortVA_thalamus       ds000030   tvolume       DXSSD     2.6567961   0.0102151
+hyper              CortVA_thalamus       ZHH        tvolume       DXSSD     5.0876035   0.0000009
+hyper              CortVI_cerebellum     CMH        pvertex       DXSSD     2.4981919   0.0140648
+hyper              CortVI_cerebellum     COBRE      pvertex       DXSSD     2.1699284   0.0354538
+hyper              CortVI_cerebellum     ds000030   pvertex       DXSSD     2.1798312   0.0334152
+hyper              CortVI_cerebellum     ZHH        pvertex       DXSSD     3.3174170   0.0010970
+hyper              CortVI_cerebellum     CMH        tvertex       DXSSD     3.0308620   0.0030841
+hyper              CortVI_cerebellum     COBRE      tvertex       DXSSD     3.1381458   0.0030319
+hyper              CortVI_cerebellum     ds000030   tvertex       DXSSD     1.1098774   0.2717123
+hyper              CortVI_cerebellum     ZHH        tvertex       DXSSD     3.4115696   0.0007958
+hyper              CortVI_cerebellum     CMH        tvolume       DXSSD     2.4663823   0.0152990
+hyper              CortVI_cerebellum     COBRE      tvolume       DXSSD     2.8672746   0.0063321
+hyper              CortVI_cerebellum     ds000030   tvolume       DXSSD     0.9070202   0.3682147
+hyper              CortVI_cerebellum     ZHH        tvolume       DXSSD     3.2739764   0.0012693
+hyper              CortVI_striatum       CMH        pvertex       DXSSD     2.5667714   0.0117023
+hyper              CortVI_striatum       COBRE      pvertex       DXSSD     2.1634478   0.0359792
+hyper              CortVI_striatum       ds000030   pvertex       DXSSD     0.0924687   0.9266499
+hyper              CortVI_striatum       ZHH        pvertex       DXSSD     3.4364916   0.0007301
+hyper              CortVI_striatum       CMH        tvertex       DXSSD     3.2722167   0.0014527
+hyper              CortVI_striatum       COBRE      tvertex       DXSSD     1.5308306   0.1329700
+hyper              CortVI_striatum       ds000030   tvertex       DXSSD    -0.4409396   0.6609247
+hyper              CortVI_striatum       ZHH        tvertex       DXSSD     3.7933874   0.0002021
+hyper              CortVI_striatum       CMH        tvolume       DXSSD     2.7862641   0.0063486
+hyper              CortVI_striatum       COBRE      tvolume       DXSSD     2.4982614   0.0162900
+hyper              CortVI_striatum       ds000030   tvolume       DXSSD     0.1752642   0.8614931
+hyper              CortVI_striatum       ZHH        tvolume       DXSSD     3.4117737   0.0007952
+hyper              CortVI_thalamus       CMH        pvertex       DXSSD     2.6740456   0.0087168
+hyper              CortVI_thalamus       COBRE      pvertex       DXSSD     3.6308895   0.0007329
+hyper              CortVI_thalamus       ds000030   pvertex       DXSSD     2.0990152   0.0402563
+hyper              CortVI_thalamus       ZHH        pvertex       DXSSD     4.0590252   0.0000731
+hyper              CortVI_thalamus       CMH        tvertex       DXSSD     3.6254324   0.0004503
+hyper              CortVI_thalamus       COBRE      tvertex       DXSSD     3.3566622   0.0016346
+hyper              CortVI_thalamus       ds000030   tvertex       DXSSD     1.7281902   0.0893685
+hyper              CortVI_thalamus       ZHH        tvertex       DXSSD     4.4057593   0.0000180
+hyper              CortVI_thalamus       CMH        tvolume       DXSSD     3.1768236   0.0019654
+hyper              CortVI_thalamus       COBRE      tvolume       DXSSD     3.3028490   0.0019067
+hyper              CortVI_thalamus       ds000030   tvolume       DXSSD     1.7634136   0.0831903
+hyper              CortVI_thalamus       ZHH        tvolume       DXSSD     3.4954138   0.0005945
+hypo               cerebellum_striatum   CMH        pvertex       DXSSD    -3.5490765   0.0005840
+hypo               cerebellum_striatum   COBRE      pvertex       DXSSD    -1.7904138   0.0802695
+hypo               cerebellum_striatum   ds000030   pvertex       DXSSD    -3.0064730   0.0039263
+hypo               cerebellum_striatum   ZHH        pvertex       DXSSD    -3.3182648   0.0010939
+hypo               cerebellum_striatum   CMH        tvertex       DXSSD    -3.5490765   0.0005840
+hypo               cerebellum_striatum   COBRE      tvertex       DXSSD    -1.7904138   0.0802695
+hypo               cerebellum_striatum   ds000030   tvertex       DXSSD    -3.0064730   0.0039263
+hypo               cerebellum_striatum   ZHH        tvertex       DXSSD    -3.3182648   0.0010939
+hypo               cerebellum_striatum   CMH        tvolume       DXSSD    -3.5490765   0.0005840
+hypo               cerebellum_striatum   COBRE      tvolume       DXSSD    -1.7904138   0.0802695
+hypo               cerebellum_striatum   ds000030   tvolume       DXSSD    -3.0064730   0.0039263
+hypo               cerebellum_striatum   ZHH        tvolume       DXSSD    -3.3182648   0.0010939
+hypo               cerebellum_thalamus   CMH        pvertex       DXSSD    -4.4808819   0.0000193
+hypo               cerebellum_thalamus   COBRE      pvertex       DXSSD    -2.6415968   0.0113815
+hypo               cerebellum_thalamus   ds000030   pvertex       DXSSD    -4.7561742   0.0000139
+hypo               cerebellum_thalamus   ZHH        pvertex       DXSSD    -4.3983000   0.0000185
+hypo               cerebellum_thalamus   CMH        tvertex       DXSSD    -4.4808819   0.0000193
+hypo               cerebellum_thalamus   COBRE      tvertex       DXSSD    -2.6415968   0.0113815
+hypo               cerebellum_thalamus   ds000030   tvertex       DXSSD    -4.7561742   0.0000139
+hypo               cerebellum_thalamus   ZHH        tvertex       DXSSD    -4.3983000   0.0000185
+hypo               cerebellum_thalamus   CMH        tvolume       DXSSD    -4.4808819   0.0000193
+hypo               cerebellum_thalamus   COBRE      tvolume       DXSSD    -2.6415968   0.0113815
+hypo               cerebellum_thalamus   ds000030   tvolume       DXSSD    -4.7561742   0.0000139
+hypo               cerebellum_thalamus   ZHH        tvolume       DXSSD    -4.3983000   0.0000185
+hypo               CortDM_CortDA         CMH        pvertex       DXSSD    -2.2907244   0.0240165
+hypo               CortDM_CortDA         COBRE      pvertex       DXSSD    -1.1158494   0.2705437
+hypo               CortDM_CortDA         ds000030   pvertex       DXSSD    -2.5383652   0.0138937
+hypo               CortDM_CortDA         ZHH        pvertex       DXSSD    -4.4192219   0.0000170
+hypo               CortDM_CortDA         CMH        tvertex       DXSSD    -3.8260644   0.0002235
+hypo               CortDM_CortDA         COBRE      tvertex       DXSSD    -1.5936059   0.1181836
+hypo               CortDM_CortDA         ds000030   tvertex       DXSSD    -2.7716795   0.0075194
+hypo               CortDM_CortDA         ZHH        tvertex       DXSSD    -4.1358070   0.0000540
+hypo               CortFP_cerebellum     CMH        pvertex       DXSSD    -3.0094475   0.0032909
+hypo               CortFP_cerebellum     COBRE      pvertex       DXSSD    -2.3914417   0.0211237
+hypo               CortFP_cerebellum     ds000030   pvertex       DXSSD    -2.3131727   0.0243437
+hypo               CortFP_cerebellum     ZHH        pvertex       DXSSD    -3.4109787   0.0007974
+hypo               CortFP_cerebellum     CMH        tvertex       DXSSD    -3.2831654   0.0014026
+hypo               CortFP_cerebellum     COBRE      tvertex       DXSSD    -1.8163214   0.0761378
+hypo               CortFP_cerebellum     ds000030   tvertex       DXSSD    -3.8897813   0.0002648
+hypo               CortFP_cerebellum     ZHH        tvertex       DXSSD    -4.3185329   0.0000258
+hypo               CortFP_cerebellum     CMH        tvolume       DXSSD    -3.6847034   0.0003671
+hypo               CortFP_cerebellum     COBRE      tvolume       DXSSD    -1.0513869   0.2988212
+hypo               CortFP_cerebellum     ds000030   tvolume       DXSSD    -2.1598294   0.0350058
+hypo               CortFP_cerebellum     ZHH        tvolume       DXSSD    -3.8614994   0.0001565
+hypo               CortVA_striatum       CMH        pvertex       DXSSD    -1.6023847   0.1121330
+hypo               CortVA_striatum       COBRE      pvertex       DXSSD    -2.5671704   0.0137297
+hypo               CortVA_striatum       ds000030   pvertex       DXSSD    -0.5883299   0.5586350
+hypo               CortVA_striatum       ZHH        pvertex       DXSSD    -3.5439397   0.0005010
+hypo               CortVA_striatum       CMH        tvertex       DXSSD    -1.8872077   0.0619478
+hypo               CortVA_striatum       COBRE      tvertex       DXSSD    -1.5217461   0.1352276
+hypo               CortVA_striatum       ds000030   tvertex       DXSSD    -0.5752787   0.5673669
+hypo               CortVA_striatum       ZHH        tvertex       DXSSD    -4.2976545   0.0000281
+hypo               CortVA_striatum       CMH        tvolume       DXSSD    -2.2087906   0.0294051
+hypo               CortVA_striatum       COBRE      tvolume       DXSSD    -1.2424386   0.2206559
+hypo               CortVA_striatum       ds000030   tvolume       DXSSD    -0.6187080   0.5385735
+hypo               CortVA_striatum       ZHH        tvolume       DXSSD    -4.0171254   0.0000861
+hypo               thalamus_striatum     CMH        pvertex       DXSSD    -1.6019709   0.1122246
+hypo               thalamus_striatum     COBRE      pvertex       DXSSD    -1.7722924   0.0832701
+hypo               thalamus_striatum     ds000030   pvertex       DXSSD    -3.7438324   0.0004237
+hypo               thalamus_striatum     ZHH        pvertex       DXSSD    -4.7647254   0.0000039
+hypo               thalamus_striatum     CMH        tvertex       DXSSD    -1.6019709   0.1122246
+hypo               thalamus_striatum     COBRE      tvertex       DXSSD    -1.7722924   0.0832701
+hypo               thalamus_striatum     ds000030   tvertex       DXSSD    -3.7438324   0.0004237
+hypo               thalamus_striatum     ZHH        tvertex       DXSSD    -4.7647254   0.0000039
+hypo               thalamus_striatum     CMH        tvolume       DXSSD    -1.6019709   0.1122246
+hypo               thalamus_striatum     COBRE      tvolume       DXSSD    -1.7722924   0.0832701
+hypo               thalamus_striatum     ds000030   tvolume       DXSSD    -3.7438324   0.0004237
+hypo               thalamus_striatum     ZHH        tvolume       DXSSD    -4.7647254   0.0000039
 
 ```r
 FC_gscores_lmfitbySite_mFC %>% 
@@ -2207,13 +2441,13 @@ FC_gscores_lmfitbySite_mFC %>%
   facet_wrap(~Site)
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-46-1.png" width="672" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-56-1.png" width="672" />
 
 
 
 ```r
 wFC_corrs <- all_subject_FC_weights %>%
-  filter(vertex_type == "pvertex") %>%
+  filter(vertex_type == "tvertex") %>%
   select(subject, dataset, edge_group, wFC_score) %>%
   spread(edge_group, wFC_score) %>%
   select(-subject, -dataset) %>%
@@ -2221,5 +2455,5 @@ wFC_corrs <- all_subject_FC_weights %>%
 heatmap(abs(wFC_corrs))
 ```
 
-<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-47-1.png" width="672" />
+<img src="06_whole_matrix_stats_files/figure-html/unnamed-chunk-57-1.png" width="672" />
 

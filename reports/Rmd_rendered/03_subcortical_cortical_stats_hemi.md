@@ -1,6 +1,6 @@
 ---
 title: "Sub-cortical Cortical Stats Split by Hemisphere"
-date: "13 February, 2020"
+date: "18 June, 2020"
 output:
   html_document:
     keep_md: yes
@@ -23,20 +23,20 @@ library(tidyverse)
 ```
 
 ```
-## ── Attaching packages ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse 1.2.1 ──
+## ── Attaching packages ──────────────────────────────────────────────────────────────────────── tidyverse 1.3.0 ──
 ```
 
 ```
-## ✔ ggplot2 3.1.0       ✔ purrr   0.2.5  
-## ✔ tibble  2.0.1       ✔ dplyr   0.8.0.1
-## ✔ tidyr   0.8.2       ✔ stringr 1.3.1  
-## ✔ readr   1.3.0       ✔ forcats 0.3.0
+## ✓ ggplot2 3.3.1     ✓ purrr   0.3.4
+## ✓ tibble  3.0.1     ✓ dplyr   1.0.0
+## ✓ tidyr   1.1.0     ✓ stringr 1.4.0
+## ✓ readr   1.3.1     ✓ forcats 0.5.0
 ```
 
 ```
-## ── Conflicts ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
-## ✖ dplyr::filter() masks stats::filter()
-## ✖ dplyr::lag()    masks stats::lag()
+## ── Conflicts ─────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()
 ```
 
 ```r
@@ -48,31 +48,28 @@ library(cowplot)
 
 ```
 ## 
-## Attaching package: 'cowplot'
+## ********************************************************
 ```
 
 ```
-## The following object is masked from 'package:ggplot2':
-## 
-##     ggsave
+## Note: As of version 1.0.0, cowplot does not change the
+```
+
+```
+##   default ggplot2 theme anymore. To recover the previous
+```
+
+```
+##   behavior, execute:
+##   theme_set(theme_cowplot())
+```
+
+```
+## ********************************************************
 ```
 
 ```r
 library(ggridges)
-```
-
-```
-## 
-## Attaching package: 'ggridges'
-```
-
-```
-## The following object is masked from 'package:ggplot2':
-## 
-##     scale_discrete_manual
-```
-
-```r
 library(here)
 ```
 
@@ -81,12 +78,17 @@ library(here)
 ```
 
 
+```r
+knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
+```
 ## The paths to data
 
 
 ```r
 source(here('code/R/settings_helpers.R'))
-pheno <- read_pheno_file()
+pheno <- read_pheno_file() %>%
+  drop_na(DX) %>%
+  drop_na(Age_match) # dropping un-matched subjects
 ```
 
 ```
@@ -101,14 +103,16 @@ pheno <- read_pheno_file()
 ##   acq_id = col_character(),
 ##   subject = col_character(),
 ##   session = col_character(),
-##   cmh_session_id = col_character(),
 ##   DX = col_character(),
-##   Sex = col_character(),
 ##   Site = col_character(),
+##   filename = col_character(),
+##   cmh_session_id = col_character(),
+##   Sex = col_character(),
 ##   Scanner = col_character(),
 ##   isFEP = col_character(),
+##   zhh_chosen_sess = col_logical(),
 ##   ghost_NoGhost = col_character(),
-##   filename = col_character()
+##   in_matched_sample = col_logical()
 ## )
 ```
 
@@ -123,6 +127,11 @@ the_subcortical_guide <- get_subcortical_guide()
 ```
 
 ```
+## Warning: `cols` is now required when using unnest().
+## Please use `cols = c(subcort_NET)`
+```
+
+```
 ## Parsed with column specification:
 ## cols(
 ##   subcort_hemi = col_character(),
@@ -134,9 +143,16 @@ the_subcortical_guide <- get_subcortical_guide()
 
 ```r
 node_annotations <- get_node_annotations(Yeo7_2011_80verts, the_subcortical_guide)
+
 source(here('code/R/custom_plot_helpers.R'))
 
 source(here('code/R/file_reading_helpers.R'))
+
+lm_predictor_cols <- c("DX",
+                        "Age_match_pt", 
+                        "Sex",
+                        "fd_mean_match_pt",
+                        "Site")
 ```
 
 
@@ -158,6 +174,17 @@ pheno <- pheno %>%
 a litle chunck I use to test if test if the reader is working...
 
 
+```r
+all_corZ_results <- pheno %>%
+  select(subject, outputprefix, dataset) %>%
+  mutate(the_corrs = map2(.$outputprefix, .$dataset,
+                              ~run_read_all_subject_timeseries_and_wholebrain_corZ(.x, .y)))
+```
+
+
+```r
+save(all_corZ_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
+```
 
 
 
@@ -175,14 +202,28 @@ all_subcort_results <- pheno %>%
 ```
 
 
+
 ```r
-save(all_subcort_results, file = here("data/processed/Rdata_cache/03_subcort_results_cache.Rdata"))
+all_corZ_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_cache.rds"))
 ```
+
+### reduce data from the whole brain data to only include the subcortical cortical connections 
 
 
 ```r
-load(here("data/processed/Rdata_cache/03_subcort_results_cache.Rdata"))
+## go from the whole matrix to only the subcortical-cortical and annotate
+all_subcort_results <- all_corZ_results %>%
+  unnest(cols = c(the_corrs)) %>%
+  filter(!(from %in% the_subcortical_guide$combined_name)) %>%
+  inner_join(the_subcortical_guide, by = c("to"="combined_name")) %>%
+  mutate(PINT_ROI = from,
+         YeoNet = str_sub(PINT_ROI, 1,2),
+         hemisphere = str_sub(PINT_ROI, 5,5)) %>%
+  mutate(conn_type = if_else(YeoNet == subcort_NET, "same_net", "diff_net"),
+         YeoNet = factor(YeoNet, levels = c("VI", "SM", "DA", "VA", "FP", "DM")),
+         subcort_NET = factor(subcort_NET, levels = c("VI", "SM", "DA", "VA", "FP", "DM", "LI")))
 ```
+
 
 
 
@@ -192,20 +233,13 @@ load(here("data/processed/Rdata_cache/03_subcort_results_cache.Rdata"))
 ```r
 results_pheno <- all_subcort_results %>%
   inner_join(pheno, by = c("subject", "dataset")) %>%
-  unnest() %>%
-  inner_join(the_subcortical_guide, by = c("combined_name")) %>%
-  mutate(YeoNet = str_sub(PINT_ROI, 1,2),
-         hemisphere = str_sub(PINT_ROI, 5,5)) %>%
-  mutate(conn_type = if_else(YeoNet == subcort_NET, "same_net", "diff_net"),
-         YeoNet = factor(YeoNet, levels = c("VI", "SM", "DA", "VA", "FP", "DM")),
-         subcort_NET = factor(subcort_NET, levels = c("VI", "SM", "DA", "VA", "FP", "DM", "LI"))) %>%
-  select(subject, dataset, PINT_ROI, subcort_ROI, subcort_NET,subcort_hemi, 
-         pvertex_corr, tvertex_corr, tvolume_corr,
-         DX, Sex, fd_mean, Age, Site, Scanner, Age_pt, fd_mean_pt,  
-         YeoNet, hemisphere, conn_type) 
+  select(subject, dataset, rval = weight,
+         YeoNet, hemisphere, conn_type, 
+         PINT_ROI, subcort_ROI, subcort_NET, subcort_hemi, 
+         vertex_type, Age, Site, Scanner, fd_mean, fd_perc,
+         one_of(lm_predictor_cols),
+         in_matched_sample) 
 ```
-
-
 
 
 
@@ -218,53 +252,39 @@ library(tableone)
 therealtable1 <- CreateTableOne(
   strata = c("DX", "Site"),
   vars = c("Age", "Sex", "fd_mean", "fd_perc"),
-  data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L")
+  data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L", vertex_type == "pvertex")
 )
-```
-
-```
-## Warning in ModuleReturnVarsExist(vars, data): The data frame does not have:
-## fd_perc Dropped
-```
-
-```r
 tabMat <- print(therealtable1, quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
 kable(tabMat)
 ```
 
-                      CTRL:CMH       SSD:CMH        CTRL:COBRE     SSD:COBRE       CTRL:ds000030   SSD:ds000030   CTRL:ZHH       SSD:ZHH        p        test 
---------------------  -------------  -------------  -------------  --------------  --------------  -------------  -------------  -------------  -------  -----
-n                     41             67             35             22              107             31             111            83                           
-Age (mean (SD))       26.37 (6.67)   32.19 (8.47)   33.17 (9.01)   29.55 (12.14)   30.42 (8.14)    35.23 (9.32)   25.07 (6.55)   25.83 (8.98)   <0.001        
-Sex = M (%)           22 (53.7)      40 (59.7)      23 (65.7)      19 (86.4)       55 (51.4)       24 (77.4)      48 (43.2)      63 (75.9)      <0.001        
-fd_mean (mean (SD))   0.10 (0.04)    0.12 (0.06)    0.18 (0.04)    0.21 (0.08)     0.14 (0.07)     0.18 (0.07)    0.12 (0.04)    0.12 (0.06)    <0.001        
+                      CTRL:CMH       SSD:CMH        CTRL:COBRE      SSD:COBRE       CTRL:ds000030   SSD:ds000030    CTRL:ZHH        SSD:ZHH         p        test 
+--------------------  -------------  -------------  --------------  --------------  --------------  --------------  --------------  --------------  -------  -----
+n                     41             67             27              22              31              31              104             83                            
+Age (mean (SD))       26.37 (6.67)   32.19 (8.47)   33.93 (9.66)    29.55 (12.14)   33.77 (8.94)    35.23 (9.32)    25.42 (6.33)    25.86 (9.01)    <0.001        
+Sex = M (%)           22 (53.7)      40 (59.7)      23 (85.2)       19 (86.4)       26 (83.9)       24 (77.4)       47 (45.2)       63 (75.9)       <0.001        
+fd_mean (mean (SD))   0.10 (0.04)    0.12 (0.06)    0.18 (0.04)     0.21 (0.08)     0.15 (0.08)     0.18 (0.07)     0.12 (0.04)     0.13 (0.06)     <0.001        
+fd_perc (mean (SD))   6.56 (6.72)    11.08 (9.85)   28.47 (14.14)   26.60 (11.93)   19.61 (17.01)   28.26 (16.54)   12.74 (13.67)   13.33 (13.11)   <0.001        
 
 
 ```r
 library(tableone)
 therealtable1 <- CreateTableOne(
   vars = c("Age", "Sex", "DX", "fd_mean", "fd_perc"),
-  data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L")
+  data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L", vertex_type == "pvertex")
 )
-```
-
-```
-## Warning in ModuleReturnVarsExist(vars, data): The data frame does not have:
-## fd_perc Dropped
-```
-
-```r
 tabMat <- print(therealtable1, quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
 kable(tabMat)
 ```
 
-                      Overall      
---------------------  -------------
-n                     497          
-Age (mean (SD))       28.82 (8.85) 
-Sex = M (%)           294 (59.2)   
-DX = SSD (%)          203 (40.8)   
-fd_mean (mean (SD))   0.14 (0.06)  
+                      Overall       
+--------------------  --------------
+n                     406           
+Age (mean (SD))       28.90 (9.09)  
+Sex = M (%)           264 (65.0)    
+DX = SSD (%)          203 (50.0)    
+fd_mean (mean (SD))   0.14 (0.06)   
+fd_perc (mean (SD))   15.47 (14.51) 
 
 
 # Is PINT "focusing" cortical subcortical connectivity
@@ -272,18 +292,22 @@ fd_mean (mean (SD))   0.14 (0.06)
 
 ```r
 table1 <- results_pheno %>%
-  mutate(corr_diff = pvertex_corr - tvertex_corr) %>%
-  gather(corr_type, rval, pvertex_corr, tvertex_corr, tvolume_corr) %>%
-  group_by(corr_type, YeoNet, subcort_ROI, subcort_NET) %>%
+  group_by(vertex_type, YeoNet, subcort_ROI, subcort_NET) %>%
   summarise(n = n(),
             Mean = mean(rval),
             SD = sd(rval)) 
-  
+```
+
+```
+## `summarise()` regrouping output by 'vertex_type', 'YeoNet', 'subcort_ROI' (override with `.groups` argument)
+```
+
+```r
 ggplot(table1, aes(y = YeoNet, x = subcort_NET, fill = Mean)) + 
   geom_tile() +
   scale_fill_distiller(breaks = c(-0.5,0.5), type = "div", palette = 5) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  facet_grid(subcort_ROI~corr_type) 
+  facet_grid(subcort_ROI~vertex_type) 
 ```
 
 <img src="03_subcortical_cortical_stats_hemi_files/figure-html/plotting-PINT-change-matrix-1.png" width="576" />
@@ -294,7 +318,7 @@ functions to help re-annotated the function axes
 #' sets some the main variables to factors to more descriptive labels
 add_corrtype_and_subcortROI_columns <- function(data) {
   result <- data %>%
-    mutate(corrtype = factor(corr_type, levels = c('tvolume_corr','tvertex_corr','pvertex_corr'),
+    mutate(corrtype = factor(vertex_type, levels = c('tvolume','tvertex','pvertex'),
                            labels = c("Volume Template", "Surface Template", "Surface Personalized")),
          subcortROI = factor(subcort_ROI, 
                              levels = c("striatum", "thalamus", "cerebellum"),
@@ -333,15 +357,20 @@ ggplot(aes(y = YeoNet, x = subcort_NET, fill = Mean)) +
 
 
 
+
 ```r
 table1 <- results_pheno %>%
-  mutate(corr_diff = pvertex_corr - tvertex_corr) %>%
-  gather(corr_type, rval, pvertex_corr, tvertex_corr, tvolume_corr) %>%
-  group_by(corr_type, YeoNet, hemisphere, subcort_ROI, subcort_NET, subcort_hemi) %>%
+  group_by(vertex_type, YeoNet, hemisphere, subcort_ROI, subcort_NET, subcort_hemi) %>%
   summarise(n = n(),
             Mean = mean(rval),
             SD = sd(rval)) 
+```
 
+```
+## `summarise()` regrouping output by 'vertex_type', 'YeoNet', 'hemisphere', 'subcort_ROI', 'subcort_NET' (override with `.groups` argument)
+```
+
+```r
 table1 %>%
   drop_VI_DA_LI() %>%
   add_corrtype_and_subcortROI_columns() %>%
@@ -363,163 +392,36 @@ Lower evidence is seen in the striatum and thalamus, although there is a faint i
 
 ```r
 net_means <- results_pheno %>%
-  mutate(corr_diff = pvertex_corr - tvertex_corr) %>%
-  group_by(YeoNet, subcort_ROI, subcort_NET, conn_type, subject) %>%
-  summarise(netmean_pvertex = mean(pvertex_corr),
-            netmean_tvertex = mean(tvertex_corr),
-            netmean_tvolume = mean(tvolume_corr)) %>%
-  ungroup()
-
-net_means_pint_t <- net_means %>%
-  group_by(YeoNet, subcort_ROI, subcort_NET) %>%
-  do(tidy(t.test(.$netmean_pvertex, .$netmean_tvertex, paired = TRUE))) %>%
-  ungroup() %>% mutate(p_FDR = p.adjust(p.value, method = "fdr"))
-
-net_means_pint_t %>%
-  ungroup() %>%
-  mutate(sig = if_else(p_FDR < 0.05, '*', NA_character_) ) %>%
   drop_VI_DA_LI() %>%
-  mutate(subcortROI = factor(subcort_ROI, 
-                           levels = c("striatum", "thalamus", "cerebellum"),
-                           labels = c("Striatum", "Thalamus", "Cerebellum"))) %>%
-ggplot(aes(x = YeoNet, y = subcort_NET, fill = statistic)) + 
-  geom_tile(color = "black", na.rm = TRUE) +
-  geom_point(aes(shape = sig), na.rm = TRUE) +
-  scale_fill_distiller(breaks = c(-10,10), type = "div", palette = 5) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  facet_wrap(~subcortROI)
+  group_by(YeoNet, subcort_ROI, subcort_NET, conn_type, subject, dataset, vertex_type) %>%
+  summarise(netmean = mean(rval)) %>%
+  ungroup() 
 ```
 
-<img src="03_subcortical_cortical_stats_hemi_files/figure-html/paired-ttests-of-PINT-effect-1.png" width="768" />
-Here we plot the paired t-stat camparing personalized to template, we see a very strong increase in correlation along the diagonal (i.e. with the hypothesized regions) and decreases on the off-dignonal (i.e. decreased connectivity with the other network's parcels)
-
-
-```r
-net_means_vpint_t <- net_means %>%
-  group_by(YeoNet, subcort_ROI, subcort_NET) %>%
-  do(tidy(t.test(.$netmean_pvertex, .$netmean_tvolume, paired = TRUE))) %>%
-  ungroup() %>% mutate(p_FDR = p.adjust(p.value, method = "fdr"))
-
-net_means_vpint_t %>%
-  ungroup() %>%
-  mutate(sig = if_else(p_FDR < 0.05, '*', NA_character_) ) %>%
-  drop_VI_DA_LI() %>%
-  mutate(subcortROI = factor(subcort_ROI, 
-                           levels = c("striatum", "thalamus", "cerebellum"),
-                           labels = c("Striatum", "Thalamus", "Cerebellum"))) %>%
-ggplot(aes(x = YeoNet, y = subcort_NET, fill = statistic)) + 
-  geom_tile(color = "black", na.rm = TRUE) +
-  geom_point(aes(shape = sig), na.rm = TRUE) +
-  scale_fill_distiller(breaks = c(-10,10), type = "div", palette = 5) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  facet_wrap(~subcortROI)
 ```
-
-<img src="03_subcortical_cortical_stats_hemi_files/figure-html/unnamed-chunk-4-1.png" width="672" />
-
-# trying to calculate an vs off diagonal term
-
-In the above table to calcuculated the "focussing" effect as the change (in on person) between in connectivity with the expected parcel subtracted by the change in connectivity from other regions.
-
-Below we plot these values against zero
-
-
-```r
-net_focus <- net_means %>%
-  ungroup() %>%
-  mutate(pint_diff = netmean_pvertex - netmean_tvertex,
-         vpint_diff = netmean_pvertex - netmean_tvolume,
-         surf_diff = netmean_tvertex - netmean_tvolume) %>%
-  group_by(subject, subcort_ROI, YeoNet, conn_type) %>%
-  summarise(nets_avg_pint_diff = mean(pint_diff),
-            nets_avg_vpint_diff = mean(vpint_diff),
-            nets_avg_surf_diff = mean(surf_diff)
-            ) %>%
-  ungroup() %>%
-  gather(comparison, nets_avg, nets_avg_pint_diff, nets_avg_vpint_diff, nets_avg_surf_diff) %>%
-  spread(conn_type, nets_avg) %>%
-  mutate(focus_effect = same_net - diff_net)
-
-net_focus %>%
-  ungroup() %>%
-  group_by(subcort_ROI, YeoNet, comparison) %>%
-  do(tidy(t.test(.$focus_effect))) %>%
-  kable()
+## `summarise()` regrouping output by 'YeoNet', 'subcort_ROI', 'subcort_NET', 'conn_type', 'subject', 'dataset' (override with `.groups` argument)
 ```
-
-
-
-subcort_ROI   YeoNet   comparison              estimate    statistic     p.value   parameter     conf.low   conf.high  method              alternative 
-------------  -------  --------------------  ----------  -----------  ----------  ----------  -----------  ----------  ------------------  ------------
-cerebellum    VI       nets_avg_pint_diff     0.0274058   11.6427697   0.0000000         493    0.0227809   0.0320307  One Sample t-test   two.sided   
-cerebellum    VI       nets_avg_surf_diff     0.0414541   10.8475696   0.0000000         493    0.0339456   0.0489625  One Sample t-test   two.sided   
-cerebellum    VI       nets_avg_vpint_diff    0.0688599   14.1640353   0.0000000         493    0.0593079   0.0784119  One Sample t-test   two.sided   
-cerebellum    SM       nets_avg_pint_diff     0.0205586    9.4833067   0.0000000         493    0.0162992   0.0248181  One Sample t-test   two.sided   
-cerebellum    SM       nets_avg_surf_diff     0.0518569   15.4654578   0.0000000         493    0.0452688   0.0584450  One Sample t-test   two.sided   
-cerebellum    SM       nets_avg_vpint_diff    0.0724155   17.4516048   0.0000000         493    0.0642626   0.0805684  One Sample t-test   two.sided   
-cerebellum    DA       nets_avg_pint_diff     0.0287201   12.9214762   0.0000000         493    0.0243531   0.0330872  One Sample t-test   two.sided   
-cerebellum    DA       nets_avg_surf_diff     0.0418660   13.7824757   0.0000000         493    0.0358977   0.0478343  One Sample t-test   two.sided   
-cerebellum    DA       nets_avg_vpint_diff    0.0705861   17.1307845   0.0000000         493    0.0624904   0.0786819  One Sample t-test   two.sided   
-cerebellum    VA       nets_avg_pint_diff     0.0333369   16.8287593   0.0000000         493    0.0294448   0.0372291  One Sample t-test   two.sided   
-cerebellum    VA       nets_avg_surf_diff     0.0560229   19.6440835   0.0000000         493    0.0504195   0.0616263  One Sample t-test   two.sided   
-cerebellum    VA       nets_avg_vpint_diff    0.0893598   22.4772273   0.0000000         493    0.0815487   0.0971710  One Sample t-test   two.sided   
-cerebellum    FP       nets_avg_pint_diff     0.0418528   18.7746195   0.0000000         493    0.0374728   0.0462327  One Sample t-test   two.sided   
-cerebellum    FP       nets_avg_surf_diff     0.0367357   15.3459008   0.0000000         493    0.0320323   0.0414391  One Sample t-test   two.sided   
-cerebellum    FP       nets_avg_vpint_diff    0.0785885   22.6607390   0.0000000         493    0.0717745   0.0854025  One Sample t-test   two.sided   
-cerebellum    DM       nets_avg_pint_diff     0.0537150   21.0774329   0.0000000         493    0.0487078   0.0587222  One Sample t-test   two.sided   
-cerebellum    DM       nets_avg_surf_diff     0.0609553   17.7505429   0.0000000         493    0.0542082   0.0677024  One Sample t-test   two.sided   
-cerebellum    DM       nets_avg_vpint_diff    0.1146703   25.1856622   0.0000000         493    0.1057247   0.1236160  One Sample t-test   two.sided   
-striatum      VI       nets_avg_pint_diff     0.0009511    0.4219322   0.6732584         493   -0.0034778   0.0053801  One Sample t-test   two.sided   
-striatum      VI       nets_avg_surf_diff     0.0089229    2.5173188   0.0121412         493    0.0019585   0.0158873  One Sample t-test   two.sided   
-striatum      VI       nets_avg_vpint_diff    0.0098740    2.2471214   0.0250738         493    0.0012406   0.0185074  One Sample t-test   two.sided   
-striatum      SM       nets_avg_pint_diff     0.0094129    5.1440821   0.0000004         493    0.0058176   0.0130081  One Sample t-test   two.sided   
-striatum      SM       nets_avg_surf_diff     0.0200427    7.3152876   0.0000000         493    0.0146595   0.0254258  One Sample t-test   two.sided   
-striatum      SM       nets_avg_vpint_diff    0.0294555    8.3944137   0.0000000         493    0.0225612   0.0363498  One Sample t-test   two.sided   
-striatum      DA       nets_avg_pint_diff     0.0050523    2.8423068   0.0046645         493    0.0015598   0.0085448  One Sample t-test   two.sided   
-striatum      DA       nets_avg_surf_diff     0.0079077    3.6956109   0.0002439         493    0.0037036   0.0121119  One Sample t-test   two.sided   
-striatum      DA       nets_avg_vpint_diff    0.0129600    4.2216095   0.0000289         493    0.0069283   0.0189918  One Sample t-test   two.sided   
-striatum      VA       nets_avg_pint_diff     0.0211444   14.7052079   0.0000000         493    0.0183193   0.0239696  One Sample t-test   two.sided   
-striatum      VA       nets_avg_surf_diff     0.0362259   17.2538786   0.0000000         493    0.0321007   0.0403512  One Sample t-test   two.sided   
-striatum      VA       nets_avg_vpint_diff    0.0573704   20.8643397   0.0000000         493    0.0519678   0.0627729  One Sample t-test   two.sided   
-striatum      FP       nets_avg_pint_diff     0.0092542    5.0349801   0.0000007         493    0.0056430   0.0128654  One Sample t-test   two.sided   
-striatum      FP       nets_avg_surf_diff     0.0121264    6.3329143   0.0000000         493    0.0083642   0.0158886  One Sample t-test   two.sided   
-striatum      FP       nets_avg_vpint_diff    0.0213806    7.5728809   0.0000000         493    0.0158334   0.0269278  One Sample t-test   two.sided   
-striatum      DM       nets_avg_pint_diff     0.0097812    4.7171291   0.0000031         493    0.0057071   0.0138552  One Sample t-test   two.sided   
-striatum      DM       nets_avg_surf_diff     0.0176855    7.2184575   0.0000000         493    0.0128717   0.0224993  One Sample t-test   two.sided   
-striatum      DM       nets_avg_vpint_diff    0.0274667    8.1032250   0.0000000         493    0.0208069   0.0341265  One Sample t-test   two.sided   
-thalamus      VI       nets_avg_pint_diff     0.0066896    4.0687435   0.0000550         493    0.0034592   0.0099200  One Sample t-test   two.sided   
-thalamus      VI       nets_avg_surf_diff     0.0171712    7.4188092   0.0000000         493    0.0126236   0.0217188  One Sample t-test   two.sided   
-thalamus      VI       nets_avg_vpint_diff    0.0238608    7.9818600   0.0000000         493    0.0179873   0.0297343  One Sample t-test   two.sided   
-thalamus      SM       nets_avg_pint_diff     0.0286083   12.8286466   0.0000000         493    0.0242267   0.0329898  One Sample t-test   two.sided   
-thalamus      SM       nets_avg_surf_diff     0.0603081   17.7481689   0.0000000         493    0.0536317   0.0669844  One Sample t-test   two.sided   
-thalamus      SM       nets_avg_vpint_diff    0.0889163   20.5025373   0.0000000         493    0.0803954   0.0974373  One Sample t-test   two.sided   
-thalamus      DA       nets_avg_pint_diff     0.0151436    7.9828345   0.0000000         493    0.0114163   0.0188708  One Sample t-test   two.sided   
-thalamus      DA       nets_avg_surf_diff     0.0288789   11.1873927   0.0000000         493    0.0238070   0.0339507  One Sample t-test   two.sided   
-thalamus      DA       nets_avg_vpint_diff    0.0440224   12.3863970   0.0000000         493    0.0370394   0.0510055  One Sample t-test   two.sided   
-thalamus      VA       nets_avg_pint_diff     0.0113488    7.2527919   0.0000000         493    0.0082744   0.0144231  One Sample t-test   two.sided   
-thalamus      VA       nets_avg_surf_diff     0.0150747    6.5191917   0.0000000         493    0.0105314   0.0196180  One Sample t-test   two.sided   
-thalamus      VA       nets_avg_vpint_diff    0.0264234    8.5697441   0.0000000         493    0.0203653   0.0324815  One Sample t-test   two.sided   
-thalamus      FP       nets_avg_pint_diff     0.0119887    6.6019451   0.0000000         493    0.0084208   0.0155567  One Sample t-test   two.sided   
-thalamus      FP       nets_avg_surf_diff     0.0248535   11.0328590   0.0000000         493    0.0204275   0.0292796  One Sample t-test   two.sided   
-thalamus      FP       nets_avg_vpint_diff    0.0368423   11.7443622   0.0000000         493    0.0306787   0.0430058  One Sample t-test   two.sided   
-thalamus      DM       nets_avg_pint_diff     0.0159898    8.4683314   0.0000000         493    0.0122799   0.0196997  One Sample t-test   two.sided   
-thalamus      DM       nets_avg_surf_diff     0.0223480    9.0617516   0.0000000         493    0.0175025   0.0271936  One Sample t-test   two.sided   
-thalamus      DM       nets_avg_vpint_diff    0.0383378   11.4373011   0.0000000         493    0.0317519   0.0449238  One Sample t-test   two.sided   
-
-Another (maybe better) way to test this is to show calculate the "focusing" value in individual subjects THAN compute how this number changes with PINT. Let try that..
 
 
 ```r
 subject_focus <- net_means %>%
   drop_VI_DA_LI() %>%
-  gather(vertex_type, nets_avg, netmean_pvertex, netmean_tvertex, netmean_tvolume) %>%
-  ungroup(subcort_NET) %>%
-  group_by(subject, subcort_ROI, YeoNet, vertex_type, conn_type) %>%
-  summarise(nets_type_avg = mean(nets_avg)) %>%
+  group_by(subject, dataset, subcort_ROI, YeoNet, vertex_type, conn_type) %>%
+  summarise(nets_type_avg = mean(netmean)) %>%
   spread(conn_type, nets_type_avg) # %>%
+```
+
+```
+## `summarise()` regrouping output by 'subject', 'dataset', 'subcort_ROI', 'YeoNet', 'vertex_type' (override with `.groups` argument)
+```
+
+```r
   # ungroup() %>%
   # mutate(focus_effect = same_net - diff_net)
+```
 
+
+```r
 subject_focus %>%
   ungroup() %>%
   group_by(subcort_ROI, YeoNet, vertex_type) %>%
@@ -530,58 +432,157 @@ subject_focus %>%
 
 
 
-subcort_ROI   YeoNet   vertex_type         estimate   statistic   p.value   parameter    conf.low   conf.high  method          alternative       cohenD
-------------  -------  ----------------  ----------  ----------  --------  ----------  ----------  ----------  --------------  ------------  ----------
-cerebellum    SM       netmean_pvertex    0.2399467    36.70593         0         493   0.2271029   0.2527905  Paired t-test   two.sided      1.6514780
-cerebellum    SM       netmean_tvertex    0.2084729    37.71938         0         493   0.1976137   0.2193322  Paired t-test   two.sided      1.6970749
-cerebellum    SM       netmean_tvolume    0.1431050    33.82311         0         493   0.1347920   0.1514180  Paired t-test   two.sided      1.5217737
-cerebellum    VA       netmean_pvertex    0.2412299    36.30497         0         493   0.2281748   0.2542850  Paired t-test   two.sided      1.6334377
-cerebellum    VA       netmean_tvertex    0.1985123    36.86791         0         493   0.1879331   0.2090916  Paired t-test   two.sided      1.6587658
-cerebellum    VA       netmean_tvolume    0.1258778    33.72861         0         493   0.1185450   0.1332105  Paired t-test   two.sided      1.5175218
-cerebellum    FP       netmean_pvertex    0.1872801    39.61782         0         493   0.1779922   0.1965680  Paired t-test   two.sided      1.7824899
-cerebellum    FP       netmean_tvertex    0.1425105    40.63385         0         493   0.1356197   0.1494014  Paired t-test   two.sided      1.8282034
-cerebellum    FP       netmean_tvolume    0.1024950    38.22818         0         493   0.0972271   0.1077629  Paired t-test   two.sided      1.7199671
-cerebellum    DM       netmean_pvertex    0.2977314    41.69784         0         493   0.2837024   0.3117604  Paired t-test   two.sided      1.8760745
-cerebellum    DM       netmean_tvertex    0.2405480    40.98858         0         493   0.2290173   0.2520786  Paired t-test   two.sided      1.8441635
-cerebellum    DM       netmean_tvolume    0.1790535    38.59262         0         493   0.1699378   0.1881693  Paired t-test   two.sided      1.7363642
-striatum      SM       netmean_pvertex    0.1077970    18.24899         0         493   0.0961910   0.1194030  Paired t-test   two.sided      0.8210609
-striatum      SM       netmean_tvertex    0.0962070    19.48143         0         493   0.0865041   0.1059099  Paired t-test   two.sided      0.8765110
-striatum      SM       netmean_tvolume    0.0724419    17.79229         0         493   0.0644422   0.0804416  Paired t-test   two.sided      0.8005130
-striatum      VA       netmean_pvertex    0.0996744    27.38295         0         493   0.0925226   0.1068263  Paired t-test   two.sided      1.2320172
-striatum      VA       netmean_tvertex    0.0801373    27.68073         0         493   0.0744491   0.0858255  Paired t-test   two.sided      1.2454151
-striatum      VA       netmean_tvolume    0.0478839    21.51229         0         493   0.0435105   0.0522573  Paired t-test   two.sided      0.9678838
-striatum      FP       netmean_pvertex    0.0489004    14.43359         0         493   0.0422438   0.0555571  Paired t-test   two.sided      0.6493980
-striatum      FP       netmean_tvertex    0.0413781    16.76016         0         493   0.0365274   0.0462288  Paired t-test   two.sided      0.7540750
-striatum      FP       netmean_tvolume    0.0313351    15.48405         0         493   0.0273589   0.0353112  Paired t-test   two.sided      0.6966604
-striatum      DM       netmean_pvertex    0.0798067    15.31447         0         493   0.0695678   0.0900456  Paired t-test   two.sided      0.6890306
-striatum      DM       netmean_tvertex    0.0706844    18.07803         0         493   0.0630022   0.0783667  Paired t-test   two.sided      0.8133688
-striatum      DM       netmean_tvolume    0.0529355    14.67428         0         493   0.0458478   0.0600232  Paired t-test   two.sided      0.6602272
-thalamus      SM       netmean_pvertex    0.2350851    32.39511         0         493   0.2208270   0.2493431  Paired t-test   two.sided      1.4575250
-thalamus      SM       netmean_tvertex    0.2021965    33.02133         0         493   0.1901657   0.2142273  Paired t-test   two.sided      1.4856999
-thalamus      SM       netmean_tvolume    0.1358514    30.44286         0         493   0.1270835   0.1446193  Paired t-test   two.sided      1.3696888
-thalamus      VA       netmean_pvertex    0.0603700    14.93815         0         493   0.0524297   0.0683104  Paired t-test   two.sided      0.6720992
-thalamus      VA       netmean_tvertex    0.0473139    14.86396         0         493   0.0410598   0.0535681  Paired t-test   two.sided      0.6687610
-thalamus      VA       netmean_tvolume    0.0300578    12.36652         0         493   0.0252823   0.0348334  Paired t-test   two.sided      0.5563961
-thalamus      FP       netmean_pvertex    0.0902495    21.08280         0         493   0.0818388   0.0986602  Paired t-test   two.sided      0.9485600
-thalamus      FP       netmean_tvertex    0.0774761    23.60518         0         493   0.0710274   0.0839249  Paired t-test   two.sided      1.0620471
-thalamus      FP       netmean_tvolume    0.0512406    20.50364         0         493   0.0463304   0.0561508  Paired t-test   two.sided      0.9225024
-thalamus      DM       netmean_pvertex    0.1107613    21.42708         0         493   0.1006049   0.1209178  Paired t-test   two.sided      0.9640500
-thalamus      DM       netmean_tvertex    0.0931132    23.53542         0         493   0.0853399   0.1008865  Paired t-test   two.sided      1.0589084
-thalamus      DM       netmean_tvolume    0.0704012    20.23685         0         493   0.0635659   0.0772364  Paired t-test   two.sided      0.9104988
+subcort_ROI   YeoNet   vertex_type     estimate   statistic   p.value   parameter    conf.low   conf.high  method          alternative       cohenD
+------------  -------  ------------  ----------  ----------  --------  ----------  ----------  ----------  --------------  ------------  ----------
+cerebellum    SM       pvertex        0.2509370    32.79637         0         405   0.2358956   0.2659783  Paired t-test   two.sided      1.6276567
+cerebellum    SM       tvertex        0.2169637    33.29947         0         405   0.2041552   0.2297722  Paired t-test   two.sided      1.6526250
+cerebellum    SM       tvolume        0.1449559    30.41125         0         405   0.1355857   0.1543261  Paired t-test   two.sided      1.5092851
+cerebellum    VA       pvertex        0.2439763    31.09638         0         405   0.2285527   0.2593999  Paired t-test   two.sided      1.5432875
+cerebellum    VA       tvertex        0.2009076    31.79134         0         405   0.1884844   0.2133309  Paired t-test   two.sided      1.5777775
+cerebellum    VA       tvolume        0.1241032    29.82652         0         405   0.1159237   0.1322827  Paired t-test   two.sided      1.4802655
+cerebellum    FP       pvertex        0.1951463    35.93027         0         405   0.1844693   0.2058233  Paired t-test   two.sided      1.7831891
+cerebellum    FP       tvertex        0.1484289    36.99876         0         405   0.1405425   0.1563153  Paired t-test   two.sided      1.8362175
+cerebellum    FP       tvolume        0.1050624    33.83044         0         405   0.0989574   0.1111674  Paired t-test   two.sided      1.6789766
+cerebellum    DM       pvertex        0.3156742    37.62450         0         405   0.2991806   0.3321678  Paired t-test   two.sided      1.8672725
+cerebellum    DM       tvertex        0.2535391    37.36094         0         405   0.2401985   0.2668797  Paired t-test   two.sided      1.8541922
+cerebellum    DM       tvolume        0.1826252    35.64842         0         405   0.1725543   0.1926961  Paired t-test   two.sided      1.7692013
+striatum      SM       pvertex        0.1109963    16.03850         0         405   0.0973914   0.1246011  Paired t-test   two.sided      0.7959773
+striatum      SM       tvertex        0.1023066    17.77211         0         405   0.0909901   0.1136232  Paired t-test   two.sided      0.8820152
+striatum      SM       tvolume        0.0772217    16.51277         0         405   0.0680285   0.0864149  Paired t-test   two.sided      0.8195149
+striatum      VA       pvertex        0.1015677    24.03184         0         405   0.0932593   0.1098761  Paired t-test   two.sided      1.1926804
+striatum      VA       tvertex        0.0812200    24.03456         0         405   0.0745768   0.0878631  Paired t-test   two.sided      1.1928150
+striatum      VA       tvolume        0.0468493    18.40508         0         405   0.0418453   0.0518532  Paired t-test   two.sided      0.9134290
+striatum      FP       pvertex        0.0510051    13.22495         0         405   0.0434234   0.0585868  Paired t-test   two.sided      0.6563435
+striatum      FP       tvertex        0.0430208    14.93332         0         405   0.0373575   0.0486841  Paired t-test   two.sided      0.7411284
+striatum      FP       tvolume        0.0342699    14.65305         0         405   0.0296723   0.0388675  Paired t-test   two.sided      0.7272189
+striatum      DM       pvertex        0.0758314    12.57094         0         405   0.0639729   0.0876898  Paired t-test   two.sided      0.6238855
+striatum      DM       tvertex        0.0687229    15.15420         0         405   0.0598080   0.0776378  Paired t-test   two.sided      0.7520903
+striatum      DM       tvolume        0.0500223    12.02385         0         405   0.0418439   0.0582007  Paired t-test   two.sided      0.5967339
+thalamus      SM       pvertex        0.2544642    28.19933         0         405   0.2367249   0.2722035  Paired t-test   two.sided      1.3995093
+thalamus      SM       tvertex        0.2204035    29.09559         0         405   0.2055119   0.2352950  Paired t-test   two.sided      1.4439901
+thalamus      SM       tvolume        0.1408673    27.37653         0         405   0.1307520   0.1509826  Paired t-test   two.sided      1.3586746
+thalamus      VA       pvertex        0.0608091    13.53099         0         405   0.0519745   0.0696436  Paired t-test   two.sided      0.6715316
+thalamus      VA       tvertex        0.0470749    13.17317         0         405   0.0400499   0.0540999  Paired t-test   two.sided      0.6537736
+thalamus      VA       tvolume        0.0319912    12.36880         0         405   0.0269067   0.0370757  Paired t-test   two.sided      0.6138533
+thalamus      FP       pvertex        0.0928243    19.34700         0         405   0.0833925   0.1022561  Paired t-test   two.sided      0.9601755
+thalamus      FP       tvertex        0.0797281    21.65148         0         405   0.0724892   0.0869669  Paired t-test   two.sided      1.0745447
+thalamus      FP       tvolume        0.0532868    18.38452         0         405   0.0475889   0.0589847  Paired t-test   two.sided      0.9124085
+thalamus      DM       pvertex        0.1120022    19.13990         0         405   0.1004986   0.1235058  Paired t-test   two.sided      0.9498971
+thalamus      DM       tvertex        0.0956365    21.25110         0         405   0.0867897   0.1044834  Paired t-test   two.sided      1.0546743
+thalamus      DM       tvolume        0.0700509    17.89502         0         405   0.0623555   0.0777463  Paired t-test   two.sided      0.8881148
+
+```r
+YeoNet7 <- tribble(
+  ~network, ~hexcode,
+  "VI", "#781286",
+  "SM", "#4682B4",
+  "DA", "#00760E",
+  "VA", "#C43AFA",
+  "FP", "#E69422",
+  "DM", "#CD3E3A",
+  "LI", "#dcf8a4")
+
+#' Left section of the raincload plots used in sub-cortical cortical change reporting
+samediff_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
+  eff_size_df <- data %>%
+    ungroup() %>%
+    mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
+                             labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+    filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>%
+    group_by(subcort_ROI, YeoNet, corrtype) %>%
+    do(tidy(t.test(.$same_net, .$diff_net, paired = TRUE))) %>%
+    mutate(cohenD = statistic/sqrt(parameter + 1),
+           cohenD_str = str_c("d = ", format(cohenD, digits = 3))) 
+    
+  
+  plt <- data %>%
+    mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
+                             labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+    gather(nettype, gvalue, diff_net, same_net) %>%
+    filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
+    ungroup() %>%
+    ggplot(aes(y = corrtype, x = gvalue)) +
+    geom_density_ridges(aes(fill = nettype, colour = nettype),
+      #jittered_points = TRUE, position = "raincloud",
+      alpha = 0.5, scale = 2,
+      quantile_lines = TRUE, quantiles = 2
+    ) +
+    geom_text(aes(y = corrtype, label = cohenD_str), 
+              x = 0.55, 
+              nudge_y = 0.1, data = eff_size_df) +
+    geom_vline(xintercept = 0) +
+    scale_colour_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_fill_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_x_continuous(limits = c(-0.5, 0.6)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+  if (no_ticks==TRUE) {
+    plt <- plt + theme(axis.title.x=element_blank(),
+                       axis.text.x=element_blank())
+  } else {
+    plt <- plt + labs(x = "Subcortical-Cortical Correlation (Z)")
+  }
+  return(plt)
+  
+}
+
+subcortical_rainclouds <- function(subject_focus, this_subcort) {
+  DM <- samediff_subcort_raincloud(subject_focus, this_subcort, "DM")
+  FP <- samediff_subcort_raincloud(subject_focus,this_subcort, "FP")
+  VA <- samediff_subcort_raincloud(subject_focus,this_subcort, "VA")
+  SM <- samediff_subcort_raincloud(subject_focus,this_subcort, "SM", no_ticks = FALSE)
+  title <- ggdraw() + draw_label(this_subcort, fontface='bold')
+  plt <- plot_grid(title, DM, FP, VA, SM, ncol = 1, rel_heights = c(0.5, 1, 1, 1, 1.5))
+  return(plt)
+}
+```
+
 
 
 
 
 ```r
-subcortical_raincloud(subject_focus, "striatum")
+subcortical_rainclouds(subject_focus, "striatum")
 ```
 
 ```
-## Picking joint bandwidth of 0.0269
+## Picking joint bandwidth of 0.0296
 ```
 
 ```
-## Picking joint bandwidth of 0.024
+## Picking joint bandwidth of 0.0251
+```
+
+```
+## Picking joint bandwidth of 0.028
+```
+
+```
+## Warning: Removed 1 rows containing non-finite values (stat_density_ridges).
+```
+
+```
+## Picking joint bandwidth of 0.035
+```
+
+```
+## Warning: Removed 16 rows containing non-finite values (stat_density_ridges).
+```
+
+<img src="03_subcortical_cortical_stats_hemi_files/figure-html/stiatum-rainclouds-1.png" width="672" />
+
+
+```r
+subcortical_rainclouds(subject_focus, "thalamus")
+```
+
+```
+## Picking joint bandwidth of 0.0267
+```
+
+```
+## Picking joint bandwidth of 0.0224
 ```
 
 ```
@@ -589,115 +590,21 @@ subcortical_raincloud(subject_focus, "striatum")
 ```
 
 ```
-## Picking joint bandwidth of 0.0142
+## Picking joint bandwidth of 0.0336
 ```
 
 ```
-## Picking joint bandwidth of 0.0252
-```
-
-```
-## Picking joint bandwidth of 0.0157
-```
-
-```
-## Picking joint bandwidth of 0.0334
-```
-
-```
-## Warning: Removed 7 rows containing non-finite values (stat_density_ridges).
-```
-
-```
-## Picking joint bandwidth of 0.0276
-```
-
-<img src="03_subcortical_cortical_stats_hemi_files/figure-html/stiatum-rainclouds-1.png" width="672" />
-
-
-```r
-subcortical_raincloud(subject_focus, "thalamus")
-```
-
-```
-## Picking joint bandwidth of 0.0237
-## Picking joint bandwidth of 0.0237
-```
-
-```
-## Picking joint bandwidth of 0.0207
-```
-
-```
-## Picking joint bandwidth of 0.0184
-```
-
-```
-## Picking joint bandwidth of 0.0221
-```
-
-```
-## Picking joint bandwidth of 0.0179
-```
-
-```
-## Picking joint bandwidth of 0.0307
-```
-
-```
-## Warning: Removed 2 rows containing non-finite values (stat_density_ridges).
-```
-
-```
-## Picking joint bandwidth of 0.033
-```
-
-```
-## Warning: Removed 14 rows containing non-finite values
-## (stat_density_ridges).
+## Warning: Removed 11 rows containing non-finite values (stat_density_ridges).
 ```
 
 <img src="03_subcortical_cortical_stats_hemi_files/figure-html/thalamus-rainclouds-1.png" width="672" />
 
 ```r
-subcortical_raincloud(subject_focus, "cerebellum")
+subcortical_rainclouds(subject_focus, "cerebellum")
 ```
 
 ```
-## Picking joint bandwidth of 0.0264
-```
-
-```
-## Warning: Removed 1 rows containing non-finite values (stat_density_ridges).
-```
-
-```
-## Picking joint bandwidth of 0.0322
-```
-
-```
-## Warning: Removed 24 rows containing non-finite values
-## (stat_density_ridges).
-```
-
-```
-## Picking joint bandwidth of 0.0217
-```
-
-```
-## Picking joint bandwidth of 0.0201
-```
-
-```
-## Warning: Removed 1 rows containing non-finite values (stat_density_ridges).
-```
-
-```
-## Picking joint bandwidth of 0.0265
-```
-
-```
-## Picking joint bandwidth of 0.0299
+## Picking joint bandwidth of 0.0289
 ```
 
 ```
@@ -705,134 +612,316 @@ subcortical_raincloud(subject_focus, "cerebellum")
 ```
 
 ```
-## Picking joint bandwidth of 0.0312
+## Picking joint bandwidth of 0.0248
 ```
 
 ```
-## Warning: Removed 11 rows containing non-finite values
-## (stat_density_ridges).
+## Picking joint bandwidth of 0.029
 ```
 
 ```
-## Picking joint bandwidth of 0.0305
+## Warning: Removed 1 rows containing non-finite values (stat_density_ridges).
 ```
 
 ```
-## Warning: Removed 8 rows containing non-finite values (stat_density_ridges).
+## Picking joint bandwidth of 0.0335
+```
+
+```
+## Warning: Removed 17 rows containing non-finite values (stat_density_ridges).
 ```
 
 <img src="03_subcortical_cortical_stats_hemi_files/figure-html/cerebellum-raincloud-1.png" width="672" />
 
-
-
-
-
-
 ```r
-subject_focus %>%
-  ungroup() %>% 
-  mutate(focus_effect = same_net - diff_net) %>%
-  select(subject, YeoNet, vertex_type, subcort_ROI, focus_effect) %>%
-  spread(vertex_type, focus_effect) %>%
-  group_by(subcort_ROI, YeoNet) %>%
-  do(tidy(t.test(.$netmean_pvertex, .$netmean_tvertex, paired = TRUE))) %>%
-  mutate(cohenD = statistic/sqrt(parameter + 1)) %>%
-  kable()
+subcortical_raincloud(subject_focus, "cerebellum")
 ```
 
-
-
-subcort_ROI   YeoNet     estimate   statistic    p.value   parameter    conf.low   conf.high  method          alternative       cohenD
-------------  -------  ----------  ----------  ---------  ----------  ----------  ----------  --------------  ------------  ----------
-cerebellum    SM        0.0314738   12.942459   0.00e+00         493   0.0266958   0.0362518  Paired t-test   two.sided      0.5823087
-cerebellum    VA        0.0427176   18.918221   0.00e+00         493   0.0382811   0.0471541  Paired t-test   two.sided      0.8511710
-cerebellum    FP        0.0447695   19.684122   0.00e+00         493   0.0403008   0.0492383  Paired t-test   two.sided      0.8856305
-cerebellum    DM        0.0571834   21.356022   0.00e+00         493   0.0519225   0.0624444  Paired t-test   two.sided      0.9608528
-striatum      SM        0.0115900    5.681061   0.00e+00         493   0.0075816   0.0155984  Paired t-test   two.sided      0.2556030
-striatum      VA        0.0195371   14.215170   0.00e+00         493   0.0168368   0.0222375  Paired t-test   two.sided      0.6395707
-striatum      FP        0.0075224    4.428089   1.17e-05         493   0.0041846   0.0108601  Paired t-test   two.sided      0.1992292
-striatum      DM        0.0091223    4.078587   5.28e-05         493   0.0047278   0.0135168  Paired t-test   two.sided      0.1835043
-thalamus      SM        0.0328886   13.004730   0.00e+00         493   0.0279197   0.0378574  Paired t-test   two.sided      0.5851105
-thalamus      VA        0.0130561    8.122775   0.00e+00         493   0.0098980   0.0162142  Paired t-test   two.sided      0.3654609
-thalamus      FP        0.0127733    6.525782   0.00e+00         493   0.0089275   0.0166191  Paired t-test   two.sided      0.2936088
-thalamus      DM        0.0176481    8.295198   0.00e+00         493   0.0134680   0.0218282  Paired t-test   two.sided      0.3732186
-
-```r
-subject_focus %>%
-  ungroup() %>% 
-  mutate(focus_effect = same_net - diff_net) %>%
-  select(subject, YeoNet, vertex_type, subcort_ROI, focus_effect) %>%
-  spread(vertex_type, focus_effect) %>%
-  group_by(subcort_ROI, YeoNet) %>%
-  do(tidy(t.test(.$netmean_tvertex, .$netmean_tvolume, paired = TRUE))) %>%
-  mutate(cohenD = statistic/sqrt(parameter + 1)) %>%
-  kable()
+```
+## Picking joint bandwidth of 0.0289
 ```
 
+```
+## Warning: Removed 5 rows containing non-finite values (stat_density_ridges).
+```
 
+```
+## Picking joint bandwidth of 0.0339
+```
 
-subcort_ROI   YeoNet     estimate   statistic   p.value   parameter    conf.low   conf.high  method          alternative       cohenD
-------------  -------  ----------  ----------  --------  ----------  ----------  ----------  --------------  ------------  ----------
-cerebellum    SM        0.0653679   17.070999         0         493   0.0578444   0.0728914  Paired t-test   two.sided      0.7680606
-cerebellum    VA        0.0726345   22.352361         0         493   0.0662499   0.0790192  Paired t-test   two.sided      1.0056802
-cerebellum    FP        0.0400155   16.819785         0         493   0.0353412   0.0446899  Paired t-test   two.sided      0.7567579
-cerebellum    DM        0.0614944   17.149929         0         493   0.0544493   0.0685395  Paired t-test   two.sided      0.7716118
-striatum      SM        0.0237651    7.654866         0         493   0.0176653   0.0298649  Paired t-test   two.sided      0.3444087
-striatum      VA        0.0322534   16.388022         0         493   0.0283865   0.0361203  Paired t-test   two.sided      0.7373320
-striatum      FP        0.0100430    6.037727         0         493   0.0067748   0.0133112  Paired t-test   two.sided      0.2716502
-striatum      DM        0.0177489    6.702068         0         493   0.0125456   0.0229522  Paired t-test   two.sided      0.3015403
-thalamus      SM        0.0663451   17.281675         0         493   0.0588022   0.0738880  Paired t-test   two.sided      0.7775393
-thalamus      VA        0.0172561    7.433846         0         493   0.0126953   0.0218169  Paired t-test   two.sided      0.3344646
-thalamus      FP        0.0262355   11.161747         0         493   0.0216173   0.0308537  Paired t-test   two.sided      0.5021908
-thalamus      DM        0.0227120    8.125153         0         493   0.0172199   0.0282042  Paired t-test   two.sided      0.3655679
+```
+## Warning: Removed 27 rows containing non-finite values (stat_density_ridges).
+```
 
+```
+## Picking joint bandwidth of 0.0248
+```
 
+```
+## Picking joint bandwidth of 0.0219
+```
 
+```
+## Warning: Removed 1 rows containing non-finite values (stat_density_ridges).
+```
 
+```
+## Picking joint bandwidth of 0.029
+```
 
-Recreating the DM plot from the poster to double check
+```
+## Warning: Removed 1 rows containing non-finite values (stat_density_ridges).
+```
+
+```
+## Picking joint bandwidth of 0.032
+```
+
+```
+## Warning: Removed 9 rows containing non-finite values (stat_density_ridges).
+```
+
+```
+## Picking joint bandwidth of 0.0335
+```
+
+```
+## Warning: Removed 17 rows containing non-finite values (stat_density_ridges).
+```
+
+```
+## Picking joint bandwidth of 0.0327
+```
+
+```
+## Warning: Removed 13 rows containing non-finite values (stat_density_ridges).
+```
+
+<img src="03_subcortical_cortical_stats_hemi_files/figure-html/cerebellum-raincloud2-1.png" width="672" />
 
 
 ```r
-net_means <- results_pheno %>%
+subcortical_raincloud(subject_focus, "striatum")
+```
+
+```
+## Picking joint bandwidth of 0.0296
+```
+
+```
+## Picking joint bandwidth of 0.0259
+```
+
+```
+## Picking joint bandwidth of 0.0251
+```
+
+```
+## Picking joint bandwidth of 0.0158
+```
+
+```
+## Picking joint bandwidth of 0.028
+```
+
+```
+## Warning: Removed 1 rows containing non-finite values (stat_density_ridges).
+```
+
+```
+## Picking joint bandwidth of 0.0169
+```
+
+```
+## Picking joint bandwidth of 0.035
+```
+
+```
+## Warning: Removed 16 rows containing non-finite values (stat_density_ridges).
+```
+
+```
+## Picking joint bandwidth of 0.0299
+```
+
+```
+## Warning: Removed 2 rows containing non-finite values (stat_density_ridges).
+```
+
+<img src="03_subcortical_cortical_stats_hemi_files/figure-html/striatum-raincloud2-1.png" width="672" />
+
+
+```r
+subcortical_raincloud(subject_focus, "thalamus")
+```
+
+```
+## Picking joint bandwidth of 0.0267
+```
+
+```
+## Picking joint bandwidth of 0.0251
+```
+
+```
+## Picking joint bandwidth of 0.0224
+```
+
+```
+## Picking joint bandwidth of 0.0194
+```
+
+```
+## Picking joint bandwidth of 0.0236
+```
+
+```
+## Picking joint bandwidth of 0.0182
+```
+
+```
+## Warning: Removed 1 rows containing non-finite values (stat_density_ridges).
+```
+
+```
+## Picking joint bandwidth of 0.0336
+```
+
+```
+## Warning: Removed 11 rows containing non-finite values (stat_density_ridges).
+```
+
+```
+## Picking joint bandwidth of 0.0364
+```
+
+```
+## Warning: Removed 25 rows containing non-finite values (stat_density_ridges).
+```
+
+<img src="03_subcortical_cortical_stats_hemi_files/figure-html/thalamus-raincloud2-1.png" width="672" />
+
+
+
+
+
+```r
+# note that the bonferronni corrective factor are 4 network times 3 subregions = 12
+bonf_cor_factor = 4*3
+
+subject_focus_wrgl <- subject_focus %>%
+  ungroup() %>% 
+  mutate(focus_effect = same_net - diff_net) %>%
+  group_by(subject, dataset, subcort_ROI, YeoNet) %>%
+  gather(conntype, netmean, same_net, diff_net, focus_effect) %>% 
+  spread(vertex_type, netmean) %>%
+  ungroup()
+
+pvertex_vs_tvertex <- subject_focus_wrgl %>%
+  group_by(subcort_ROI, YeoNet, conntype) %>%
+  do(tidy(t.test(.$pvertex, .$tvertex, paired = TRUE))) %>%
+  mutate(cohenD = statistic/sqrt(parameter + 1),
+         p_bonf = p.value*bonf_cor_factor)
+
+tvertex_vs_tvolume <- subject_focus_wrgl %>%
+  group_by(subcort_ROI, YeoNet, conntype) %>%
+  do(tidy(t.test(.$tvertex, .$tvolume, paired = TRUE))) %>%
+  mutate(cohenD = statistic/sqrt(parameter + 1),
+         p_bonf = p.value*bonf_cor_factor) 
+
+focus_results <- bind_rows(pvertex_vs_tvertex = pvertex_vs_tvertex,
+                           tvertex_vs_tvolume = tvertex_vs_tvolume,
+                           .id = "test_vars")
+```
+
+```r
+focus_results %>%
+  mutate(pval_str = ifelse(p_bonf < 0.001, 
+                           format(p.value, scientific = TRUE, digits = 2),
+                           specify_decimal(p_bonf,3))) %>%
+  mutate(report_str = str_c("d = ", specify_decimal(cohenD, 2),
+                            ", t(",parameter, ') =', 
+                            specify_decimal(statistic, 2),
+                            ', p=', pval_str)) %>%
+  select(test_vars, conntype, subcort_ROI, YeoNet, report_str) %>%
+  spread(conntype, report_str) %>%
+  select(test_vars, subcort_ROI, YeoNet, same_net, diff_net, focus_effect) %>%
   ungroup() %>%
-  group_by(YeoNet, subcort_ROI, subcort_NET, subject) %>%
-  summarise(netmean_pvertex = mean(pvertex_corr),
-            netmean_tvertex = mean(tvertex_corr),
-            pint_diff = netmean_pvertex - netmean_tvertex) 
-
-pint_diff_sub_DM <- net_means %>%
-  ungroup() %>% 
-  filter(YeoNet == "DM", subcort_ROI == "cerebellum") %>%
-  select(subject, subcort_NET, pint_diff) %>%
-  spread(subcort_NET, pint_diff) %>%
-  mutate(overall_pint_diff = DM - (SM + VA + FP + DA)/4,
-         x_val = '') %>%
-  select(subject, overall_pint_diff, x_val) %>%
-  ggplot(aes(y = overall_pint_diff, x = x_val)) +
-    geom_boxplot(outlier.shape = NA) +
-    geom_jitter(alpha = 0.3, color = YeoNet_colours$DM, fill = "grey") +
-    geom_hline(yintercept = 0) + 
-    labs(y = "Change in correlation after PINT", x = "Cerebellum DM - Others") +
-  scale_y_continuous(limits = c(-0.3, 0.3))
-
-DM_submeans_plot <- net_means %>%
-  mutate(is_DM = if_else(subcort_NET == 'DM', TRUE, FALSE),
-         SubCortNET = factor(subcort_NET, levels = c("DM", "SM", "DA", "VA", "FP"))) %>%
-  filter(subcort_ROI == "cerebellum", !is.na(SubCortNET), YeoNet == "DM") %>%
-  ggplot(aes(y = pint_diff, x = SubCortNET, color = is_DM)) +
-  geom_boxplot(color = "black", outlier.shape = NA) + 
-  geom_jitter(alpha = 0.3) +
-  geom_hline(yintercept = 0) +
-  scale_color_manual(values = c('black',YeoNet_colours$DM)) +
-  labs(y = "Change in correlation after PINT", color = NULL, x = "Subregion of Cerebellum") +
-  theme(legend.position = "none") +
-  scale_y_continuous(limits = c(-0.3, 0.3))
-
-# DM_brain_pic <- ggdraw + draw_image('DM_striatum_pic.png')
-
-plot_grid(pint_diff_sub_DM, DM_submeans_plot, rel_widths = c(1,2.5))
+  mutate(test_vars = factor(test_vars, levels = c("tvertex_vs_tvolume","pvertex_vs_tvertex")),
+         subcort_ROI = factor(subcort_ROI, levels = c("cerebellum", "thalamus", "striatum")),
+         YeoNet = factor(YeoNet, levels = c("DM", "FP", "VA", "SM"))) %>%
+  arrange(test_vars, desc(subcort_ROI), YeoNet) %>%
+  knitr::kable()
 ```
+
+
+
+test_vars            subcort_ROI   YeoNet   same_net                             diff_net                               focus_effect                       
+-------------------  ------------  -------  -----------------------------------  -------------------------------------  -----------------------------------
+tvertex_vs_tvolume   striatum      DM       d = 0.32, t(405) =6.37, p=5.2e-10    d = 0.05, t(405) =1.06, p=3.465        d = 0.31, t(405) =6.24, p=1.1e-09  
+tvertex_vs_tvolume   striatum      FP       d = 0.27, t(405) =5.47, p=7.9e-08    d = 0.20, t(405) =4.13, p=4.5e-05      d = 0.22, t(405) =4.40, p=1.4e-05  
+tvertex_vs_tvolume   striatum      VA       d = 0.75, t(405) =15.14, p=2.5e-41   d = 0.36, t(405) =7.32, p=1.3e-12      d = 0.74, t(405) =14.94, p=1.7e-40 
+tvertex_vs_tvolume   striatum      SM       d = 0.17, t(405) =3.50, p=0.006      d = -0.09, t(405) =-1.78, p=0.910      d = 0.35, t(405) =7.01, p=9.9e-12  
+tvertex_vs_tvolume   thalamus      DM       d = 0.29, t(405) =5.76, p=1.7e-08    d = -0.08, t(405) =-1.54, p=1.493      d = 0.41, t(405) =8.19, p=3.5e-15  
+tvertex_vs_tvolume   thalamus      FP       d = 0.47, t(405) =9.39, p=4.4e-19    d = 0.14, t(405) =2.86, p=0.054        d = 0.51, t(405) =10.21, p=6.4e-22 
+tvertex_vs_tvolume   thalamus      VA       d = 0.41, t(405) =8.30, p=1.6e-15    d = 0.22, t(405) =4.52, p=8.0e-06      d = 0.29, t(405) =5.94, p=6.0e-09  
+tvertex_vs_tvolume   thalamus      SM       d = 0.89, t(405) =17.93, p=2.3e-53   d = 0.04, t(405) =0.72, p=5.636        d = 0.82, t(405) =16.61, p=1.2e-47 
+tvertex_vs_tvolume   cerebellum    DM       d = 0.46, t(405) =9.32, p=7.4e-19    d = -0.51, t(405) =-10.23, p=5.2e-22   d = 0.84, t(405) =16.92, p=5.7e-49 
+tvertex_vs_tvolume   cerebellum    FP       d = 0.38, t(405) =7.66, p=1.4e-13    d = -0.28, t(405) =-5.72, p=2.0e-08    d = 0.80, t(405) =16.15, p=1.2e-45 
+tvertex_vs_tvolume   cerebellum    VA       d = 0.43, t(405) =8.64, p=1.3e-16    d = -0.69, t(405) =-13.86, p=5.0e-36   d = 0.99, t(405) =20.03, p=1.6e-62 
+tvertex_vs_tvolume   cerebellum    SM       d = 0.04, t(405) =0.81, p=5.011      d = -0.84, t(405) =-17.03, p=2e-49     d = 0.78, t(405) =15.62, p=2.2e-43 
+pvertex_vs_tvertex   striatum      DM       d = -0.05, t(405) =-0.93, p=4.261    d = -0.19, t(405) =-3.86, p=0.002      d = 0.14, t(405) =2.72, p=0.081    
+pvertex_vs_tvertex   striatum      FP       d = 0.07, t(405) =1.32, p=2.262      d = -0.07, t(405) =-1.51, p=1.595      d = 0.22, t(405) =4.35, p=1.7e-05  
+pvertex_vs_tvertex   striatum      VA       d = 0.64, t(405) =12.81, p=9.3e-32   d = 0.28, t(405) =5.66, p=2.8e-08      d = 0.65, t(405) =13.04, p=1.0e-32 
+pvertex_vs_tvertex   striatum      SM       d = 0.05, t(405) =1.04, p=3.602      d = -0.09, t(405) =-1.77, p=0.932      d = 0.18, t(405) =3.58, p=0.005    
+pvertex_vs_tvertex   thalamus      DM       d = 0.07, t(405) =1.37, p=2.075      d = -0.22, t(405) =-4.49, p=9.4e-06    d = 0.33, t(405) =6.74, p=5.3e-11  
+pvertex_vs_tvertex   thalamus      FP       d = 0.21, t(405) =4.27, p=2.4e-05    d = -0.01, t(405) =-0.16, p=10.512     d = 0.29, t(405) =5.84, p=1.1e-08  
+pvertex_vs_tvertex   thalamus      VA       d = 0.42, t(405) =8.46, p=4.9e-16    d = 0.19, t(405) =3.87, p=0.001        d = 0.38, t(405) =7.63, p=1.7e-13  
+pvertex_vs_tvertex   thalamus      SM       d = 0.52, t(405) =10.53, p=4.5e-23   d = -0.03, t(405) =-0.54, p=7.075      d = 0.55, t(405) =11.06, p=5.0e-25 
+pvertex_vs_tvertex   cerebellum    DM       d = 0.31, t(405) =6.19, p=1.5e-09    d = -0.74, t(405) =-14.92, p=2.0e-40   d = 0.96, t(405) =19.35, p=1.5e-59 
+pvertex_vs_tvertex   cerebellum    FP       d = 0.42, t(405) =8.44, p=5.9e-16    d = -0.41, t(405) =-8.35, p=1.1e-15    d = 0.87, t(405) =17.51, p=1.7e-51 
+pvertex_vs_tvertex   cerebellum    VA       d = 0.33, t(405) =6.67, p=8.2e-11    d = -0.53, t(405) =-10.59, p=2.8e-23   d = 0.80, t(405) =16.03, p=3.9e-45 
+pvertex_vs_tvertex   cerebellum    SM       d = 0.00, t(405) =-0.02, p=11.771    d = -0.66, t(405) =-13.31, p=9e-34     d = 0.60, t(405) =12.04, p=9.9e-29 
+
+
+```r
+focus_results_ranges <- focus_results %>% 
+  ungroup() %>%
+  group_by(test_vars, conntype) %>%
+  summarise(d_min = specify_decimal(min(cohenD),2),
+            d_max = specify_decimal(max(cohenD),2),
+            d_str = str_glue('{d_min}-{d_max}'))
+```
+
+```
+## `summarise()` regrouping output by 'test_vars' (override with `.groups` argument)
+```
+
+```r
+focus_results_ranges %>% filter(test_vars=="pvertex_vs_tvertex", conntype=="focus_effect")  %>% pull(d_str)
+```
+
+```
+## 0.14-0.96
+```
+
+```r
+pvertex_vs_tvolume <- subject_focus_wrgl %>%
+  group_by(subcort_ROI, YeoNet, conntype) %>%
+  do(tidy(t.test(.$pvertex, .$tvolume, paired = TRUE))) %>%
+  mutate(cohenD = statistic/sqrt(parameter + 1))
+
+pvertex_vs_tvolume_ranges <- pvertex_vs_tvolume %>% filter(conntype == "same_net") %>%
+    ungroup() %>%
+    summarise(est_min = specify_decimal(min(estimate),2),
+            est_max = specify_decimal(max(estimate),2), 
+            est_str = str_glue('{est_min}-{est_max}'),
+            d_min = specify_decimal(min(cohenD),2),
+            d_max = specify_decimal(max(cohenD),2),
+            d_str = str_glue('{d_min}-{d_max}'))
+```
+
+While subcortical-cortical correlations are noticeably weaker than the cortical-cortical correlations plotted in Figure 1, for all cortical-timeseries extraction methods, for all four networks, we observed that the correlation to the expected subregions of the striatum, thalamus and striatum are positive, and greater than the correlations of these cortical networks to other subregions. Moreover, we observed that this expected pattern is strengthened when using a surface-based cortical timeseries extraction approach, as compared to the volume-based approach (cohen D (min-max) = 0.22-0.99). The pattern is again strengthened when using PINT, the personalized surface-based approach, as opposed to the template surface-based approach (cohen D (min-max) = 0.14-0.96). In total, moving from a volume-based cortical timeseries extract methods to PINT increased the correlation with the expected cortical subregions by an effect size of 0.03-0.99, across the four cortical networks and subregions tested (see suppl Table 3). 
 
 
 
