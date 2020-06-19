@@ -18,7 +18,7 @@ knitr::opts_chunk$set(eval = FALSE)
 ```
 
 
-```{r}
+```{r eval=TRUE}
 library(tidyverse)
 library(here)
 ```

@@ -99,14 +99,8 @@ all_subcort_results <- pheno %>%
 ```
 
 
-```{r load-cached-results, eval=FALSE}
-load(here("data/processed/mri/all_qa_passes_group/Rdata_cache/03_subcort_results_cache.Rdata"))
-```
-
 ```{r}
-load(here('data','processed','mri',
-          'all_clinicalplusqa_group','Rdata_cache',
-          '06_wholebrain_results_cache.Rdata'))
+all_corZ_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_cache.rds"))
 ```
 
 ### reduce data from the whole brain data to only include the subcortical cortical connections 
