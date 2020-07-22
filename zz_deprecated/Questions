@@ -1,0 +1,228 @@
+The following are missing in the new processed data:
+
+A00021598: Run one and two do exist - just  - rerun PINT
+A00013816: Too many TRs to remove, using drop method!
+A00016723 Too many TRs to remove, using drop method!
+A00037649: Too many TRs to remove, using drop method!
+A00014839: check anat and rerun
+A00016197: same problem as above
+DTI_CMH_H036_02: - ciftify_recon_all didn't finish... need to (or grab the good ones from archive)
+DTI_CMH_H163_01: - ciftify_recon_all didn't finish... need to rerun
+DTI_CMH_H166_01: - ciftify_recon_all didn't finish... need to rerun
+DTI_CMH_H167_01: - ciftify_recon_all didn't finish... need to rerun
+DTI_CMH_H168_01: - ciftify_recon_all didn't finish... need to rerun
+DTI_CMH_S055_02: - ciftify_recon_all didn't finish... need to rerun
+DTI_CMH_S156_01: - ciftify_recon_all didn't finish... need to rerun
+DTI_CMH_S171_01: no directory in /scratch/edickie
+PNS_CMH_0023_01: errors in ciftify_recon_all step.. rerun..
+RTMSWM_CMH_WM047_01: errors in ciftify_recon_all step.. rerun..
+SPN01_CMH_0004_01:  errors in ciftify_recon_all step.. rerun..
+SPN01_CMH_0039_01: ciftify_subject_fmri timeout
+SPN01_CMH_0040_01: ciftify_subject_fmri timeout
+SPN01_CMH_0042_01: ciftify_subject_fmri timeout
+SPN01_CMH_0047_01: ciftify_subject_fmri timeout
+SPN01_CMH_0054_01: ciftify_subject_fmri timeout
+SPN01_CMH_0055_01: ciftify_subject_fmri timeout
+SPN01_CMH_0065_01: cciftify_subject_fmri timeout
+SPN01_CMH_0031_01
+SPN01_CMH_0034_01
+SPN01_CMH_0052_01
+SPN01_CMH_0056_01
+SPN01_CMH_0058_01
+SPN01_CMH_0066_01
+
+niifiles=`ls */hcp/*/MNINonLinear/Results/REST_01/REST_01.nii.gz`
+for nfile in $niifiles; do trs=`fslval ${nfile} dim4`; echo $trs $nfile; done | sort > number_tr.txt
+
+
+## Note a trick for fast debugging...check the number of lines in the input file
+wc -l */*/*/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log | sort
+
+# Dies at line 41 means not input fMRI available
+41 ASDD/hcp/ASDD_CMH_HEF011_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+41 RTMSWM/hcp/RTMSWM_CMH_WM017_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+41 RTMSWM/hcp/RTMSWM_CMH_WM047_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+
+# Dies at line 135 means "roi shape file does not exist - rerun ciftify_recon_all/freesurfer 
+     135 DTI3T/hcp/DTI_CMH_H036_02/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     135 DTI3T/hcp/DTI_CMH_S055_02/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     135 DTI3T/hcp/DTI_CMH_S156_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     135 DTI3T/hcp/DTI_CMH_S171_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     135 PNSC/hcp/PNS_CMH_0023_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     135 SPINS/hcp/SPN01_CMH_0004_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     
+# Dies at line 144 means ciftify_subject_fmri probably timed out
+     144 DTI3T/hcp/DTI_CMH_H163_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 DTI3T/hcp/DTI_CMH_H166_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 DTI3T/hcp/DTI_CMH_H167_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 DTI3T/hcp/DTI_CMH_H168_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 SPINS/hcp/SPN01_CMH_0039_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 SPINS/hcp/SPN01_CMH_0040_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 SPINS/hcp/SPN01_CMH_0042_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 SPINS/hcp/SPN01_CMH_0047_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 SPINS/hcp/SPN01_CMH_0054_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     144 SPINS/hcp/SPN01_CMH_0065_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+# Dies at line 145 means ciftify_subject_fmri probably timed out
+     145 SPINS/hcp/SPN01_CMH_0055_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     
+# Dies at line 160 means ciftify_subject_fmri probably timed out at smoothing
+     160 DTI3T/hcp/DTI_CMH_H164_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_H165_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_H169_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_H170_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_H171_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_H172_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_S143_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 DTI3T/hcp/DTI_CMH_S149_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 SPINS/hcp/SPN01_CMH_0031_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 SPINS/hcp/SPN01_CMH_0034_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 SPINS/hcp/SPN01_CMH_0052_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 SPINS/hcp/SPN01_CMH_0056_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 SPINS/hcp/SPN01_CMH_0058_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 SPINS/hcp/SPN01_CMH_0066_01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21458_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21459_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21464_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21473_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21480_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21493_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21498_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21500_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21506_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21508_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21510_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21517_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21531_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21533_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21540_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_21570_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_22597_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+     160 ZHH/hcp/EXP_22663_SESS01/MNINonLinear/Results/REST_01/ciftify_subject_fmri.log
+
+
+
+
+The folders exist for the following subjects but the CSV files are missing - PINT log shows errors: (but this may be a mount..or a missing smoothing file?)
+
+DTI_CMH_H165_01 - note there is probably a problem with the smoothed file - need to rerun cifti-smooth - then PINT
+SPN01_CMH_0056_01 - note there is probably a problem with the smoothed file - need to rerun cifti-smooth - then PINT
+
+The following are extra in the new processed data:
+
+COBRE_A00000300_SESS01
+COBRE_A00000456_SESS01
+COBRE_A00001251_SESS01
+COBRE_A00002198_SESS01
+COBRE_A00003150_SESS01
+COBRE_A00004507_SESS01
+COBRE_A00013216_SESS01
+COBRE_A00014804_SESS01
+COBRE_A00015648_SESS01
+COBRE_A00018129_SESS01
+COBRE_A00020414_SESS01
+COBRE_A00020787_SESS01
+COBRE_A00021598_SESS01
+COBRE_A00022592_SESS01
+COBRE_A00023120_SESS01
+COBRE_A00023131_SESS01
+COBRE_A00024198_SESS01
+COBRE_A00024228_SESS01
+COBRE_A00024372_SESS01
+COBRE_A00024663_SESS01
+COBRE_A00024959_SESS01
+COBRE_A00027537_SESS01
+COBRE_A00028402_SESS01
+COBRE_A00031478_SESS01
+COBRE_A00033214_SESS01
+COBRE_A00033715_SESS01
+COBRE_A00033749_SESS01
+COBRE_A00034214_SESS01
+COBRE_A00034381_SESS01
+COBRE_A00036844_SESS01
+COBRE_A00037034_SESS01
+COBRE_A00037619_SESS01
+COBRE_A00038441_SESS01
+COBRE_A00038624_SESS01
+
+Note: for ZHH some were dropped to remove potential duplicate subjects:
+EXP_21330_SESS01
+EXP_21385_SESS01
+EXP_21415_SESS01
+EXP_21421_SESS01
+EXP_21425_SESS01
+EXP_21434_SESS01
+EXP_21436_SESS01
+EXP_21437_SESS01
+EXP_21450_SESS01
+EXP_21456_SESS01
+EXP_21505_SESS01
+EXP_21511_SESS01
+EXP_21531_SESS01
+EXP_21532_SESS01
+EXP_21533_SESS01
+EXP_21537_SESS01
+EXP_21575_SESS01
+EXP_21577_SESS01
+EXP_21605_SESS01
+EXP_21613_SESS01
+EXP_21622_SESS01
+EXP_21650_SESS01
+EXP_21735_SESS01
+EXP_21754_SESS01
+EXP_21756_SESS01
+EXP_21768_SESS01
+EXP_21771_SESS01
+EXP_21791_SESS01
+EXP_21792_SESS01
+EXP_21821_SESS01
+EXP_21850_SESS01
+EXP_21857_SESS01
+EXP_21862_SESS01
+EXP_21865_SESS01
+EXP_21875_SESS01
+EXP_21914_SESS01
+EXP_21927_SESS01
+EXP_21953_SESS01
+EXP_21982_SESS01
+EXP_22011_SESS01
+EXP_22086_SESS01
+EXP_22119_SESS01
+EXP_22135_SESS01
+EXP_22152_SESS01
+EXP_22166_SESS01
+EXP_22181_SESS01
+EXP_22182_SESS01
+EXP_22198_SESS01
+EXP_22260_SESS01
+EXP_22287_SESS01
+EXP_22321_SESS01
+EXP_22352_SESS01
+EXP_22361_SESS01
+EXP_22379_SESS01
+EXP_22380_SESS01
+EXP_22445_SESS01
+EXP_22464_SESS01
+EXP_22469_SESS01
+EXP_22521_SESS01
+EXP_22549_SESS01
+EXP_22557_SESS01
+EXP_22590_SESS01
+EXP_22597_SESS01
+EXP_22663_SESS01
+EXP_22673_SESS01
+EXP_22679_SESS01
+EXP_22715_SESS01
+RTMSWM_CMH_WM004_01
+RTMSWM_CMH_WM013_01
+RTMSWM_CMH_WM015_01
+RTMSWM_CMH_WM018_01
+RTMSWM_CMH_WM019_01
+RTMSWM_CMH_WM023_01
+RTMSWM_CMH_WM027_01
+RTMSWM_CMH_WM034_01
+RTMSWM_CMH_WM039_01
+RTMSWM_CMH_WM045_01
+RTMSWM_CMH_WM052_01
+RTMSWM_CMH_WM053_01
+RTMSWM_CMH_WM054_01
+RTMSWM_CMH_WM057_01

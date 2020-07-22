@@ -1,0 +1,9 @@
+DX,Site,n_after_fmri_qa,n_before_qa,n_before_anat_qa,n_ses_before_anat_qa
+CTRL,CMH,41,41,41,41
+CTRL,COBRE,35,90,90,90
+CTRL,ds000030,107,122,122,122
+CTRL,ZHH,110,122,124,124
+SSD,CMH,67,67,67,67
+SSD,COBRE,22,85,85,91
+SSD,ds000030,31,50,50,50
+SSD,ZHH,83,114,115,175

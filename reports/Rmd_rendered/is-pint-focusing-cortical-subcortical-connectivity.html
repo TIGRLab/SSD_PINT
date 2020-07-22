@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+<head>
+
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Chapter 6 Is PINT &quot;focusing&quot; cortical subcortical connectivity | SSD PINT analyses</title>
+  <meta name="description" content="This contains the analysis reported with the SSD pint paper" />
+  <meta name="generator" content="bookdown 0.19 and GitBook 2.6.7" />
+
+  <meta property="og:title" content="Chapter 6 Is PINT &quot;focusing&quot; cortical subcortical connectivity | SSD PINT analyses" />
+  <meta property="og:type" content="book" />
+  
+  
+  <meta property="og:description" content="This contains the analysis reported with the SSD pint paper" />
+  <meta name="github-repo" content="https://github.com/TIGRLab/STOP-PD_ACNP" />
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Chapter 6 Is PINT &quot;focusing&quot; cortical subcortical connectivity | SSD PINT analyses" />
+  
+  <meta name="twitter:description" content="This contains the analysis reported with the SSD pint paper" />
+  
+
+<meta name="author" content="Erin Dickie" />
+
+
+<meta name="date" content="2020-06-18" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  
+  
+<link rel="prev" href="sub-cortical-cortical-stats-left-and-right.html"/>
+<link rel="next" href="cortical-cortical-results.html"/>
+<script src="libs/jquery-2.2.3/jquery.min.js"></script>
+<link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet" />
+
+
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code > span.dt { color: #902000; } /* DataType */
+code > span.dv { color: #40a070; } /* DecVal */
+code > span.bn { color: #40a070; } /* BaseN */
+code > span.fl { color: #40a070; } /* Float */
+code > span.ch { color: #4070a0; } /* Char */
+code > span.st { color: #4070a0; } /* String */
+code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code > span.ot { color: #007020; } /* Other */
+code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code > span.fu { color: #06287e; } /* Function */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #880000; } /* Constant */
+code > span.sc { color: #4070a0; } /* SpecialChar */
+code > span.vs { color: #4070a0; } /* VerbatimString */
+code > span.ss { color: #bb6688; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #19177c; } /* Variable */
+code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #666666; } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #bc7a00; } /* Preprocessor */
+code > span.at { color: #7d9029; } /* Attribute */
+code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+</style>
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+</head>
+
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+
+<ul class="summary">
+<li><a href="./">R-stats in SSD PINT paper</a></li>
+
+<li class="divider"></li>
+<li class="chapter" data-level="1" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i><b>1</b> The index page</a><ul>
+<li class="chapter" data-level="1.1" data-path="index.html"><a href="index.html#all-the-packages-in-this-book"><i class="fa fa-check"></i><b>1.1</b> all the packages in this book</a></li>
+</ul></li>
+<li class="chapter" data-level="2" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html"><i class="fa fa-check"></i><b>2</b> Mangle participant demographics</a><ul>
+<li class="chapter" data-level="2.0.1" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#mangle-the-zzh-data---determining-the-mapping-between-the-zhh-session-name-and-daytons-bids-name"><i class="fa fa-check"></i><b>2.0.1</b> mangle the ZZH data - determining the mapping between the ZHH session name and Dayton's bids name</a></li>
+<li class="chapter" data-level="2.1" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#coding-zhh-data-by-session"><i class="fa fa-check"></i><b>2.1</b> Coding ZHH data by session</a></li>
+<li class="chapter" data-level="2.2" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#note---re-picking-motion-cutoffs"><i class="fa fa-check"></i><b>2.2</b> Note - re picking motion cutoffs</a></li>
+<li class="chapter" data-level="2.3" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#now-looking-at-what-we-have-from-cobre"><i class="fa fa-check"></i><b>2.3</b> Now looking at what we have from COBRE</a></li>
+<li class="chapter" data-level="2.4" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#now-looking-at-the-cnp-we-have.."><i class="fa fa-check"></i><b>2.4</b> Now looking at the CNP we have..</a></li>
+<li class="chapter" data-level="2.5" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#add-where-are-is-the-cmh-demographic-info.."><i class="fa fa-check"></i><b>2.5</b> add where are is the CMH demographic info..</a></li>
+<li class="chapter" data-level="2.6" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#extra-little-bit-for-traking-down-missing-cobre"><i class="fa fa-check"></i><b>2.6</b> extra little bit for traking down &quot;missing&quot; COBRE</a></li>
+</ul></li>
+<li class="chapter" data-level="3" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html"><i class="fa fa-check"></i><b>3</b> Check completion and add MR QA</a><ul>
+<li class="chapter" data-level="3.1" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#get-a-list-of-available-bold-and-t1w-files-from-the-mriqc-outputs"><i class="fa fa-check"></i><b>3.1</b> Get a list of available bold and T1w files (from the mriqc outputs)</a><ul>
+<li class="chapter" data-level="3.1.1" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#the-list-of-usable-scans-is-all-participants-with-both-t1w-and-bold-data"><i class="fa fa-check"></i><b>3.1.1</b> the list of usable scans is all participants with both T1w and bold data</a></li>
+</ul></li>
+<li class="chapter" data-level="3.2" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#now-glob-for-all-of-the-pint-outputs"><i class="fa fa-check"></i><b>3.2</b> now glob for all of the PINT outputs</a></li>
+<li class="chapter" data-level="3.3" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#read-in-the-combined-demographics-from-the-last-chapter"><i class="fa fa-check"></i><b>3.3</b> read in the combined demographics from the last chapter</a></li>
+<li class="chapter" data-level="3.4" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#also-read-in-an-concatenate-all-the-surface-area-info-from-freesurfer"><i class="fa fa-check"></i><b>3.4</b> also read in an concatenate all the surface area info from freesurfer</a></li>
+<li class="chapter" data-level="3.5" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#anti-join-the-pheno-data-with-the-usable-scan-data-to-see-if-we-have-everything.."><i class="fa fa-check"></i><b>3.5</b> anti-join the pheno data with the usable scan data to see if we have everything..</a></li>
+<li class="chapter" data-level="3.6" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#zhh-is-the-only-site-where-we-have-session-specific-pheno-information..-so-we-will-check-that"><i class="fa fa-check"></i><b>3.6</b> ZHH is the only site where we have session specific pheno information.. so we will check that</a></li>
+<li class="chapter" data-level="3.7" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#setting-the-motion-threshold"><i class="fa fa-check"></i><b>3.7</b> Setting the motion threshold:</a></li>
+<li class="chapter" data-level="3.8" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#write-this-table-out-to-csv---than-read-the-csv-and-print-it"><i class="fa fa-check"></i><b>3.8</b> write this table out to csv - than read the csv and print it</a></li>
+<li class="chapter" data-level="3.9" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#who-is-still-missing-a-pint-output"><i class="fa fa-check"></i><b>3.9</b> who is still missing a PINT output?</a></li>
+<li class="chapter" data-level="3.10" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#selecting-scans-with-least-motion"><i class="fa fa-check"></i><b>3.10</b> Selecting scans with least motion</a></li>
+<li class="chapter" data-level="3.11" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#final-mangle-of-the-phenotypic-data-transforming-variables"><i class="fa fa-check"></i><b>3.11</b> final mangle of the phenotypic data (transforming variables)</a></li>
+<li class="chapter" data-level="3.12" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#adding-matching-for-the-ds00030-subsample-first..."><i class="fa fa-check"></i><b>3.12</b> adding matching for the ds00030 subsample first...</a><ul>
+<li class="chapter" data-level="3.12.1" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#write-out-subject-list-for-further-analysis"><i class="fa fa-check"></i><b>3.12.1</b> write out subject list for further analysis</a></li>
+</ul></li>
+</ul></li>
+<li class="chapter" data-level="4" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html"><i class="fa fa-check"></i><b>4</b> Stats on the PINT summary displacement values</a><ul>
+<li class="chapter" data-level="4.1" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#the-paths-to-data"><i class="fa fa-check"></i><b>4.1</b> The paths to data</a></li>
+<li class="chapter" data-level="4.2" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#run-for-the-whole-head"><i class="fa fa-check"></i><b>4.2</b> run for the whole head</a></li>
+<li class="chapter" data-level="4.3" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#double-check-that-modelplot-look-right-without-cobre-and-ds00030"><i class="fa fa-check"></i><b>4.3</b> double check that model/plot look right without COBRE and ds00030</a></li>
+<li class="chapter" data-level="4.4" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#run-linear-model-per-edge-not-reported"><i class="fa fa-check"></i><b>4.4</b> run linear model per edge (not reported)</a></li>
+</ul></li>
+<li class="chapter" data-level="5" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html"><i class="fa fa-check"></i><b>5</b> Sub-cortical Cortical Stats Left and Right</a><ul>
+<li class="chapter" data-level="5.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#the-paths-to-data-1"><i class="fa fa-check"></i><b>5.1</b> The paths to data</a><ul>
+<li class="chapter" data-level="5.1.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#this-reads-all-the-subcortical-files-it-can-find"><i class="fa fa-check"></i><b>5.1.1</b> This reads all the subcortical files it can find</a></li>
+<li class="chapter" data-level="5.1.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#reduce-data-from-the-whole-brain-data-to-only-include-the-subcortical-cortical-connections"><i class="fa fa-check"></i><b>5.1.2</b> reduce data from the whole brain data to only include the subcortical cortical connections</a></li>
+<li class="chapter" data-level="5.1.3" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#merge-with-the-phenotypic-data"><i class="fa fa-check"></i><b>5.1.3</b> merge with the phenotypic data</a></li>
+</ul></li>
+<li class="chapter" data-level="5.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#make-a-subject-table-from-resuts-pheno"><i class="fa fa-check"></i><b>5.2</b> make a subject table from resuts pheno</a></li>
+</ul></li>
+<li class="chapter" data-level="6" data-path="is-pint-focusing-cortical-subcortical-connectivity.html"><a href="is-pint-focusing-cortical-subcortical-connectivity.html"><i class="fa fa-check"></i><b>6</b> Is PINT &quot;focusing&quot; cortical subcortical connectivity</a></li>
+<li class="chapter" data-level="7" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html"><i class="fa fa-check"></i><b>7</b> Cortical-cortical results</a><ul>
+<li class="chapter" data-level="7.1" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html#to-do---rainclouds-for-withing-between-changes-in-cortical-cortical"><i class="fa fa-check"></i><b>7.1</b> To do - rainclouds for withing between changes in cortical cortical??</a></li>
+</ul></li>
+<li class="chapter" data-level="8" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html"><i class="fa fa-check"></i><b>8</b> Whole Connectome Results</a><ul>
+<li class="chapter" data-level="8.1" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html#the-paths-to-data-2"><i class="fa fa-check"></i><b>8.1</b> The paths to data</a></li>
+</ul></li>
+<li class="chapter" data-level="9" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html"><i class="fa fa-check"></i><b>9</b> Code for reading in all the timeseries..</a><ul>
+<li class="chapter" data-level="9.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-was-run-once-in-order-to-detemine-the-too-small-subcortical-rois"><i class="fa fa-check"></i><b>9.1</b> This was run once in order to detemine the too small subcortical ROIs</a><ul>
+<li class="chapter" data-level="9.1.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-reads-all-the-subcortical-files-it-can-find-1"><i class="fa fa-check"></i><b>9.1.1</b> This reads all the subcortical files it can find</a></li>
+<li class="chapter" data-level="9.1.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#merge-with-the-phenotypic-data-1"><i class="fa fa-check"></i><b>9.1.2</b> merge with the phenotypic data</a></li>
+</ul></li>
+<li class="chapter" data-level="9.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#calcualate-cohens-d-for-diagnosis-effect"><i class="fa fa-check"></i><b>9.2</b> calcualate cohen's D for Diagnosis Effect</a></li>
+<li class="chapter" data-level="9.3" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#filters-out-some-unwanted-edges-before-fdr-correction"><i class="fa fa-check"></i><b>9.3</b> filters out some unwanted edges before FDR correction</a></li>
+<li class="chapter" data-level="9.4" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-co"><i class="fa fa-check"></i><b>9.4</b> Make co</a></li>
+<li class="chapter" data-level="9.5" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-table-fdr-corrected-edges-that-survive-correction"><i class="fa fa-check"></i><b>9.5</b> make table FDR corrected Edges that survive correction</a><ul>
+<li class="chapter" data-level="9.5.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#calculated-extract-edge-weights-for-per-participant-scores"><i class="fa fa-check"></i><b>9.5.1</b> calculated extract edge weights for per participant scores</a></li>
+<li class="chapter" data-level="9.5.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#calculated-scores-per-participant"><i class="fa fa-check"></i><b>9.5.2</b> calculated scores per participant</a></li>
+</ul></li>
+<li class="chapter" data-level="9.6" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#write-up-to-this-point.."><i class="fa fa-check"></i><b>9.6</b> write up to this point..</a></li>
+</ul></li>
+<li class="chapter" data-level="10" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><i class="fa fa-check"></i><b>10</b> calculate weighted subject scores by chopping up the matrix</a><ul>
+<li class="chapter" data-level="10.1" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html#the-paths-to-data-3"><i class="fa fa-check"></i><b>10.1</b> The paths to data</a><ul>
+<li class="chapter" data-level="10.1.1" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html#refit-the-models-with-education-included"><i class="fa fa-check"></i><b>10.1.1</b> refit the models with Education included</a></li>
+<li class="chapter" data-level="10.1.2" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html#the-results-write-up"><i class="fa fa-check"></i><b>10.1.2</b> The results write-up</a></li>
+</ul></li>
+</ul></li>
+<li class="divider"></li>
+<li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
+
+</ul>
+
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">SSD PINT analyses</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<div id="is-pint-focusing-cortical-subcortical-connectivity" class="section level1">
+<h1><span class="header-section-number">Chapter 6</span> Is PINT &quot;focusing&quot; cortical subcortical connectivity</h1>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">table1 &lt;-<span class="st"> </span>results_pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(vertex_type, YeoNet, subcort_ROI, subcort_NET) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">summarise</span>(<span class="dt">n =</span> <span class="kw">n</span>(),
+            <span class="dt">Mean =</span> <span class="kw">mean</span>(rval),
+            <span class="dt">SD =</span> <span class="kw">sd</span>(rval)) </code></pre></div>
+<pre><code>## `summarise()` regrouping output by &#39;vertex_type&#39;, &#39;YeoNet&#39;, &#39;subcort_ROI&#39; (override with `.groups` argument)</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">ggplot</span>(table1, <span class="kw">aes</span>(<span class="dt">y =</span> YeoNet, <span class="dt">x =</span> subcort_NET, <span class="dt">fill =</span> Mean)) <span class="op">+</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">geom_tile</span>() <span class="op">+</span>
+<span class="st">  </span><span class="kw">scale_fill_distiller</span>(<span class="dt">breaks =</span> <span class="kw">c</span>(<span class="op">-</span><span class="fl">0.5</span>,<span class="fl">0.5</span>), <span class="dt">type =</span> <span class="st">&quot;div&quot;</span>, <span class="dt">palette =</span> <span class="dv">5</span>) <span class="op">+</span>
+<span class="st">  </span><span class="kw">theme</span>(<span class="dt">axis.text.x =</span> <span class="kw">element_text</span>(<span class="dt">angle =</span> <span class="dv">90</span>, <span class="dt">hjust =</span> <span class="dv">1</span>)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_grid</span>(subcort_ROI<span class="op">~</span>vertex_type) </code></pre></div>
+<p><img src="03_subcortical_cortical_stats_hemi_files/figure-html/plotting-PINT-change-matrix-1.png" width="576" /> functions to help re-annotated the function axes</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co">#&#39; sets some the main variables to factors to more descriptive labels</span>
+add_corrtype_and_subcortROI_columns &lt;-<span class="st"> </span><span class="cf">function</span>(data) {
+  result &lt;-<span class="st"> </span>data <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">corrtype =</span> <span class="kw">factor</span>(vertex_type, <span class="dt">levels =</span> <span class="kw">c</span>(<span class="st">&#39;tvolume&#39;</span>,<span class="st">&#39;tvertex&#39;</span>,<span class="st">&#39;pvertex&#39;</span>),
+                           <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">&quot;Volume Template&quot;</span>, <span class="st">&quot;Surface Template&quot;</span>, <span class="st">&quot;Surface Personalized&quot;</span>)),
+         <span class="dt">subcortROI =</span> <span class="kw">factor</span>(subcort_ROI, 
+                             <span class="dt">levels =</span> <span class="kw">c</span>(<span class="st">&quot;striatum&quot;</span>, <span class="st">&quot;thalamus&quot;</span>, <span class="st">&quot;cerebellum&quot;</span>),
+                             <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">&quot;Striatum&quot;</span>, <span class="st">&quot;Thalamus&quot;</span>, <span class="st">&quot;Cerebellum&quot;</span>))) 
+  <span class="kw">return</span>(result)
+}
+
+<span class="co">#&#39;drop VI DA and LI network from resutls</span>
+drop_VI_DA_LI &lt;-<span class="st"> </span><span class="cf">function</span>(data) {
+  result &lt;-<span class="st"> </span>data <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">filter</span>(subcort_NET <span class="op">!=</span><span class="st"> &quot;VI&quot;</span>,
+         subcort_NET <span class="op">!=</span><span class="st"> &quot;DA&quot;</span>,
+         subcort_NET <span class="op">!=</span><span class="st"> &quot;LI&quot;</span>,
+         YeoNet <span class="op">!=</span><span class="st"> &quot;VI&quot;</span>,
+         YeoNet <span class="op">!=</span><span class="st"> &quot;DA&quot;</span>) 
+  <span class="kw">return</span>(result)
+}</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">table1 <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_VI_DA_LI</span>() <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">add_corrtype_and_subcortROI_columns</span>() <span class="op">%&gt;%</span>
+<span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">y =</span> YeoNet, <span class="dt">x =</span> subcort_NET, <span class="dt">fill =</span> Mean)) <span class="op">+</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">geom_tile</span>() <span class="op">+</span>
+<span class="st">  </span><span class="kw">geom_text</span>(<span class="kw">aes</span>(<span class="dt">label =</span> <span class="kw">sprintf</span>(<span class="st">&#39;%3.2f&#39;</span>,Mean))) <span class="op">+</span>
+<span class="st">  </span><span class="kw">scale_fill_distiller</span>(<span class="dt">breaks =</span> <span class="kw">c</span>(<span class="op">-</span><span class="fl">0.5</span>,<span class="fl">0.5</span>), <span class="dt">type =</span> <span class="st">&quot;div&quot;</span>, <span class="dt">palette =</span> <span class="dv">5</span>) <span class="op">+</span>
+<span class="st">  </span><span class="kw">theme</span>(<span class="dt">axis.text.x =</span> <span class="kw">element_text</span>(<span class="dt">angle =</span> <span class="dv">90</span>, <span class="dt">hjust =</span> <span class="dv">1</span>)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_grid</span>(corrtype<span class="op">~</span>subcortROI) <span class="op">+</span>
+<span class="st">  </span><span class="kw">labs</span>(<span class="dt">y =</span> <span class="st">&quot;Cortical RSN Network&quot;</span>, <span class="dt">x =</span> <span class="st">&quot;Subcortical Subregion&quot;</span>)</code></pre></div>
+<p><img src="03_subcortical_cortical_stats_hemi_files/figure-html/plotting-PINT-change-matrix-reduce-1.png" width="720" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">table1 &lt;-<span class="st"> </span>results_pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(vertex_type, YeoNet, hemisphere, subcort_ROI, subcort_NET, subcort_hemi) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">summarise</span>(<span class="dt">n =</span> <span class="kw">n</span>(),
+            <span class="dt">Mean =</span> <span class="kw">mean</span>(rval),
+            <span class="dt">SD =</span> <span class="kw">sd</span>(rval)) </code></pre></div>
+<pre><code>## `summarise()` regrouping output by &#39;vertex_type&#39;, &#39;YeoNet&#39;, &#39;hemisphere&#39;, &#39;subcort_ROI&#39;, &#39;subcort_NET&#39; (override with `.groups` argument)</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">table1 <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_VI_DA_LI</span>() <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">add_corrtype_and_subcortROI_columns</span>() <span class="op">%&gt;%</span>
+<span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">y =</span> YeoNet, <span class="dt">x =</span> subcort_NET, <span class="dt">fill =</span> Mean)) <span class="op">+</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">geom_tile</span>() <span class="op">+</span>
+<span class="st">  </span><span class="kw">geom_text</span>(<span class="kw">aes</span>(<span class="dt">label =</span> <span class="kw">sprintf</span>(<span class="st">&#39;%3.2f&#39;</span>,Mean))) <span class="op">+</span>
+<span class="st">  </span><span class="kw">scale_fill_distiller</span>(<span class="dt">breaks =</span> <span class="kw">c</span>(<span class="op">-</span><span class="fl">0.5</span>,<span class="fl">0.5</span>), <span class="dt">type =</span> <span class="st">&quot;div&quot;</span>, <span class="dt">palette =</span> <span class="dv">5</span>) <span class="op">+</span>
+<span class="st">  </span><span class="kw">theme</span>(<span class="dt">axis.text.x =</span> <span class="kw">element_text</span>(<span class="dt">angle =</span> <span class="dv">90</span>, <span class="dt">hjust =</span> <span class="dv">1</span>)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_grid</span>(subcortROI<span class="op">*</span>subcort_hemi<span class="op">~</span>corrtype<span class="op">*</span>hemisphere) <span class="op">+</span>
+<span class="st">  </span><span class="kw">labs</span>(<span class="dt">y =</span> <span class="st">&quot;Cortical RSN Network&quot;</span>, <span class="dt">x =</span> <span class="st">&quot;Subcortical Subregion&quot;</span>)  </code></pre></div>
+<p><img src="03_subcortical_cortical_stats_hemi_files/figure-html/plotting-PINT-change-matrix-hemi-1.png" width="1152" /></p>
+<p>We see in the above figure that the Yeo 7 Network connectivity strongly shows the expected pattern in the cerebeullum.</p>
+<p>Lower evidence is seen in the striatum and thalamus, although there is a faint increase across the diagonal for the SM, VA and DM especially</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">net_means &lt;-<span class="st"> </span>results_pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_VI_DA_LI</span>() <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(YeoNet, subcort_ROI, subcort_NET, conn_type, subject, dataset, vertex_type) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">summarise</span>(<span class="dt">netmean =</span> <span class="kw">mean</span>(rval)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ungroup</span>() </code></pre></div>
+<pre><code>## `summarise()` regrouping output by &#39;YeoNet&#39;, &#39;subcort_ROI&#39;, &#39;subcort_NET&#39;, &#39;conn_type&#39;, &#39;subject&#39;, &#39;dataset&#39; (override with `.groups` argument)</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">subject_focus &lt;-<span class="st"> </span>net_means <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_VI_DA_LI</span>() <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(subject, dataset, subcort_ROI, YeoNet, vertex_type, conn_type) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">summarise</span>(<span class="dt">nets_type_avg =</span> <span class="kw">mean</span>(netmean)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">spread</span>(conn_type, nets_type_avg) <span class="co"># %&gt;%</span></code></pre></div>
+<pre><code>## `summarise()` regrouping output by &#39;subject&#39;, &#39;dataset&#39;, &#39;subcort_ROI&#39;, &#39;YeoNet&#39;, &#39;vertex_type&#39; (override with `.groups` argument)</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">  <span class="co"># ungroup() %&gt;%</span>
+  <span class="co"># mutate(focus_effect = same_net - diff_net)</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">subject_focus <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(subcort_ROI, YeoNet, vertex_type) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">do</span>(<span class="kw">tidy</span>(<span class="kw">t.test</span>(.<span class="op">$</span>same_net, .<span class="op">$</span>diff_net, <span class="dt">paired =</span> <span class="ot">TRUE</span>))) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">cohenD =</span> statistic<span class="op">/</span><span class="kw">sqrt</span>(parameter <span class="op">+</span><span class="st"> </span><span class="dv">1</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">kable</span>()</code></pre></div>
+<table>
+<thead>
+<tr class="header">
+<th align="left">subcort_ROI</th>
+<th align="left">YeoNet</th>
+<th align="left">vertex_type</th>
+<th align="right">estimate</th>
+<th align="right">statistic</th>
+<th align="right">p.value</th>
+<th align="right">parameter</th>
+<th align="right">conf.low</th>
+<th align="right">conf.high</th>
+<th align="left">method</th>
+<th align="left">alternative</th>
+<th align="right">cohenD</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">cerebellum</td>
+<td align="left">SM</td>
+<td align="left">pvertex</td>
+<td align="right">0.2509370</td>
+<td align="right">32.79637</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.2358956</td>
+<td align="right">0.2659783</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.6276567</td>
+</tr>
+<tr class="even">
+<td align="left">cerebellum</td>
+<td align="left">SM</td>
+<td align="left">tvertex</td>
+<td align="right">0.2169637</td>
+<td align="right">33.29947</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.2041552</td>
+<td align="right">0.2297722</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.6526250</td>
+</tr>
+<tr class="odd">
+<td align="left">cerebellum</td>
+<td align="left">SM</td>
+<td align="left">tvolume</td>
+<td align="right">0.1449559</td>
+<td align="right">30.41125</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.1355857</td>
+<td align="right">0.1543261</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.5092851</td>
+</tr>
+<tr class="even">
+<td align="left">cerebellum</td>
+<td align="left">VA</td>
+<td align="left">pvertex</td>
+<td align="right">0.2439763</td>
+<td align="right">31.09638</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.2285527</td>
+<td align="right">0.2593999</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.5432875</td>
+</tr>
+<tr class="odd">
+<td align="left">cerebellum</td>
+<td align="left">VA</td>
+<td align="left">tvertex</td>
+<td align="right">0.2009076</td>
+<td align="right">31.79134</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.1884844</td>
+<td align="right">0.2133309</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.5777775</td>
+</tr>
+<tr class="even">
+<td align="left">cerebellum</td>
+<td align="left">VA</td>
+<td align="left">tvolume</td>
+<td align="right">0.1241032</td>
+<td align="right">29.82652</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.1159237</td>
+<td align="right">0.1322827</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.4802655</td>
+</tr>
+<tr class="odd">
+<td align="left">cerebellum</td>
+<td align="left">FP</td>
+<td align="left">pvertex</td>
+<td align="right">0.1951463</td>
+<td align="right">35.93027</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.1844693</td>
+<td align="right">0.2058233</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.7831891</td>
+</tr>
+<tr class="even">
+<td align="left">cerebellum</td>
+<td align="left">FP</td>
+<td align="left">tvertex</td>
+<td align="right">0.1484289</td>
+<td align="right">36.99876</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.1405425</td>
+<td align="right">0.1563153</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.8362175</td>
+</tr>
+<tr class="odd">
+<td align="left">cerebellum</td>
+<td align="left">FP</td>
+<td align="left">tvolume</td>
+<td align="right">0.1050624</td>
+<td align="right">33.83044</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0989574</td>
+<td align="right">0.1111674</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.6789766</td>
+</tr>
+<tr class="even">
+<td align="left">cerebellum</td>
+<td align="left">DM</td>
+<td align="left">pvertex</td>
+<td align="right">0.3156742</td>
+<td align="right">37.62450</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.2991806</td>
+<td align="right">0.3321678</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.8672725</td>
+</tr>
+<tr class="odd">
+<td align="left">cerebellum</td>
+<td align="left">DM</td>
+<td align="left">tvertex</td>
+<td align="right">0.2535391</td>
+<td align="right">37.36094</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.2401985</td>
+<td align="right">0.2668797</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.8541922</td>
+</tr>
+<tr class="even">
+<td align="left">cerebellum</td>
+<td align="left">DM</td>
+<td align="left">tvolume</td>
+<td align="right">0.1826252</td>
+<td align="right">35.64842</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.1725543</td>
+<td align="right">0.1926961</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.7692013</td>
+</tr>
+<tr class="odd">
+<td align="left">striatum</td>
+<td align="left">SM</td>
+<td align="left">pvertex</td>
+<td align="right">0.1109963</td>
+<td align="right">16.03850</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0973914</td>
+<td align="right">0.1246011</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.7959773</td>
+</tr>
+<tr class="even">
+<td align="left">striatum</td>
+<td align="left">SM</td>
+<td align="left">tvertex</td>
+<td align="right">0.1023066</td>
+<td align="right">17.77211</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0909901</td>
+<td align="right">0.1136232</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.8820152</td>
+</tr>
+<tr class="odd">
+<td align="left">striatum</td>
+<td align="left">SM</td>
+<td align="left">tvolume</td>
+<td align="right">0.0772217</td>
+<td align="right">16.51277</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0680285</td>
+<td align="right">0.0864149</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.8195149</td>
+</tr>
+<tr class="even">
+<td align="left">striatum</td>
+<td align="left">VA</td>
+<td align="left">pvertex</td>
+<td align="right">0.1015677</td>
+<td align="right">24.03184</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0932593</td>
+<td align="right">0.1098761</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.1926804</td>
+</tr>
+<tr class="odd">
+<td align="left">striatum</td>
+<td align="left">VA</td>
+<td align="left">tvertex</td>
+<td align="right">0.0812200</td>
+<td align="right">24.03456</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0745768</td>
+<td align="right">0.0878631</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.1928150</td>
+</tr>
+<tr class="even">
+<td align="left">striatum</td>
+<td align="left">VA</td>
+<td align="left">tvolume</td>
+<td align="right">0.0468493</td>
+<td align="right">18.40508</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0418453</td>
+<td align="right">0.0518532</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.9134290</td>
+</tr>
+<tr class="odd">
+<td align="left">striatum</td>
+<td align="left">FP</td>
+<td align="left">pvertex</td>
+<td align="right">0.0510051</td>
+<td align="right">13.22495</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0434234</td>
+<td align="right">0.0585868</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.6563435</td>
+</tr>
+<tr class="even">
+<td align="left">striatum</td>
+<td align="left">FP</td>
+<td align="left">tvertex</td>
+<td align="right">0.0430208</td>
+<td align="right">14.93332</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0373575</td>
+<td align="right">0.0486841</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.7411284</td>
+</tr>
+<tr class="odd">
+<td align="left">striatum</td>
+<td align="left">FP</td>
+<td align="left">tvolume</td>
+<td align="right">0.0342699</td>
+<td align="right">14.65305</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0296723</td>
+<td align="right">0.0388675</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.7272189</td>
+</tr>
+<tr class="even">
+<td align="left">striatum</td>
+<td align="left">DM</td>
+<td align="left">pvertex</td>
+<td align="right">0.0758314</td>
+<td align="right">12.57094</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0639729</td>
+<td align="right">0.0876898</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.6238855</td>
+</tr>
+<tr class="odd">
+<td align="left">striatum</td>
+<td align="left">DM</td>
+<td align="left">tvertex</td>
+<td align="right">0.0687229</td>
+<td align="right">15.15420</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0598080</td>
+<td align="right">0.0776378</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.7520903</td>
+</tr>
+<tr class="even">
+<td align="left">striatum</td>
+<td align="left">DM</td>
+<td align="left">tvolume</td>
+<td align="right">0.0500223</td>
+<td align="right">12.02385</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0418439</td>
+<td align="right">0.0582007</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.5967339</td>
+</tr>
+<tr class="odd">
+<td align="left">thalamus</td>
+<td align="left">SM</td>
+<td align="left">pvertex</td>
+<td align="right">0.2544642</td>
+<td align="right">28.19933</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.2367249</td>
+<td align="right">0.2722035</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.3995093</td>
+</tr>
+<tr class="even">
+<td align="left">thalamus</td>
+<td align="left">SM</td>
+<td align="left">tvertex</td>
+<td align="right">0.2204035</td>
+<td align="right">29.09559</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.2055119</td>
+<td align="right">0.2352950</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.4439901</td>
+</tr>
+<tr class="odd">
+<td align="left">thalamus</td>
+<td align="left">SM</td>
+<td align="left">tvolume</td>
+<td align="right">0.1408673</td>
+<td align="right">27.37653</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.1307520</td>
+<td align="right">0.1509826</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.3586746</td>
+</tr>
+<tr class="even">
+<td align="left">thalamus</td>
+<td align="left">VA</td>
+<td align="left">pvertex</td>
+<td align="right">0.0608091</td>
+<td align="right">13.53099</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0519745</td>
+<td align="right">0.0696436</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.6715316</td>
+</tr>
+<tr class="odd">
+<td align="left">thalamus</td>
+<td align="left">VA</td>
+<td align="left">tvertex</td>
+<td align="right">0.0470749</td>
+<td align="right">13.17317</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0400499</td>
+<td align="right">0.0540999</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.6537736</td>
+</tr>
+<tr class="even">
+<td align="left">thalamus</td>
+<td align="left">VA</td>
+<td align="left">tvolume</td>
+<td align="right">0.0319912</td>
+<td align="right">12.36880</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0269067</td>
+<td align="right">0.0370757</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.6138533</td>
+</tr>
+<tr class="odd">
+<td align="left">thalamus</td>
+<td align="left">FP</td>
+<td align="left">pvertex</td>
+<td align="right">0.0928243</td>
+<td align="right">19.34700</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0833925</td>
+<td align="right">0.1022561</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.9601755</td>
+</tr>
+<tr class="even">
+<td align="left">thalamus</td>
+<td align="left">FP</td>
+<td align="left">tvertex</td>
+<td align="right">0.0797281</td>
+<td align="right">21.65148</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0724892</td>
+<td align="right">0.0869669</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.0745447</td>
+</tr>
+<tr class="odd">
+<td align="left">thalamus</td>
+<td align="left">FP</td>
+<td align="left">tvolume</td>
+<td align="right">0.0532868</td>
+<td align="right">18.38452</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0475889</td>
+<td align="right">0.0589847</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.9124085</td>
+</tr>
+<tr class="even">
+<td align="left">thalamus</td>
+<td align="left">DM</td>
+<td align="left">pvertex</td>
+<td align="right">0.1120022</td>
+<td align="right">19.13990</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.1004986</td>
+<td align="right">0.1235058</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.9498971</td>
+</tr>
+<tr class="odd">
+<td align="left">thalamus</td>
+<td align="left">DM</td>
+<td align="left">tvertex</td>
+<td align="right">0.0956365</td>
+<td align="right">21.25110</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0867897</td>
+<td align="right">0.1044834</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">1.0546743</td>
+</tr>
+<tr class="even">
+<td align="left">thalamus</td>
+<td align="left">DM</td>
+<td align="left">tvolume</td>
+<td align="right">0.0700509</td>
+<td align="right">17.89502</td>
+<td align="right">0</td>
+<td align="right">405</td>
+<td align="right">0.0623555</td>
+<td align="right">0.0777463</td>
+<td align="left">Paired t-test</td>
+<td align="left">two.sided</td>
+<td align="right">0.8881148</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">YeoNet7 &lt;-<span class="st"> </span><span class="kw">tribble</span>(
+  <span class="op">~</span>network, <span class="op">~</span>hexcode,
+  <span class="st">&quot;VI&quot;</span>, <span class="st">&quot;#781286&quot;</span>,
+  <span class="st">&quot;SM&quot;</span>, <span class="st">&quot;#4682B4&quot;</span>,
+  <span class="st">&quot;DA&quot;</span>, <span class="st">&quot;#00760E&quot;</span>,
+  <span class="st">&quot;VA&quot;</span>, <span class="st">&quot;#C43AFA&quot;</span>,
+  <span class="st">&quot;FP&quot;</span>, <span class="st">&quot;#E69422&quot;</span>,
+  <span class="st">&quot;DM&quot;</span>, <span class="st">&quot;#CD3E3A&quot;</span>,
+  <span class="st">&quot;LI&quot;</span>, <span class="st">&quot;#dcf8a4&quot;</span>)
+
+<span class="co">#&#39; Left section of the raincload plots used in sub-cortical cortical change reporting</span>
+samediff_subcort_raincloud &lt;-<span class="st"> </span><span class="cf">function</span>(data, this_subcort_ROI, this_YeoNet, <span class="dt">no_ticks =</span> <span class="ot">TRUE</span>) {
+  eff_size_df &lt;-<span class="st"> </span>data <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">corrtype =</span> <span class="kw">factor</span>(vertex_type, <span class="dt">levels =</span> <span class="kw">c</span>(<span class="st">&#39;pvertex&#39;</span>, <span class="st">&#39;tvertex&#39;</span>, <span class="st">&#39;tvolume&#39;</span>),
+                             <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">&quot;Surface Personalized&quot;</span>, <span class="st">&quot;Surface Template&quot;</span>, <span class="st">&quot;Volume Template&quot;</span>))) <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">filter</span>(subcort_ROI <span class="op">==</span><span class="st"> </span>this_subcort_ROI, YeoNet <span class="op">==</span><span class="st"> </span>this_YeoNet) <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">group_by</span>(subcort_ROI, YeoNet, corrtype) <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">do</span>(<span class="kw">tidy</span>(<span class="kw">t.test</span>(.<span class="op">$</span>same_net, .<span class="op">$</span>diff_net, <span class="dt">paired =</span> <span class="ot">TRUE</span>))) <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">cohenD =</span> statistic<span class="op">/</span><span class="kw">sqrt</span>(parameter <span class="op">+</span><span class="st"> </span><span class="dv">1</span>),
+           <span class="dt">cohenD_str =</span> <span class="kw">str_c</span>(<span class="st">&quot;d = &quot;</span>, <span class="kw">format</span>(cohenD, <span class="dt">digits =</span> <span class="dv">3</span>))) 
+    
+  
+  plt &lt;-<span class="st"> </span>data <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">corrtype =</span> <span class="kw">factor</span>(vertex_type, <span class="dt">levels =</span> <span class="kw">c</span>(<span class="st">&#39;pvertex&#39;</span>, <span class="st">&#39;tvertex&#39;</span>, <span class="st">&#39;tvolume&#39;</span>),
+                             <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">&quot;Surface Personalized&quot;</span>, <span class="st">&quot;Surface Template&quot;</span>, <span class="st">&quot;Volume Template&quot;</span>))) <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">gather</span>(nettype, gvalue, diff_net, same_net) <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">filter</span>(subcort_ROI <span class="op">==</span><span class="st"> </span>this_subcort_ROI, YeoNet <span class="op">==</span><span class="st"> </span>this_YeoNet) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">    </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">y =</span> corrtype, <span class="dt">x =</span> gvalue)) <span class="op">+</span>
+<span class="st">    </span><span class="kw">geom_density_ridges</span>(<span class="kw">aes</span>(<span class="dt">fill =</span> nettype, <span class="dt">colour =</span> nettype),
+      <span class="co">#jittered_points = TRUE, position = &quot;raincloud&quot;,</span>
+      <span class="dt">alpha =</span> <span class="fl">0.5</span>, <span class="dt">scale =</span> <span class="dv">2</span>,
+      <span class="dt">quantile_lines =</span> <span class="ot">TRUE</span>, <span class="dt">quantiles =</span> <span class="dv">2</span>
+    ) <span class="op">+</span>
+<span class="st">    </span><span class="kw">geom_text</span>(<span class="kw">aes</span>(<span class="dt">y =</span> corrtype, <span class="dt">label =</span> cohenD_str), 
+              <span class="dt">x =</span> <span class="fl">0.55</span>, 
+              <span class="dt">nudge_y =</span> <span class="fl">0.1</span>, <span class="dt">data =</span> eff_size_df) <span class="op">+</span>
+<span class="st">    </span><span class="kw">geom_vline</span>(<span class="dt">xintercept =</span> <span class="dv">0</span>) <span class="op">+</span>
+<span class="st">    </span><span class="kw">scale_colour_manual</span>(<span class="dt">values =</span> <span class="kw">c</span>(<span class="st">&quot;#808080&quot;</span>, YeoNet7 <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">filter</span>(network<span class="op">==</span>this_YeoNet) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">pull</span>(hexcode))) <span class="op">+</span>
+<span class="st">    </span><span class="kw">scale_fill_manual</span>(<span class="dt">values =</span> <span class="kw">c</span>(<span class="st">&quot;#808080&quot;</span>, YeoNet7 <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">filter</span>(network<span class="op">==</span>this_YeoNet) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">pull</span>(hexcode))) <span class="op">+</span>
+<span class="st">    </span><span class="kw">scale_x_continuous</span>(<span class="dt">limits =</span> <span class="kw">c</span>(<span class="op">-</span><span class="fl">0.5</span>, <span class="fl">0.6</span>)) <span class="op">+</span>
+<span class="st">    </span><span class="kw">labs</span>(<span class="dt">y =</span> <span class="ot">NULL</span>,
+         <span class="dt">x =</span> <span class="ot">NULL</span>) <span class="op">+</span>
+<span class="st">    </span><span class="kw">theme</span>(<span class="dt">legend.position=</span><span class="st">&#39;none&#39;</span>)
+  <span class="cf">if</span> (no_ticks<span class="op">==</span><span class="ot">TRUE</span>) {
+    plt &lt;-<span class="st"> </span>plt <span class="op">+</span><span class="st"> </span><span class="kw">theme</span>(<span class="dt">axis.title.x=</span><span class="kw">element_blank</span>(),
+                       <span class="dt">axis.text.x=</span><span class="kw">element_blank</span>())
+  } <span class="cf">else</span> {
+    plt &lt;-<span class="st"> </span>plt <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">x =</span> <span class="st">&quot;Subcortical-Cortical Correlation (Z)&quot;</span>)
+  }
+  <span class="kw">return</span>(plt)
+  
+}
+
+subcortical_rainclouds &lt;-<span class="st"> </span><span class="cf">function</span>(subject_focus, this_subcort) {
+  DM &lt;-<span class="st"> </span><span class="kw">samediff_subcort_raincloud</span>(subject_focus, this_subcort, <span class="st">&quot;DM&quot;</span>)
+  FP &lt;-<span class="st"> </span><span class="kw">samediff_subcort_raincloud</span>(subject_focus,this_subcort, <span class="st">&quot;FP&quot;</span>)
+  VA &lt;-<span class="st"> </span><span class="kw">samediff_subcort_raincloud</span>(subject_focus,this_subcort, <span class="st">&quot;VA&quot;</span>)
+  SM &lt;-<span class="st"> </span><span class="kw">samediff_subcort_raincloud</span>(subject_focus,this_subcort, <span class="st">&quot;SM&quot;</span>, <span class="dt">no_ticks =</span> <span class="ot">FALSE</span>)
+  title &lt;-<span class="st"> </span><span class="kw">ggdraw</span>() <span class="op">+</span><span class="st"> </span><span class="kw">draw_label</span>(this_subcort, <span class="dt">fontface=</span><span class="st">&#39;bold&#39;</span>)
+  plt &lt;-<span class="st"> </span><span class="kw">plot_grid</span>(title, DM, FP, VA, SM, <span class="dt">ncol =</span> <span class="dv">1</span>, <span class="dt">rel_heights =</span> <span class="kw">c</span>(<span class="fl">0.5</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="fl">1.5</span>))
+  <span class="kw">return</span>(plt)
+}</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">subcortical_rainclouds</span>(subject_focus, <span class="st">&quot;striatum&quot;</span>)</code></pre></div>
+<pre><code>## Picking joint bandwidth of 0.0296</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0251</code></pre>
+<pre><code>## Picking joint bandwidth of 0.028</code></pre>
+<pre><code>## Warning: Removed 1 rows containing non-finite values (stat_density_ridges).</code></pre>
+<pre><code>## Picking joint bandwidth of 0.035</code></pre>
+<pre><code>## Warning: Removed 16 rows containing non-finite values (stat_density_ridges).</code></pre>
+<p><img src="03_subcortical_cortical_stats_hemi_files/figure-html/stiatum-rainclouds-1.png" width="672" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">subcortical_rainclouds</span>(subject_focus, <span class="st">&quot;thalamus&quot;</span>)</code></pre></div>
+<pre><code>## Picking joint bandwidth of 0.0267</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0224</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0236</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0336</code></pre>
+<pre><code>## Warning: Removed 11 rows containing non-finite values (stat_density_ridges).</code></pre>
+<p><img src="03_subcortical_cortical_stats_hemi_files/figure-html/thalamus-rainclouds-1.png" width="672" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">subcortical_rainclouds</span>(subject_focus, <span class="st">&quot;cerebellum&quot;</span>)</code></pre></div>
+<pre><code>## Picking joint bandwidth of 0.0289</code></pre>
+<pre><code>## Warning: Removed 5 rows containing non-finite values (stat_density_ridges).</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0248</code></pre>
+<pre><code>## Picking joint bandwidth of 0.029</code></pre>
+<pre><code>## Warning: Removed 1 rows containing non-finite values (stat_density_ridges).</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0335</code></pre>
+<pre><code>## Warning: Removed 17 rows containing non-finite values (stat_density_ridges).</code></pre>
+<p><img src="03_subcortical_cortical_stats_hemi_files/figure-html/cerebellum-raincloud-1.png" width="672" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">subcortical_raincloud</span>(subject_focus, <span class="st">&quot;cerebellum&quot;</span>)</code></pre></div>
+<pre><code>## Picking joint bandwidth of 0.0289</code></pre>
+<pre><code>## Warning: Removed 5 rows containing non-finite values (stat_density_ridges).</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0339</code></pre>
+<pre><code>## Warning: Removed 27 rows containing non-finite values (stat_density_ridges).</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0248</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0219</code></pre>
+<pre><code>## Warning: Removed 1 rows containing non-finite values (stat_density_ridges).</code></pre>
+<pre><code>## Picking joint bandwidth of 0.029</code></pre>
+<pre><code>## Warning: Removed 1 rows containing non-finite values (stat_density_ridges).</code></pre>
+<pre><code>## Picking joint bandwidth of 0.032</code></pre>
+<pre><code>## Warning: Removed 9 rows containing non-finite values (stat_density_ridges).</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0335</code></pre>
+<pre><code>## Warning: Removed 17 rows containing non-finite values (stat_density_ridges).</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0327</code></pre>
+<pre><code>## Warning: Removed 13 rows containing non-finite values (stat_density_ridges).</code></pre>
+<p><img src="03_subcortical_cortical_stats_hemi_files/figure-html/cerebellum-raincloud2-1.png" width="672" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">subcortical_raincloud</span>(subject_focus, <span class="st">&quot;striatum&quot;</span>)</code></pre></div>
+<pre><code>## Picking joint bandwidth of 0.0296</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0259</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0251</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0158</code></pre>
+<pre><code>## Picking joint bandwidth of 0.028</code></pre>
+<pre><code>## Warning: Removed 1 rows containing non-finite values (stat_density_ridges).</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0169</code></pre>
+<pre><code>## Picking joint bandwidth of 0.035</code></pre>
+<pre><code>## Warning: Removed 16 rows containing non-finite values (stat_density_ridges).</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0299</code></pre>
+<pre><code>## Warning: Removed 2 rows containing non-finite values (stat_density_ridges).</code></pre>
+<p><img src="03_subcortical_cortical_stats_hemi_files/figure-html/striatum-raincloud2-1.png" width="672" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">subcortical_raincloud</span>(subject_focus, <span class="st">&quot;thalamus&quot;</span>)</code></pre></div>
+<pre><code>## Picking joint bandwidth of 0.0267</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0251</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0224</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0194</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0236</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0182</code></pre>
+<pre><code>## Warning: Removed 1 rows containing non-finite values (stat_density_ridges).</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0336</code></pre>
+<pre><code>## Warning: Removed 11 rows containing non-finite values (stat_density_ridges).</code></pre>
+<pre><code>## Picking joint bandwidth of 0.0364</code></pre>
+<pre><code>## Warning: Removed 25 rows containing non-finite values (stat_density_ridges).</code></pre>
+<p><img src="03_subcortical_cortical_stats_hemi_files/figure-html/thalamus-raincloud2-1.png" width="672" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># note that the bonferronni corrective factor are 4 network times 3 subregions = 12</span>
+bonf_cor_factor =<span class="st"> </span><span class="dv">4</span><span class="op">*</span><span class="dv">3</span>
+
+subject_focus_wrgl &lt;-<span class="st"> </span>subject_focus <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">focus_effect =</span> same_net <span class="op">-</span><span class="st"> </span>diff_net) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(subject, dataset, subcort_ROI, YeoNet) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">gather</span>(conntype, netmean, same_net, diff_net, focus_effect) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">spread</span>(vertex_type, netmean) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ungroup</span>()
+
+pvertex_vs_tvertex &lt;-<span class="st"> </span>subject_focus_wrgl <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(subcort_ROI, YeoNet, conntype) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">do</span>(<span class="kw">tidy</span>(<span class="kw">t.test</span>(.<span class="op">$</span>pvertex, .<span class="op">$</span>tvertex, <span class="dt">paired =</span> <span class="ot">TRUE</span>))) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">cohenD =</span> statistic<span class="op">/</span><span class="kw">sqrt</span>(parameter <span class="op">+</span><span class="st"> </span><span class="dv">1</span>),
+         <span class="dt">p_bonf =</span> p.value<span class="op">*</span>bonf_cor_factor)
+
+tvertex_vs_tvolume &lt;-<span class="st"> </span>subject_focus_wrgl <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(subcort_ROI, YeoNet, conntype) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">do</span>(<span class="kw">tidy</span>(<span class="kw">t.test</span>(.<span class="op">$</span>tvertex, .<span class="op">$</span>tvolume, <span class="dt">paired =</span> <span class="ot">TRUE</span>))) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">cohenD =</span> statistic<span class="op">/</span><span class="kw">sqrt</span>(parameter <span class="op">+</span><span class="st"> </span><span class="dv">1</span>),
+         <span class="dt">p_bonf =</span> p.value<span class="op">*</span>bonf_cor_factor) 
+
+focus_results &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(<span class="dt">pvertex_vs_tvertex =</span> pvertex_vs_tvertex,
+                           <span class="dt">tvertex_vs_tvolume =</span> tvertex_vs_tvolume,
+                           <span class="dt">.id =</span> <span class="st">&quot;test_vars&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">focus_results <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">pval_str =</span> <span class="kw">ifelse</span>(p_bonf <span class="op">&lt;</span><span class="st"> </span><span class="fl">0.001</span>, 
+                           <span class="kw">format</span>(p.value, <span class="dt">scientific =</span> <span class="ot">TRUE</span>, <span class="dt">digits =</span> <span class="dv">2</span>),
+                           <span class="kw">specify_decimal</span>(p_bonf,<span class="dv">3</span>))) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">report_str =</span> <span class="kw">str_c</span>(<span class="st">&quot;d = &quot;</span>, <span class="kw">specify_decimal</span>(cohenD, <span class="dv">2</span>),
+                            <span class="st">&quot;, t(&quot;</span>,parameter, <span class="st">&#39;) =&#39;</span>, 
+                            <span class="kw">specify_decimal</span>(statistic, <span class="dv">2</span>),
+                            <span class="st">&#39;, p=&#39;</span>, pval_str)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(test_vars, conntype, subcort_ROI, YeoNet, report_str) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">spread</span>(conntype, report_str) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(test_vars, subcort_ROI, YeoNet, same_net, diff_net, focus_effect) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">test_vars =</span> <span class="kw">factor</span>(test_vars, <span class="dt">levels =</span> <span class="kw">c</span>(<span class="st">&quot;tvertex_vs_tvolume&quot;</span>,<span class="st">&quot;pvertex_vs_tvertex&quot;</span>)),
+         <span class="dt">subcort_ROI =</span> <span class="kw">factor</span>(subcort_ROI, <span class="dt">levels =</span> <span class="kw">c</span>(<span class="st">&quot;cerebellum&quot;</span>, <span class="st">&quot;thalamus&quot;</span>, <span class="st">&quot;striatum&quot;</span>)),
+         <span class="dt">YeoNet =</span> <span class="kw">factor</span>(YeoNet, <span class="dt">levels =</span> <span class="kw">c</span>(<span class="st">&quot;DM&quot;</span>, <span class="st">&quot;FP&quot;</span>, <span class="st">&quot;VA&quot;</span>, <span class="st">&quot;SM&quot;</span>))) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">arrange</span>(test_vars, <span class="kw">desc</span>(subcort_ROI), YeoNet) <span class="op">%&gt;%</span>
+<span class="st">  </span>knitr<span class="op">::</span><span class="kw">kable</span>()</code></pre></div>
+<table>
+<thead>
+<tr class="header">
+<th align="left">test_vars</th>
+<th align="left">subcort_ROI</th>
+<th align="left">YeoNet</th>
+<th align="left">same_net</th>
+<th align="left">diff_net</th>
+<th align="left">focus_effect</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">tvertex_vs_tvolume</td>
+<td align="left">striatum</td>
+<td align="left">DM</td>
+<td align="left">d = 0.32, t(405) =6.37, p=5.2e-10</td>
+<td align="left">d = 0.05, t(405) =1.06, p=3.465</td>
+<td align="left">d = 0.31, t(405) =6.24, p=1.1e-09</td>
+</tr>
+<tr class="even">
+<td align="left">tvertex_vs_tvolume</td>
+<td align="left">striatum</td>
+<td align="left">FP</td>
+<td align="left">d = 0.27, t(405) =5.47, p=7.9e-08</td>
+<td align="left">d = 0.20, t(405) =4.13, p=4.5e-05</td>
+<td align="left">d = 0.22, t(405) =4.40, p=1.4e-05</td>
+</tr>
+<tr class="odd">
+<td align="left">tvertex_vs_tvolume</td>
+<td align="left">striatum</td>
+<td align="left">VA</td>
+<td align="left">d = 0.75, t(405) =15.14, p=2.5e-41</td>
+<td align="left">d = 0.36, t(405) =7.32, p=1.3e-12</td>
+<td align="left">d = 0.74, t(405) =14.94, p=1.7e-40</td>
+</tr>
+<tr class="even">
+<td align="left">tvertex_vs_tvolume</td>
+<td align="left">striatum</td>
+<td align="left">SM</td>
+<td align="left">d = 0.17, t(405) =3.50, p=0.006</td>
+<td align="left">d = -0.09, t(405) =-1.78, p=0.910</td>
+<td align="left">d = 0.35, t(405) =7.01, p=9.9e-12</td>
+</tr>
+<tr class="odd">
+<td align="left">tvertex_vs_tvolume</td>
+<td align="left">thalamus</td>
+<td align="left">DM</td>
+<td align="left">d = 0.29, t(405) =5.76, p=1.7e-08</td>
+<td align="left">d = -0.08, t(405) =-1.54, p=1.493</td>
+<td align="left">d = 0.41, t(405) =8.19, p=3.5e-15</td>
+</tr>
+<tr class="even">
+<td align="left">tvertex_vs_tvolume</td>
+<td align="left">thalamus</td>
+<td align="left">FP</td>
+<td align="left">d = 0.47, t(405) =9.39, p=4.4e-19</td>
+<td align="left">d = 0.14, t(405) =2.86, p=0.054</td>
+<td align="left">d = 0.51, t(405) =10.21, p=6.4e-22</td>
+</tr>
+<tr class="odd">
+<td align="left">tvertex_vs_tvolume</td>
+<td align="left">thalamus</td>
+<td align="left">VA</td>
+<td align="left">d = 0.41, t(405) =8.30, p=1.6e-15</td>
+<td align="left">d = 0.22, t(405) =4.52, p=8.0e-06</td>
+<td align="left">d = 0.29, t(405) =5.94, p=6.0e-09</td>
+</tr>
+<tr class="even">
+<td align="left">tvertex_vs_tvolume</td>
+<td align="left">thalamus</td>
+<td align="left">SM</td>
+<td align="left">d = 0.89, t(405) =17.93, p=2.3e-53</td>
+<td align="left">d = 0.04, t(405) =0.72, p=5.636</td>
+<td align="left">d = 0.82, t(405) =16.61, p=1.2e-47</td>
+</tr>
+<tr class="odd">
+<td align="left">tvertex_vs_tvolume</td>
+<td align="left">cerebellum</td>
+<td align="left">DM</td>
+<td align="left">d = 0.46, t(405) =9.32, p=7.4e-19</td>
+<td align="left">d = -0.51, t(405) =-10.23, p=5.2e-22</td>
+<td align="left">d = 0.84, t(405) =16.92, p=5.7e-49</td>
+</tr>
+<tr class="even">
+<td align="left">tvertex_vs_tvolume</td>
+<td align="left">cerebellum</td>
+<td align="left">FP</td>
+<td align="left">d = 0.38, t(405) =7.66, p=1.4e-13</td>
+<td align="left">d = -0.28, t(405) =-5.72, p=2.0e-08</td>
+<td align="left">d = 0.80, t(405) =16.15, p=1.2e-45</td>
+</tr>
+<tr class="odd">
+<td align="left">tvertex_vs_tvolume</td>
+<td align="left">cerebellum</td>
+<td align="left">VA</td>
+<td align="left">d = 0.43, t(405) =8.64, p=1.3e-16</td>
+<td align="left">d = -0.69, t(405) =-13.86, p=5.0e-36</td>
+<td align="left">d = 0.99, t(405) =20.03, p=1.6e-62</td>
+</tr>
+<tr class="even">
+<td align="left">tvertex_vs_tvolume</td>
+<td align="left">cerebellum</td>
+<td align="left">SM</td>
+<td align="left">d = 0.04, t(405) =0.81, p=5.011</td>
+<td align="left">d = -0.84, t(405) =-17.03, p=2e-49</td>
+<td align="left">d = 0.78, t(405) =15.62, p=2.2e-43</td>
+</tr>
+<tr class="odd">
+<td align="left">pvertex_vs_tvertex</td>
+<td align="left">striatum</td>
+<td align="left">DM</td>
+<td align="left">d = -0.05, t(405) =-0.93, p=4.261</td>
+<td align="left">d = -0.19, t(405) =-3.86, p=0.002</td>
+<td align="left">d = 0.14, t(405) =2.72, p=0.081</td>
+</tr>
+<tr class="even">
+<td align="left">pvertex_vs_tvertex</td>
+<td align="left">striatum</td>
+<td align="left">FP</td>
+<td align="left">d = 0.07, t(405) =1.32, p=2.262</td>
+<td align="left">d = -0.07, t(405) =-1.51, p=1.595</td>
+<td align="left">d = 0.22, t(405) =4.35, p=1.7e-05</td>
+</tr>
+<tr class="odd">
+<td align="left">pvertex_vs_tvertex</td>
+<td align="left">striatum</td>
+<td align="left">VA</td>
+<td align="left">d = 0.64, t(405) =12.81, p=9.3e-32</td>
+<td align="left">d = 0.28, t(405) =5.66, p=2.8e-08</td>
+<td align="left">d = 0.65, t(405) =13.04, p=1.0e-32</td>
+</tr>
+<tr class="even">
+<td align="left">pvertex_vs_tvertex</td>
+<td align="left">striatum</td>
+<td align="left">SM</td>
+<td align="left">d = 0.05, t(405) =1.04, p=3.602</td>
+<td align="left">d = -0.09, t(405) =-1.77, p=0.932</td>
+<td align="left">d = 0.18, t(405) =3.58, p=0.005</td>
+</tr>
+<tr class="odd">
+<td align="left">pvertex_vs_tvertex</td>
+<td align="left">thalamus</td>
+<td align="left">DM</td>
+<td align="left">d = 0.07, t(405) =1.37, p=2.075</td>
+<td align="left">d = -0.22, t(405) =-4.49, p=9.4e-06</td>
+<td align="left">d = 0.33, t(405) =6.74, p=5.3e-11</td>
+</tr>
+<tr class="even">
+<td align="left">pvertex_vs_tvertex</td>
+<td align="left">thalamus</td>
+<td align="left">FP</td>
+<td align="left">d = 0.21, t(405) =4.27, p=2.4e-05</td>
+<td align="left">d = -0.01, t(405) =-0.16, p=10.512</td>
+<td align="left">d = 0.29, t(405) =5.84, p=1.1e-08</td>
+</tr>
+<tr class="odd">
+<td align="left">pvertex_vs_tvertex</td>
+<td align="left">thalamus</td>
+<td align="left">VA</td>
+<td align="left">d = 0.42, t(405) =8.46, p=4.9e-16</td>
+<td align="left">d = 0.19, t(405) =3.87, p=0.001</td>
+<td align="left">d = 0.38, t(405) =7.63, p=1.7e-13</td>
+</tr>
+<tr class="even">
+<td align="left">pvertex_vs_tvertex</td>
+<td align="left">thalamus</td>
+<td align="left">SM</td>
+<td align="left">d = 0.52, t(405) =10.53, p=4.5e-23</td>
+<td align="left">d = -0.03, t(405) =-0.54, p=7.075</td>
+<td align="left">d = 0.55, t(405) =11.06, p=5.0e-25</td>
+</tr>
+<tr class="odd">
+<td align="left">pvertex_vs_tvertex</td>
+<td align="left">cerebellum</td>
+<td align="left">DM</td>
+<td align="left">d = 0.31, t(405) =6.19, p=1.5e-09</td>
+<td align="left">d = -0.74, t(405) =-14.92, p=2.0e-40</td>
+<td align="left">d = 0.96, t(405) =19.35, p=1.5e-59</td>
+</tr>
+<tr class="even">
+<td align="left">pvertex_vs_tvertex</td>
+<td align="left">cerebellum</td>
+<td align="left">FP</td>
+<td align="left">d = 0.42, t(405) =8.44, p=5.9e-16</td>
+<td align="left">d = -0.41, t(405) =-8.35, p=1.1e-15</td>
+<td align="left">d = 0.87, t(405) =17.51, p=1.7e-51</td>
+</tr>
+<tr class="odd">
+<td align="left">pvertex_vs_tvertex</td>
+<td align="left">cerebellum</td>
+<td align="left">VA</td>
+<td align="left">d = 0.33, t(405) =6.67, p=8.2e-11</td>
+<td align="left">d = -0.53, t(405) =-10.59, p=2.8e-23</td>
+<td align="left">d = 0.80, t(405) =16.03, p=3.9e-45</td>
+</tr>
+<tr class="even">
+<td align="left">pvertex_vs_tvertex</td>
+<td align="left">cerebellum</td>
+<td align="left">SM</td>
+<td align="left">d = 0.00, t(405) =-0.02, p=11.771</td>
+<td align="left">d = -0.66, t(405) =-13.31, p=9e-34</td>
+<td align="left">d = 0.60, t(405) =12.04, p=9.9e-29</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">focus_results_ranges &lt;-<span class="st"> </span>focus_results <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(test_vars, conntype) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">summarise</span>(<span class="dt">d_min =</span> <span class="kw">specify_decimal</span>(<span class="kw">min</span>(cohenD),<span class="dv">2</span>),
+            <span class="dt">d_max =</span> <span class="kw">specify_decimal</span>(<span class="kw">max</span>(cohenD),<span class="dv">2</span>),
+            <span class="dt">d_str =</span> <span class="kw">str_glue</span>(<span class="st">&#39;{d_min}-{d_max}&#39;</span>))</code></pre></div>
+<pre><code>## `summarise()` regrouping output by &#39;test_vars&#39; (override with `.groups` argument)</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">focus_results_ranges <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">filter</span>(test_vars<span class="op">==</span><span class="st">&quot;pvertex_vs_tvertex&quot;</span>, conntype<span class="op">==</span><span class="st">&quot;focus_effect&quot;</span>)  <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">pull</span>(d_str)</code></pre></div>
+<pre><code>## 0.14-0.96</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pvertex_vs_tvolume &lt;-<span class="st"> </span>subject_focus_wrgl <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(subcort_ROI, YeoNet, conntype) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">do</span>(<span class="kw">tidy</span>(<span class="kw">t.test</span>(.<span class="op">$</span>pvertex, .<span class="op">$</span>tvolume, <span class="dt">paired =</span> <span class="ot">TRUE</span>))) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">cohenD =</span> statistic<span class="op">/</span><span class="kw">sqrt</span>(parameter <span class="op">+</span><span class="st"> </span><span class="dv">1</span>))
+
+pvertex_vs_tvolume_ranges &lt;-<span class="st"> </span>pvertex_vs_tvolume <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">filter</span>(conntype <span class="op">==</span><span class="st"> &quot;same_net&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">summarise</span>(<span class="dt">est_min =</span> <span class="kw">specify_decimal</span>(<span class="kw">min</span>(estimate),<span class="dv">2</span>),
+            <span class="dt">est_max =</span> <span class="kw">specify_decimal</span>(<span class="kw">max</span>(estimate),<span class="dv">2</span>), 
+            <span class="dt">est_str =</span> <span class="kw">str_glue</span>(<span class="st">&#39;{est_min}-{est_max}&#39;</span>),
+            <span class="dt">d_min =</span> <span class="kw">specify_decimal</span>(<span class="kw">min</span>(cohenD),<span class="dv">2</span>),
+            <span class="dt">d_max =</span> <span class="kw">specify_decimal</span>(<span class="kw">max</span>(cohenD),<span class="dv">2</span>),
+            <span class="dt">d_str =</span> <span class="kw">str_glue</span>(<span class="st">&#39;{d_min}-{d_max}&#39;</span>))</code></pre></div>
+<p>While subcortical-cortical correlations are noticeably weaker than the cortical-cortical correlations plotted in Figure 1, for all cortical-timeseries extraction methods, for all four networks, we observed that the correlation to the expected subregions of the striatum, thalamus and striatum are positive, and greater than the correlations of these cortical networks to other subregions. Moreover, we observed that this expected pattern is strengthened when using a surface-based cortical timeseries extraction approach, as compared to the volume-based approach (cohen D (min-max) = 0.22-0.99). The pattern is again strengthened when using PINT, the personalized surface-based approach, as opposed to the template surface-based approach (cohen D (min-max) = 0.14-0.96). In total, moving from a volume-based cortical timeseries extract methods to PINT increased the correlation with the expected cortical subregions by an effect size of 0.03-0.99, across the four cortical networks and subregions tested (see suppl Table 3).</p>
+
+</div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+<a href="sub-cortical-cortical-stats-left-and-right.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="cortical-cortical-results.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+    </div>
+  </div>
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/lunr.js"></script>
+<script src="libs/gitbook-2.6.7/js/clipboard.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-clipboard.js"></script>
+<script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+"sharing": {
+"github": false,
+"facebook": true,
+"twitter": true,
+"linkedin": false,
+"weibo": false,
+"instapaper": false,
+"vk": false,
+"all": ["facebook", "twitter", "linkedin", "weibo", "instapaper"]
+},
+"fontsettings": {
+"theme": "white",
+"family": "sans",
+"size": 2
+},
+"edit": {
+"link": "https://github.com/TIGRLab/SZ_PINT/edit/master/notebooks/Rmd/03_subcortical_cortical_stats_hemi.Rmd",
+"text": "Edit"
+},
+"history": {
+"link": null,
+"text": null
+},
+"view": {
+"link": null,
+"text": null
+},
+"download": ["SSD_PINT_full.pdf"],
+"toc": {
+"collapse": "section"
+},
+"toolbar": {
+"position": "fixed"
+},
+"search": true,
+"share": {
+"github": true
+}
+});
+});
+</script>
+
+</body>
+
+</html>

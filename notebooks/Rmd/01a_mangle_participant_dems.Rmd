@@ -188,6 +188,34 @@ ZHH_pheno %>% filter(dataset == "ZHH", subject == "sub-11082")
 ZHH_pheno <- ZHH_pheno %>% distinct()
 ```
 
+We were missing some of the clinical in the other sheets so we will get them back here
+
+```{r, eval = FALSE}
+ZHH_restricted_SSD <- ZHH_pheno %>%
+  select(-Age) %>%
+  inner_join(ZHH_SZ %>% 
+               mutate(SessNo = as.character(SessNo)), 
+             by = c("SessNo")) %>%
+  select(-V1, -grid)
+
+ZHH_restricted_HC <- ZHH_pheno %>% 
+  select(-Age) %>%
+  inner_join(ZHH_CRTL %>% 
+               mutate(SessNo = as.character(SessNo)), 
+               by = c("SessNo")) %>%
+  select(-V1, -GRID)
+
+ZHH_restricted <- bind_rows(ZHH_restricted_SSD, ZHH_restricted_HC)
+
+ZHH_restricted %>%
+  write.csv(here('data', 'processed', 'pheno', '20200722_ZHH_clinical.csv'))
+```
+
+```{r}
+ZHH_SZ %>% select(SessNo)
+```
+
+
 
 
 #### the COBRE cohort

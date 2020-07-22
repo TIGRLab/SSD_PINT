@@ -18,7 +18,7 @@ knitr::opts_chunk$set(eval = FALSE)
 ```
 
 
-```{r}
+```{r eval=TRUE}
 library(tidyverse)
 library(here)
 ```
@@ -95,8 +95,10 @@ usable_scans %>%
   select(subject_id, dataset, num_scans) %>%
   drop_na(num_scans) %>%
   distinct() %>%
-  count()
+  count(dataset)
 ```
+
+
 
 ## now glob for all of the PINT outputs
 
@@ -187,29 +189,56 @@ GRIDs_w_cerebellum_cutoff <- c(7793, 7834, 9405)
 mean_fd_thres <- 0.5
 perc_fd_thres <- 50
 
-pre_qa <- bolds_condensed %>%
+pre_pre_qa <- bolds_condensed %>%
   inner_join(usable_scans %>% select(subject, dataset, num_scans), by = c("subject", "dataset")) %>%
   drop_na(num_scans) %>%
   inner_join(simple_pheno %>% select(subject, dataset, DX, Site), by = c("subject", "dataset")) %>%
-  inner_join(all_surfs, by = c("subject"="SubjID", "dataset")) %>%
+  inner_join(all_surfs, by = c("subject"="SubjID", "dataset"))
+pre_qa <- pre_pre_qa %>%
     filter(!(subject_id %in% GRIDs_w_cerebellum_cutoff))
 ```
 
 ```{r}
 
-pre_qa_counts <- pre_qa %>%
-  select(subject, dataset, DX) %>%
+pre_pre_qa_counts <- pre_pre_qa %>%
+  select(subject, Site, DX) %>%
   distinct() %>%
-  count(DX)
+  count(DX, Site) %>%
+  rename(n_before_anat_qa = n)
+
+pre_pre_qa_ses_counts <- pre_pre_qa %>%
+  select(subject, Site, DX, session) %>%
+  distinct() %>%
+  count(DX, Site) %>%
+  rename(n_ses_before_anat_qa = n)
+
+pre_qa_counts <- pre_qa %>%
+  select(subject, Site, DX) %>%
+  distinct() %>%
+  count(DX, Site)
 
 qa_passes_pheno <- pre_qa %>%
   filter(fd_mean < 0.5, fd_perc < 50, size_t > 100) 
 
-qa_passes_pheno %>%
-  select(subject, dataset, DX) %>%
+(sub_numbers_table <- qa_passes_pheno %>%
+  select(subject, Site, DX) %>%
   distinct() %>%
-  count(DX) %>%
-  inner_join(pre_qa_counts, by = "DX", suffix = c("_after_qa", "_before_qa"))
+  count(DX, Site) %>%
+  inner_join(pre_qa_counts, by = c("DX", "Site"), suffix = c("_after_fmri_qa", "_before_qa")) %>%
+  inner_join(pre_pre_qa_counts, by = c("DX", "Site")) %>%
+  inner_join(pre_pre_qa_ses_counts, by = c("DX", "Site")))
+```
+
+## write this table out to csv - than read the csv and print it
+
+```{r}
+write_csv(sub_numbers_table, here("data", "processed", "pheno", "pre_and_post_qa_counts.csv"))
+
+```
+
+```{r eval = TRUE}
+read_csv(here("data", "processed", "pheno", "pre_and_post_qa_counts.csv")) %>%
+  knitr::kable()
 ```
 
 ## who is still missing a PINT output?
@@ -353,7 +382,7 @@ pheno %>%
 
 ```
 ```{r}
-qa_passes_pheno %>%
+bold_scan_params <- qa_passes_pheno %>%
   mutate(scan_length = size_t*2/60,
          spacing_x_round = round(spacing_x, 3),
          spacing_z_round = round(spacing_z,3)) %>%
@@ -365,10 +394,16 @@ qa_passes_pheno %>%
   ungroup() %>%
   group_by(Site) %>%
   arrange(-n) %>%
-  slice(1) %>%
-  t()
+  slice(1) 
 
+write_csv(bold_scan_params, here("data", "processed", "pheno", "bold_scan_summary.csv"))
 ```
+
+```{r eval = TRUE}
+read_csv(here("data", "processed", "pheno", "bold_scan_summary.csv")) %>%
+  t()
+```
+
 
 ## adding matching for the ds00030 subsample first...
 

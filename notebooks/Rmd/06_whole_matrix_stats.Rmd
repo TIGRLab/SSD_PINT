@@ -117,7 +117,7 @@ all_corZ_results <- pheno %>%
   mutate(the_corrs = map2(.$outputprefix, .$dataset,
                               ~run_read_all_subject_timeseries_and_wholebrain_corZ(.x, .y)))
 
-save(all_corZ_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
+#save(all_corZ_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
 saveRDS(all_corZ_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_cache.rds"))
 ```
 

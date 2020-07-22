@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html >
+
+<head>
+
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Chapter 5 Multi-Dimensional Scaling Stats on PINT ROI locations | SSD PINT analyses</title>
+  <meta name="description" content="This contains the analysis reported with the SSD pint paper">
+  <meta name="generator" content="bookdown  and GitBook 2.6.7">
+
+  <meta property="og:title" content="Chapter 5 Multi-Dimensional Scaling Stats on PINT ROI locations | SSD PINT analyses" />
+  <meta property="og:type" content="book" />
+  
+  
+  <meta property="og:description" content="This contains the analysis reported with the SSD pint paper" />
+  <meta name="github-repo" content="https://github.com/TIGRLab/STOP-PD_ACNP" />
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Chapter 5 Multi-Dimensional Scaling Stats on PINT ROI locations | SSD PINT analyses" />
+  
+  <meta name="twitter:description" content="This contains the analysis reported with the SSD pint paper" />
+  
+
+<meta name="author" content="Erin Dickie">
+
+
+<meta name="date" content="2020-02-13">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  
+  
+<link rel="prev" href="stats-on-the-pint-summary-displacement-values.html">
+<link rel="next" href="seedcorr-area-stats.html">
+<script src="libs/jquery-2.2.3/jquery.min.js"></script>
+<link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code > span.dt { color: #902000; } /* DataType */
+code > span.dv { color: #40a070; } /* DecVal */
+code > span.bn { color: #40a070; } /* BaseN */
+code > span.fl { color: #40a070; } /* Float */
+code > span.ch { color: #4070a0; } /* Char */
+code > span.st { color: #4070a0; } /* String */
+code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code > span.ot { color: #007020; } /* Other */
+code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code > span.fu { color: #06287e; } /* Function */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #880000; } /* Constant */
+code > span.sc { color: #4070a0; } /* SpecialChar */
+code > span.vs { color: #4070a0; } /* VerbatimString */
+code > span.ss { color: #bb6688; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #19177c; } /* Variable */
+code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #666666; } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #bc7a00; } /* Preprocessor */
+code > span.at { color: #7d9029; } /* Attribute */
+code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+</style>
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+</head>
+
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+
+<ul class="summary">
+<li><a href="./">R-stats in SSD PINT paper</a></li>
+
+<li class="divider"></li>
+<li class="chapter" data-level="1" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i><b>1</b> The index page</a></li>
+<li class="chapter" data-level="2" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html"><i class="fa fa-check"></i><b>2</b> Mangle participant demographics</a><ul>
+<li class="chapter" data-level="2.1" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#coding-zhh-data-by-session"><i class="fa fa-check"></i><b>2.1</b> Coding ZHH data by session</a></li>
+<li class="chapter" data-level="2.2" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#note---re-picking-motion-cutoffs"><i class="fa fa-check"></i><b>2.2</b> Note - re picking motion cutoffs</a></li>
+<li class="chapter" data-level="2.3" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#now-looking-at-what-we-have-from-cobre"><i class="fa fa-check"></i><b>2.3</b> Now looking at what we have from COBRE</a></li>
+<li class="chapter" data-level="2.4" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#now-looking-at-the-cnp-we-have.."><i class="fa fa-check"></i><b>2.4</b> Now looking at the CNP we have..</a></li>
+<li class="chapter" data-level="2.5" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#add-where-are-is-the-cmh-demographic-info.."><i class="fa fa-check"></i><b>2.5</b> add where are is the CMH demographic info..</a></li>
+<li class="chapter" data-level="2.6" data-path="mangle-participant-demographics.html"><a href="mangle-participant-demographics.html#extra-little-bit-for-traking-down-missing-cobre"><i class="fa fa-check"></i><b>2.6</b> extra little bit for traking down “missing” COBRE</a></li>
+</ul></li>
+<li class="chapter" data-level="3" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html"><i class="fa fa-check"></i><b>3</b> Check completion and add MR QA</a><ul>
+<li class="chapter" data-level="3.1" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#get-a-list-of-available-bold-and-t1w-files-from-the-mriqc-outputs"><i class="fa fa-check"></i><b>3.1</b> Get a list of available bold and T1w files (from the mriqc outputs)</a><ul>
+<li class="chapter" data-level="3.1.1" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#the-list-of-usable-scans-is-all-participants-with-both-t1w-and-bold-data"><i class="fa fa-check"></i><b>3.1.1</b> the list of usable scans is all participants with both T1w and bold data</a></li>
+</ul></li>
+<li class="chapter" data-level="3.2" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#now-glob-for-all-of-the-pint-outputs"><i class="fa fa-check"></i><b>3.2</b> now glob for all of the PINT outputs</a></li>
+<li class="chapter" data-level="3.3" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#read-in-the-combined-demographics-from-the-last-chapter"><i class="fa fa-check"></i><b>3.3</b> read in the combined demographics from the last chapter</a></li>
+<li class="chapter" data-level="3.4" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#also-read-in-an-concatenate-all-the-surface-area-info-from-freesurfer"><i class="fa fa-check"></i><b>3.4</b> also read in an concatenate all the surface area info from freesurfer</a></li>
+<li class="chapter" data-level="3.5" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#anti-join-the-pheno-data-with-the-usable-scan-data-to-see-if-we-have-everything.."><i class="fa fa-check"></i><b>3.5</b> anti-join the pheno data with the usable scan data to see if we have everything..</a></li>
+<li class="chapter" data-level="3.6" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#setting-the-motion-threshold"><i class="fa fa-check"></i><b>3.6</b> Setting the motion threshold:</a></li>
+<li class="chapter" data-level="3.7" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#who-is-still-missing-a-pint-output"><i class="fa fa-check"></i><b>3.7</b> who is still missing a PINT output?</a></li>
+<li class="chapter" data-level="3.8" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#selecting-scans-with-least-motion"><i class="fa fa-check"></i><b>3.8</b> Selecting scans with least motion</a></li>
+<li class="chapter" data-level="3.9" data-path="check-completion-and-add-mr-qa.html"><a href="check-completion-and-add-mr-qa.html#final-mangle-of-the-phenotypic-data-transforming-variables"><i class="fa fa-check"></i><b>3.9</b> final mangle of the phenotypic data (transforming variables)</a></li>
+</ul></li>
+<li class="chapter" data-level="4" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html"><i class="fa fa-check"></i><b>4</b> Stats on the PINT summary displacement values</a><ul>
+<li class="chapter" data-level="4.1" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#the-paths-to-data"><i class="fa fa-check"></i><b>4.1</b> The paths to data</a></li>
+<li class="chapter" data-level="4.2" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#run-for-the-whole-head"><i class="fa fa-check"></i><b>4.2</b> run for the whole head</a></li>
+<li class="chapter" data-level="4.3" data-path="stats-on-the-pint-summary-displacement-values.html"><a href="stats-on-the-pint-summary-displacement-values.html#run-linear-model-per-edge"><i class="fa fa-check"></i><b>4.3</b> run linear model per edge</a></li>
+</ul></li>
+<li class="chapter" data-level="5" data-path="multi-dimensional-scaling-stats-on-pint-roi-locations.html"><a href="multi-dimensional-scaling-stats-on-pint-roi-locations.html"><i class="fa fa-check"></i><b>5</b> Multi-Dimensional Scaling Stats on PINT ROI locations</a></li>
+<li class="chapter" data-level="6" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html"><i class="fa fa-check"></i><b>6</b> Seedcorr Area Stats</a><ul>
+<li class="chapter" data-level="6.1" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html#the-paths-to-data-1"><i class="fa fa-check"></i><b>6.1</b> The paths to data</a></li>
+<li class="chapter" data-level="6.2" data-path="seedcorr-area-stats.html"><a href="seedcorr-area-stats.html#known-issues"><i class="fa fa-check"></i><b>6.2</b> Known issues</a></li>
+</ul></li>
+<li class="chapter" data-level="7" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html"><i class="fa fa-check"></i><b>7</b> Sub-cortical Cortical Stats Left and Right</a><ul>
+<li class="chapter" data-level="7.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#the-paths-to-data-2"><i class="fa fa-check"></i><b>7.1</b> The paths to data</a><ul>
+<li class="chapter" data-level="7.1.1" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#this-reads-all-the-subcortical-files-it-can-find"><i class="fa fa-check"></i><b>7.1.1</b> This reads all the subcortical files it can find</a></li>
+<li class="chapter" data-level="7.1.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#merge-with-the-phenotypic-data"><i class="fa fa-check"></i><b>7.1.2</b> merge with the phenotypic data</a></li>
+</ul></li>
+<li class="chapter" data-level="7.2" data-path="sub-cortical-cortical-stats-left-and-right.html"><a href="sub-cortical-cortical-stats-left-and-right.html#make-a-subject-table-from-resuts-pheno"><i class="fa fa-check"></i><b>7.2</b> make a subject table from resuts pheno</a></li>
+</ul></li>
+<li class="chapter" data-level="8" data-path="is-pint-focusing-cortical-subcortical-connectivity.html"><a href="is-pint-focusing-cortical-subcortical-connectivity.html"><i class="fa fa-check"></i><b>8</b> Is PINT “focusing” cortical subcortical connectivity</a></li>
+<li class="chapter" data-level="9" data-path="trying-to-calculate-an-vs-off-diagonal-term.html"><a href="trying-to-calculate-an-vs-off-diagonal-term.html"><i class="fa fa-check"></i><b>9</b> trying to calculate an vs off diagonal term</a></li>
+<li class="chapter" data-level="10" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html"><i class="fa fa-check"></i><b>10</b> Cortical-cortical results</a><ul>
+<li class="chapter" data-level="10.1" data-path="cortical-cortical-results.html"><a href="cortical-cortical-results.html#to-do---rainclouds-for-withing-between-changes-in-cortical-cortical"><i class="fa fa-check"></i><b>10.1</b> To do - rainclouds for withing between changes in cortical cortical??</a></li>
+</ul></li>
+<li class="chapter" data-level="11" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html"><i class="fa fa-check"></i><b>11</b> Whole Connectome Results</a><ul>
+<li class="chapter" data-level="11.1" data-path="whole-connectome-results.html"><a href="whole-connectome-results.html#the-paths-to-data-3"><i class="fa fa-check"></i><b>11.1</b> The paths to data</a></li>
+</ul></li>
+<li class="chapter" data-level="12" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html"><i class="fa fa-check"></i><b>12</b> Code for reading in all the timeseries..</a><ul>
+<li class="chapter" data-level="12.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-was-run-once-in-order-to-detemine-the-too-small-subcortical-rois"><i class="fa fa-check"></i><b>12.1</b> This was run once in order to detemine the too small subcortical ROIs</a><ul>
+<li class="chapter" data-level="12.1.1" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#this-reads-all-the-subcortical-files-it-can-find-1"><i class="fa fa-check"></i><b>12.1.1</b> This reads all the subcortical files it can find</a></li>
+<li class="chapter" data-level="12.1.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#merge-with-the-phenotypic-data-1"><i class="fa fa-check"></i><b>12.1.2</b> merge with the phenotypic data</a></li>
+</ul></li>
+<li class="chapter" data-level="12.2" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#filters-out-some-unwanted-edges-before-fdr-correction"><i class="fa fa-check"></i><b>12.2</b> filters out some unwanted edges before FDR correction</a></li>
+<li class="chapter" data-level="12.3" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-co"><i class="fa fa-check"></i><b>12.3</b> Make co</a></li>
+<li class="chapter" data-level="12.4" data-path="code-for-reading-in-all-the-timeseries-.html"><a href="code-for-reading-in-all-the-timeseries-.html#make-table-fdr-corrected-edges-that-survive-correction"><i class="fa fa-check"></i><b>12.4</b> make table FDR corrected Edges that survive correction</a></li>
+</ul></li>
+<li class="chapter" data-level="13" data-path="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><a href="calculate-weighted-subject-scores-by-chopping-up-the-matrix.html"><i class="fa fa-check"></i><b>13</b> calculate weighted subject scores by chopping up the matrix</a></li>
+<li class="divider"></li>
+<li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
+
+</ul>
+
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">SSD PINT analyses</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<div id="multi-dimensional-scaling-stats-on-pint-roi-locations" class="section level1">
+<h1><span class="header-section-number">Chapter 5</span> Multi-Dimensional Scaling Stats on PINT ROI locations</h1>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(tidyverse)</code></pre></div>
+<pre><code>## ── Attaching packages ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse 1.2.1 ──</code></pre>
+<pre><code>## ✔ ggplot2 3.1.0       ✔ purrr   0.2.5  
+## ✔ tibble  2.0.1       ✔ dplyr   0.8.0.1
+## ✔ tidyr   0.8.2       ✔ stringr 1.3.1  
+## ✔ readr   1.3.0       ✔ forcats 0.3.0</code></pre>
+<pre><code>## ── Conflicts ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+## ✖ dplyr::filter() masks stats::filter()
+## ✖ dplyr::lag()    masks stats::lag()</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(broom)
+<span class="kw">library</span>(igraph)</code></pre></div>
+<pre><code>## 
+## Attaching package: &#39;igraph&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:dplyr&#39;:
+## 
+##     as_data_frame, groups, union</code></pre>
+<pre><code>## The following objects are masked from &#39;package:purrr&#39;:
+## 
+##     compose, simplify</code></pre>
+<pre><code>## The following object is masked from &#39;package:tidyr&#39;:
+## 
+##     crossing</code></pre>
+<pre><code>## The following object is masked from &#39;package:tibble&#39;:
+## 
+##     as_data_frame</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     decompose, spectrum</code></pre>
+<pre><code>## The following object is masked from &#39;package:base&#39;:
+## 
+##     union</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(here)</code></pre></div>
+<pre><code>## here() starts at /mnt/tigrlab/projects/edickie/code/SZ_PINT</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">source</span>(<span class="kw">here</span>(<span class="st">&#39;code/R/settings_helpers.R&#39;</span>))
+
+Yeo7_2011_80verts &lt;-<span class="st"> </span><span class="kw">read_Yeo72011_template</span>()
+
+YeoNet_colours =<span class="st"> </span><span class="kw">define_Yeo7_colours</span>()
+
+pheno &lt;-<span class="st"> </span><span class="kw">read_pheno_file</span>() <span class="op">%&gt;%</span><span class="st">  </span><span class="kw">drop_na</span>(DX)</code></pre></div>
+<pre><code>## Parsed with column specification:
+## cols(
+##   .default = col_double(),
+##   dataset = col_character(),
+##   subject_id = col_character(),
+##   session_id = col_character(),
+##   task_id = col_character(),
+##   run_id = col_character(),
+##   acq_id = col_character(),
+##   subject = col_character(),
+##   session = col_character(),
+##   cmh_session_id = col_character(),
+##   DX = col_character(),
+##   Sex = col_character(),
+##   Site = col_character(),
+##   Scanner = col_character(),
+##   isFEP = col_character(),
+##   ghost_NoGhost = col_character(),
+##   filename = col_character()
+## )</code></pre>
+<pre><code>## See spec(...) for full column specifications.</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">subsub &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="kw">file.path</span>(output_base,<span class="st">&#39;postPINT2_sub2sub_all_qa_passes.csv&#39;</span>))</code></pre></div>
+<pre><code>## Parsed with column specification:
+## cols(
+##   subid1 = col_character(),
+##   subid2 = col_character(),
+##   roiidx = col_double(),
+##   distance = col_double()
+## )</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mds_sub2sub &lt;-<span class="st"> </span><span class="cf">function</span>(data) {
+  ## filter allsub2sub distances to only include the qced subids
+  ## then run multidimensional scaling to resolve the sub2sub distances to a 2D plane
+  distout &lt;-<span class="st"> </span>data <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">graph_from_data_frame</span>() <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">get.adjacency</span>(<span class="dt">attr =</span> <span class="st">&quot;distance&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">as.matrix</span>() <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">cmdscale</span>(<span class="dt">k=</span><span class="dv">2</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">as.data.frame</span>()
+  
+  
+  <span class="kw">names</span>(distout) &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&#39;mds1&#39;</span>,<span class="st">&#39;mds2&#39;</span>)
+  distout<span class="op">$</span>src_file &lt;-<span class="st"> </span><span class="kw">row.names</span>(distout)
+  
+  distout &lt;-<span class="st"> </span><span class="kw">as.tibble</span>(distout) <span class="op">%&gt;%</span>
+<span class="st">    </span><span class="kw">select</span>(src_file, mds1, mds2)
+  
+  <span class="kw">return</span>(<span class="kw">as.tibble</span>(distout))
+}</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">subsub <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">filter</span>(roiidx <span class="op">==</span><span class="st"> </span><span class="dv">1</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(subid1, subid2, distance) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mds_sub2sub</span>()</code></pre></div>
+<pre><code>## Warning: `as.tibble()` is deprecated, use `as_tibble()` (but mind the new semantics).
+## This warning is displayed once per session.</code></pre>
+<pre><code>## # A tibble: 494 x 3
+##    src_file                                           mds1  mds2
+##    &lt;chr&gt;                                             &lt;dbl&gt; &lt;dbl&gt;
+##  1 sub-10159_task-rest_bold_desc-clean_bold         -8.90   6.21
+##  2 sub-10161_ses-03_task-rest_bold_desc-clean_bold -12.4   -6.73
+##  3 sub-10185_ses-03_task-rest_bold_desc-clean_bold -16.8    2.83
+##  4 sub-10186_ses-02_task-rest_bold_desc-clean_bold   2.30  -6.17
+##  5 sub-10206_task-rest_bold_desc-clean_bold          6.98  -6.90
+##  6 sub-10217_task-rest_bold_desc-clean_bold          0.334  5.22
+##  7 sub-10225_task-rest_bold_desc-clean_bold         -5.33  -2.67
+##  8 sub-10227_task-rest_bold_desc-clean_bold         -1.44   7.06
+##  9 sub-10228_task-rest_bold_desc-clean_bold         -2.86  -3.21
+## 10 sub-10235_task-rest_bold_desc-clean_bold          3.24   1.98
+## # … with 484 more rows</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mds_results &lt;-<span class="st"> </span>subsub <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(roiidx) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">nest</span>() <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">sdist =</span> <span class="kw">map</span>(data, <span class="op">~</span><span class="kw">mds_sub2sub</span>(.x))) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">select</span>(roiidx, sdist) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">unnest</span>()</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mds_pheno &lt;-<span class="st"> </span>pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">src_file =</span> <span class="kw">str_replace</span>(filename, <span class="st">&#39;_summary.csv&#39;</span>,<span class="st">&#39;&#39;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">inner_join</span>(mds_results, <span class="dt">by =</span> <span class="st">&quot;src_file&quot;</span>) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">inner_join</span>(Yeo7_2011_80verts, <span class="dt">by =</span> <span class="st">&quot;roiidx&quot;</span>) </code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">sdist_manova &lt;-<span class="st"> </span>mds_pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(SHORTNAME) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">do</span>(<span class="kw">tidy</span>(<span class="kw">manova</span>(<span class="kw">cbind</span>(mds1, mds2) <span class="op">~</span><span class="st"> </span>DX<span class="op">*</span>Age_pt <span class="op">+</span><span class="st"> </span>Sex <span class="op">+</span><span class="st"> </span>fd_mean_pt <span class="op">+</span><span class="st"> </span>Scanner <span class="op">+</span><span class="st"> </span>SurfArea_pt,.))) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ungroup</span>() <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">group_by</span>(term) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">p_FDR  =</span> <span class="kw">p.adjust</span>(p.value, <span class="dt">method =</span> <span class="st">&quot;fdr&quot;</span>))</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">sdist_manova <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">filter</span>(p_FDR <span class="op">&lt;</span><span class="st"> </span><span class="fl">0.1</span>) <span class="op">%&gt;%</span><span class="st"> </span>knitr<span class="op">::</span><span class="kw">kable</span>()</code></pre></div>
+<table>
+<thead>
+<tr class="header">
+<th align="left">SHORTNAME</th>
+<th align="left">term</th>
+<th align="right">df</th>
+<th align="right">pillai</th>
+<th align="right">statistic</th>
+<th align="right">num.df</th>
+<th align="right">den.df</th>
+<th align="right">p.value</th>
+<th align="right">p_FDR</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">DAF1R</td>
+<td align="left">Age_pt</td>
+<td align="right">1</td>
+<td align="right">0.0333245</td>
+<td align="right">8.308063</td>
+<td align="right">2</td>
+<td align="right">482</td>
+<td align="right">0.0002836</td>
+<td align="right">0.0226852</td>
+</tr>
+<tr class="even">
+<td align="left">DAF2R</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0521536</td>
+<td align="right">3.233081</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0012275</td>
+<td align="right">0.0245509</td>
+</tr>
+<tr class="odd">
+<td align="left">DAP3L</td>
+<td align="left">SurfArea_pt</td>
+<td align="right">1</td>
+<td align="right">0.0373781</td>
+<td align="right">9.357897</td>
+<td align="right">2</td>
+<td align="right">482</td>
+<td align="right">0.0001030</td>
+<td align="right">0.0082400</td>
+</tr>
+<tr class="even">
+<td align="left">DAT1R</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0419300</td>
+<td align="right">2.585731</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0085038</td>
+<td align="right">0.0606834</td>
+</tr>
+<tr class="odd">
+<td align="left">DMF2L</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0500795</td>
+<td align="right">3.101205</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0018362</td>
+<td align="right">0.0270478</td>
+</tr>
+<tr class="even">
+<td align="left">DMP1L</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0444748</td>
+<td align="right">2.746233</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0053180</td>
+<td align="right">0.0425443</td>
+</tr>
+<tr class="odd">
+<td align="left">DMT1L</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0488459</td>
+<td align="right">3.022896</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0023280</td>
+<td align="right">0.0270478</td>
+</tr>
+<tr class="even">
+<td align="left">DMT2R</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0487598</td>
+<td align="right">3.017440</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0023667</td>
+<td align="right">0.0270478</td>
+</tr>
+<tr class="odd">
+<td align="left">FPF4L</td>
+<td align="left">SurfArea_pt</td>
+<td align="right">1</td>
+<td align="right">0.0240749</td>
+<td align="right">5.945181</td>
+<td align="right">2</td>
+<td align="right">482</td>
+<td align="right">0.0028143</td>
+<td align="right">0.0750485</td>
+</tr>
+<tr class="even">
+<td align="left">FPF5R</td>
+<td align="left">Age_pt</td>
+<td align="right">1</td>
+<td align="right">0.0277014</td>
+<td align="right">6.866231</td>
+<td align="right">2</td>
+<td align="right">482</td>
+<td align="right">0.0011474</td>
+<td align="right">0.0458968</td>
+</tr>
+<tr class="odd">
+<td align="left">FPF5R</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0920534</td>
+<td align="right">5.825870</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0000003</td>
+<td align="right">0.0000221</td>
+</tr>
+<tr class="even">
+<td align="left">FPP1L</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0380182</td>
+<td align="right">2.339828</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0171699</td>
+<td align="right">0.0879449</td>
+</tr>
+<tr class="odd">
+<td align="left">FPP2R</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0412005</td>
+<td align="right">2.539798</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0097119</td>
+<td align="right">0.0606834</td>
+</tr>
+<tr class="even">
+<td align="left">SMF2R</td>
+<td align="left">fd_mean_pt</td>
+<td align="right">1</td>
+<td align="right">0.0302949</td>
+<td align="right">7.529166</td>
+<td align="right">2</td>
+<td align="right">482</td>
+<td align="right">0.0006028</td>
+<td align="right">0.0482228</td>
+</tr>
+<tr class="odd">
+<td align="left">SMI1L</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0371739</td>
+<td align="right">2.286882</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0199159</td>
+<td align="right">0.0937220</td>
+</tr>
+<tr class="even">
+<td align="left">VAF2R</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0458917</td>
+<td align="right">2.835783</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0040793</td>
+<td align="right">0.0407933</td>
+</tr>
+<tr class="odd">
+<td align="left">VAF4R</td>
+<td align="left">Age_pt</td>
+<td align="right">1</td>
+<td align="right">0.0231541</td>
+<td align="right">5.712415</td>
+<td align="right">2</td>
+<td align="right">482</td>
+<td align="right">0.0035324</td>
+<td align="right">0.0941985</td>
+</tr>
+<tr class="even">
+<td align="left">VAI1R</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0831686</td>
+<td align="right">5.239172</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0000019</td>
+<td align="right">0.0000780</td>
+</tr>
+<tr class="odd">
+<td align="left">VAP1L</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0378815</td>
+<td align="right">2.331250</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0175890</td>
+<td align="right">0.0879449</td>
+</tr>
+<tr class="even">
+<td align="left">VAP2L</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0397492</td>
+<td align="right">2.448523</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0126192</td>
+<td align="right">0.0721098</td>
+</tr>
+<tr class="odd">
+<td align="left">VI01R</td>
+<td align="left">SurfArea_pt</td>
+<td align="right">1</td>
+<td align="right">0.0241456</td>
+<td align="right">5.963079</td>
+<td align="right">2</td>
+<td align="right">482</td>
+<td align="right">0.0027656</td>
+<td align="right">0.0750485</td>
+</tr>
+<tr class="even">
+<td align="left">VI02L</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0558513</td>
+<td align="right">3.468893</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0005922</td>
+<td align="right">0.0157924</td>
+</tr>
+<tr class="odd">
+<td align="left">VI03L</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0411165</td>
+<td align="right">2.534513</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0098611</td>
+<td align="right">0.0606834</td>
+</tr>
+<tr class="even">
+<td align="left">VI05R</td>
+<td align="left">Scanner</td>
+<td align="right">4</td>
+<td align="right">0.0445311</td>
+<td align="right">2.749793</td>
+<td align="right">8</td>
+<td align="right">966</td>
+<td align="right">0.0052625</td>
+<td align="right">0.0425443</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mds_pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">filter</span>(SHORTNAME <span class="op">%in%</span><span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;DAF1R&quot;</span>, <span class="st">&quot;FPF5R&quot;</span>, <span class="st">&quot;VAF4R&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">x =</span> mds1, <span class="dt">y =</span> mds2, <span class="dt">color =</span> DX)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">geom_point</span>(<span class="dt">alpha =</span> <span class="fl">0.1</span>) <span class="op">+</span>
+<span class="st">  </span><span class="kw">scale_color_manual</span>(<span class="dt">values =</span> <span class="kw">c</span>(<span class="st">&quot;grey20&quot;</span>,<span class="st">&quot;red&quot;</span>)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_wrap</span>(<span class="op">~</span>SHORTNAME, <span class="dt">ncol =</span> <span class="dv">5</span>)</code></pre></div>
+<p><img src="02b_MDS_stats_files/figure-html/unnamed-chunk-8-1.png" width="768" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mds_pheno <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">filter</span>(SHORTNAME <span class="op">%in%</span><span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;DAF1R&quot;</span>, <span class="st">&quot;FPF5R&quot;</span>, <span class="st">&quot;VAF4R&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">x =</span> mds1, <span class="dt">y =</span> mds2, <span class="dt">color =</span> Age)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">geom_point</span>(<span class="dt">alpha =</span> <span class="fl">0.2</span>) <span class="op">+</span>
+<span class="st">  </span><span class="kw">scale_color_viridis_c</span>() <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_wrap</span>(<span class="op">~</span>SHORTNAME, <span class="dt">ncol =</span> <span class="dv">5</span>)</code></pre></div>
+<p><img src="02b_MDS_stats_files/figure-html/unnamed-chunk-9-1.png" width="768" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mds_pheno <span class="op">%&gt;%</span><span class="st">  </span>
+<span class="st">  </span><span class="kw">mutate</span>(<span class="dt">Age_coarse =</span> <span class="kw">case_when</span>(Age <span class="op">&lt;</span><span class="st"> </span><span class="dv">25</span> <span class="op">~</span><span class="st"> &quot;young adult&quot;</span>,
+                                Age <span class="op">&gt;</span><span class="st"> </span><span class="dv">35</span> <span class="op">~</span><span class="st"> &quot;middle age&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">drop_na</span>(Age_coarse) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">filter</span>(SHORTNAME <span class="op">%in%</span><span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;DAF1R&quot;</span>)) <span class="op">%&gt;%</span>
+<span class="st">  </span><span class="kw">ggplot</span>(<span class="kw">aes</span>(<span class="dt">x =</span> mds1, <span class="dt">y =</span> mds2)) <span class="op">+</span>
+<span class="st">  </span><span class="kw">stat_density_2d</span>(<span class="kw">aes</span>(<span class="dt">fill =</span> <span class="kw">stat</span>(level)), <span class="dt">bins =</span> <span class="dv">8</span>, <span class="dt">geom =</span> <span class="st">&quot;polygon&quot;</span>) <span class="op">+</span>
+<span class="st">  </span><span class="kw">geom_point</span>(<span class="dt">alpha =</span> <span class="fl">0.5</span>, <span class="dt">size =</span> <span class="fl">0.5</span>) <span class="op">+</span>
+<span class="st">  </span><span class="kw">scale_fill_viridis_c</span>() <span class="op">+</span>
+<span class="st">  </span><span class="kw">geom_hline</span>(<span class="dt">yintercept =</span> <span class="dv">0</span>) <span class="op">+</span><span class="st"> </span><span class="kw">geom_vline</span>(<span class="dt">xintercept =</span> <span class="dv">0</span>) <span class="op">+</span>
+<span class="st">  </span><span class="kw">facet_grid</span>(Age_coarse <span class="op">~</span><span class="st"> </span>Site)</code></pre></div>
+<p><img src="02b_MDS_stats_files/figure-html/unnamed-chunk-10-1.png" width="768" /></p>
+
+</div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+<a href="stats-on-the-pint-summary-displacement-values.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="seedcorr-area-stats.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+    </div>
+  </div>
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/lunr.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+"sharing": {
+"github": false,
+"facebook": true,
+"twitter": true,
+"google": false,
+"linkedin": false,
+"weibo": false,
+"instapaper": false,
+"vk": false,
+"all": ["facebook", "google", "twitter", "linkedin", "weibo", "instapaper"]
+},
+"fontsettings": {
+"theme": "white",
+"family": "sans",
+"size": 2
+},
+"edit": {
+"link": "https://github.com/TIGRLab/SZ_PINT/edit/master/02b_MDS_stats.Rmd",
+"text": "Edit"
+},
+"history": {
+"link": null,
+"text": null
+},
+"download": ["SSD_PINT_full.pdf"],
+"toc": {
+"collapse": "section"
+},
+"toolbar": {
+"position": "fixed"
+},
+"search": true
+});
+});
+</script>
+
+</body>
+
+</html>

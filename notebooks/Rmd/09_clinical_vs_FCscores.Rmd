@@ -11,6 +11,7 @@ knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
 ```{r}
 library(tidyverse)
 library(here)
+library(broom)
 ```
 ```{r}
 knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
@@ -40,6 +41,11 @@ pheno_extended <- read_csv(here("data/processed/pheno/qa_pheno_compiled_2020_mar
 ```
 
 ```{r}
+ZHH_extended <- read_csv(here("data/processed/pheno/20200722_ZHH_clinical.csv"))
+```
+
+
+```{r}
 weighted_subject_scores <- read_csv(here("data/processed/mri/all_clinicalplusqa_group/weighted_subject_FC_scores/SSD4cohorts_DXweighted_subject_scores.csv"))
 
 ```
@@ -60,7 +66,8 @@ weighted_subject_scores <- weighted_subject_scores%>%
 ```{r}
 inner_join(pheno, pheno_extended, by = c("subject", "dataset")) %>%
   select(subject, dataset) %>%
-  distinct()
+  distinct() %>%
+  count()
 ```
 ```{r}
 pheno_extended %>%
@@ -94,6 +101,9 @@ with_wFC1 <- weighted_subject_scores %>%
   inner_join(pheno_extended, by = c("subject", "dataset")) %>%
   drop_na(dx)
 ```
+
+
+
 
 ```{r}
 wFC_corrs <- with_wFC1 %>%
@@ -225,6 +235,32 @@ plt <- with_wFC1 %>%
   
 ggdraw(plt)  
 ```
+```{r fig.height=3, fig.width=8}
+with_wFC_zhh %>%
+  filter(WRAT3SS > 60) %>%
+  filter(edge_group %in% c("subcort_to_VI")) %>%
+  ggplot(aes(x = WRAT3SS, y = wFC_score, color = DX)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  scale_color_manual(values = c("grey20","red")) +
+  facet_grid(edge_group~vertex_type, scales = "free_x") +
+  theme_bw() +
+  labs(x = "WRAT Standard score (ZHH Site)")
+  
+```
+```{r fig.height=3, fig.width=8}
+with_wFC_zhh %>%
+  filter(WRAT3SS > 60) %>%
+  filter(edge_group %in% c("subcort_to_FP")) %>%
+  ggplot(aes(x = WRAT3SS, y = wFC_score, color = DX)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  scale_color_manual(values = c("grey20","red")) +
+  facet_grid(edge_group~vertex_type, scales = "free_x") +
+  theme_bw() +
+  labs(x = "WRAT Standard score (ZHH Site)")
+  
+```
 
 ```{r fig.height=3, fig.width=8}
 with_wFC1 %>%
@@ -282,7 +318,27 @@ with_wFC1 %>%
 
 
 
+```{r}
+wf1_edgegroup_num <- unique(with_wFC1$edge_group) %>% length()
+wtar_panss_models_lm_glance <- with_wFC_zhh %>%
+  gather(clinical_measure, clinical_score, WRAT3SS) %>%
+  filter(clinical_score > 70) %>%
+  group_by(edge_group, effect_direction, vertex_type, clinical_measure) %>%
+  do(glance(lm(wFC_score_cliped ~ clinical_score*DX, data = .))) 
 
+wtar_panss_models_tidylm <- with_wFC_zhh %>%
+  gather(clinical_measure, clinical_score, WRAT3SS) %>%
+  filter(clinical_score > 70) %>%
+  group_by(edge_group, effect_direction, vertex_type, clinical_measure) %>%
+  do(tidy(lm(wFC_score_cliped ~ clinical_score*DX, data = .))) %>%
+  filter(term == "clinical_score") %>%
+  mutate(p_bonf = p.value*wf1_edgegroup_num)
+  
+wtar_panss_models_tidylm %>% 
+  arrange(p.value) %>%
+  select(vertex_type, clinical_measure, edge_group, statistic, p.value, p_bonf) %>% 
+knitr::kable()
+```
 
 ```{r}
 wf1_edgegroup_num <- unique(with_wFC1$edge_group) %>% length()
@@ -496,5 +552,5 @@ report_wtar_model_t("subcort_to_VI", "tvolume")
 ### The results write-up
 
 A significant main effect of SSD diagnosis was also observed when models were refitted with an additional covariate of years of Education (see Supplemental Table 4 for all model fits).  When models were fit separately for each site all model fits remained significant for the two larger cohort ZHH and CAMH sample, with more variability observed in the COBRE and UCLA cohorts. 
-Interestingly, hypoconnectivity between the subcortical areas and the frontal-partietal network was negatively correlated with hyperconnectivity between subcortical areas and the visual networks (see Figure 4a). These dysconnectivity patterns were also associated with verbal intelligence (WTAR scores) within participants with SSD from the COBRE and CAMH cohorts (subcortical to VI: template volume `r report_wtar_model_t("subcort_to_VI", "tvolume")` , template surface `r report_wtar_model_t("subcort_to_VI", "tvertex")`, PINT `r report_wtar_model_t("subcort_to_VI", "pvertex")` ; subcortical to FP: template volume `r report_wtar_model_t("subcort_to_FP", "tvolume")` template surface `r report_wtar_model_t("subcort_to_FP", "tvertex")`, PINT `r report_wtar_model_t("subcort_to_FP", "pvertex")`)see Figure 4b). Clinical scores (SANS for CMH, UCLA, ZHH cohorts) nor PANSS total scores (in CAMH and COBRE), were not correlated with any FC weighted scores after correction for multiple comparisons. In the ZHH sample, no significant differences between first episode and chronic SSD participants in FC scores were observed after correction for multiple comparisons ().
+Interestingly, hypoconnectivity between the subcortical areas and the frontal-partietal network was negatively correlated with hyperconnectivity between subcortical areas and the visual networks (see Figure 4a). These dysconnectivity patterns were also associated with verbal intelligence (WTAR scores) within participants with SSD from the COBRE and CAMH cohorts (subcortical to VI: template volume `r report_wtar_model_t("subcort_to_VI", "tvolume")` , template surface `r report_wtar_model_t("subcort_to_VI", "tvertex")`, PINT `r report_wtar_model_t("subcort_to_VI", "pvertex")` ; subcortical to FP: template volume `r report_wtar_model_t("subcort_to_FP", "tvolume")` template surface `r report_wtar_model_t("subcort_to_FP", "tvertex")`, PINT `r report_wtar_model_t("subcort_to_FP", "pvertex")`)see Supplemental Figure 4b). However, these associations between intelligence and functinal connectivity were not observed in the ZHH sample where intelligence was measures using the WRAT. Clinical scores (SANS for CMH, UCLA, ZHH cohorts) nor PANSS total scores (in CAMH and COBRE), were not correlated with any FC weighted scores after correction for multiple comparisons. In the ZHH sample, no significant differences between first episode and chronic SSD participants in FC scores were observed after correction for multiple comparisons ().
 

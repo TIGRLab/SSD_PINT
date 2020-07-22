@@ -60,9 +60,7 @@ all_corZ_cort_results <- pheno %>%
 --- use the cache to load the data
 
 ```{r}
-load(here('data','processed','mri',
-          'all_clinicalplusqa_group','Rdata_cache',
-          '06_wholebrain_results_cache.Rdata'))
+all_corZ_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_cache.rds"))
 
 all_corZ_cort_results <- all_corZ_results %>%
   semi_join(pheno, by = c("subject", "dataset")) %>%

@@ -8,3 +8,23 @@ description: "This contains the analysis reported with the SSD pint paper"
 ---
 
 # The index page
+
+## all the packages in this book
+
+```{r}
+library(tidyverse)
+library(here)
+library(cowplot)
+library(tidygraph)
+library(ggraph)
+library(broom)
+library(ggridges)
+library(igraph)
+library(bookdown)
+library(MatchIt)
+library(effsize)
+```
+
+```{r}
+sessionInfo()
+```
