@@ -1,0 +1,362 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# whole brain prediction
+
+```{r message=FALSE, warning=FALSE}
+library(here)
+library(tidymodels)
+library(vip)
+library(tidyverse)
+```
+
+```{r setting paths}
+# These functions are for reading timeseries files
+source(here('code/R/settings_helpers.R'))
+
+pheno <- read_pheno_file()%>%
+  drop_na(DX) %>%
+  filter(in_matched_sample)
+YeoNet_colours <- define_Yeo7_colours()
+Yeo7_2011_80verts <- read_Yeo72011_template()  
+
+```
+Load the connectivity data
+
+```{r load-cached-results, eval=FALSE}
+load(file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
+
+results_pheno <- all_corZ_results %>%
+  inner_join(pheno, by = c("subject", "dataset")) %>%
+  unnest(cols = c(the_corrs))
+```
+
+## merge if with the pheno data
+
+```{r merge with pheno and clean}
+weighted_subject_scores <- read_csv(here("data/processed/mri/all_clinicalplusqa_group/weighted_subject_FC_scores/SSD4cohorts_DXweighted_subject_scores.csv"))
+# weighted_subject_scores <- read_csv(here("data/processed/mri/all_clinicalplusqa_group/weighted_subject_FC_scores/SSD4cohorts_DXweighted_edgegroupwise_subject_scores.csv")) 
+# weighted_subject_scores <- read_csv(here("data/processed/mri/all_clinicalplusqa_group/weighted_subject_FC_scores/SSD4cohorts_DXweighted_moregroups_subject_scores.csv"))
+
+with_wFC <- weighted_subject_scores %>%
+  inner_join(pheno, by = c("subject", "dataset")) %>%
+  filter(in_matched_sample)
+```
+
+
+
+```{r}
+all_brain_data <- with_wFC %>%
+  filter(in_matched_sample) %>%
+  select(subject, dataset, DX, Age, Sex, fd_mean, Site, vertex_type,
+         edge_group, wFC_score) %>%
+  unite(vt_egdegroup, vertex_type, edge_group) %>%
+  spread(vt_egdegroup, wFC_score) %>%
+  ungroup()
+```
+
+## the data splitting
+
+```{r}
+set.seed(123)
+brain_split <- initial_split(all_brain_data, 
+                            strata = Site)
+
+brain_train <- training(brain_split)
+brain_test  <- testing(brain_split)
+
+set.seed(345)
+folds <- vfold_cv(brain_train, v = 5)
+folds
+```
+
+
+```{r}
+brain_train %>%
+  count(DX, Site)
+```
+```{r}
+brain_test %>%
+  count(DX, Site)
+```
+
+
+
+
+
+
+
+
+  
+  
+## set up a random forest engine with parsnip
+
+```{r}
+# create recipes that drop the columns to get vertex_type specific training features
+rf_tvolume_recipe <- 
+  recipe(DX ~ ., data = all_brain_data) %>%
+  update_role(subject, dataset, new_role = "ID") %>%
+  step_rm(starts_with("pvertex"), starts_with("tvertex"))
+
+rf_tvertex_recipe <- 
+  recipe(DX ~ ., data = all_brain_data) %>%
+  update_role(subject, dataset, new_role = "ID") %>%
+  step_rm(starts_with("pvertex"), starts_with("tvolume"))
+
+rf_pvertex_recipe <- 
+  recipe(DX ~ ., data = all_brain_data) %>%
+  update_role(subject, dataset, new_role = "ID") %>%
+  step_rm(starts_with("tvertex"), starts_with("tvolume"))
+
+```
+
+
+```{r eval = FALSE}
+cores <- parallel::detectCores()
+cores
+```
+
+## specify the random forest model
+
+```{r}
+rf_mod <- 
+  rand_forest(mtry = tune(), min_n = tune(), trees = 1000) %>% 
+  set_engine("ranger", num.threads = 2) %>% 
+  set_mode("classification")
+```
+
+## do the first level cross validated fit on the training sets
+
+### for tvolume
+
+```{r}
+# create the base workflow
+rf_workflow_tvolume <- 
+  workflow() %>% 
+  add_model(rf_mod) %>% 
+  add_recipe(rf_tvolume_recipe)
+
+# runs the cross validated hyper parameter tuning
+set.seed(345)
+rf_res_tvolume <- 
+  rf_workflow_tvolume %>% 
+  tune_grid(resamples = folds,
+            grid = 25,
+            control = control_grid(save_pred = TRUE))
+
+
+## using select best to save the best fit to the 
+rf_best_tvolume <- 
+  rf_res_tvolume %>% 
+  select_best(metric = "roc_auc")
+
+# print the best option
+rf_best_tvolume
+```
+
+
+```{r}
+## using autoplot to plot the results across the parameter grid
+autoplot(rf_res_tvolume)
+```
+
+### running tvertex
+
+```{r}
+# create the base workflow
+rf_workflow_tvertex <- 
+  workflow() %>% 
+  add_model(rf_mod) %>% 
+  add_recipe(rf_tvertex_recipe)
+
+# runs the cross validated hyper parameter tuning
+set.seed(345)
+rf_res_tvertex <- 
+  rf_workflow_tvertex %>% 
+  tune_grid(resamples = folds,
+            grid = 25,
+            control = control_grid(save_pred = TRUE))
+
+
+## using select best to save the best fit to the 
+rf_best_tvertex <- 
+  rf_res_tvertex %>% 
+  select_best(metric = "roc_auc")
+
+# print the best option
+rf_best_tvertex
+```
+
+
+```{r}
+## using autoplot to plot the results across the parameter grid
+autoplot(rf_res_tvertex)
+```
+
+
+### running pvertex
+
+```{r}
+# create the base workflow
+rf_workflow_pvertex <- 
+  workflow() %>% 
+  add_model(rf_mod) %>% 
+  add_recipe(rf_pvertex_recipe)
+
+# runs the cross validated hyper parameter tuning
+set.seed(345)
+rf_res_pvertex <- 
+  rf_workflow_pvertex %>% 
+  tune_grid(resamples = folds,
+            grid = 25,
+            control = control_grid(save_pred = TRUE))
+
+
+## using select best to save the best fit to the 
+rf_best_pvertex <- 
+  rf_res_pvertex %>% 
+  select_best(metric = "roc_auc")
+
+# print the best option
+rf_best_pvertex
+```
+
+```{r}
+## using autoplot to plot the results across the parameter grid
+autoplot(rf_res_pvertex)
+```
+
+## running the model one last time with the picked parameters from above
+
+```{r}
+# update model with hard coded best parameters from the above chunk
+last_rf_mod <- 
+  rand_forest(mtry = 1, min_n = 38, trees = 1000) %>% 
+  set_engine("ranger", num.threads = 2, importance = "impurity") %>% 
+  set_mode("classification")
+```
+
+### running tvolume
+
+```{r}
+# the last workflow
+last_rf_workflow_tvolume <- 
+  rf_workflow_tvolume %>% 
+  update_model(last_rf_mod)
+
+# the last fit is apparently another way of spliting doing the final fit
+set.seed(345)
+last_rf_fit_tvolume <- 
+  last_rf_workflow_tvolume %>% 
+  last_fit(brain_split) ## splits
+
+## print accuracy and roc
+last_rf_fit_tvolume %>% 
+  collect_metrics()
+```
+```{r fig.height=5, fig.width=6}
+## plotting the very important predictors
+last_rf_fit_tvolume %>% 
+  pluck(".workflow", 1) %>%   
+  pull_workflow_fit() %>% 
+  vip(num_features = 100)
+```
+
+
+## fitting tvertex
+
+```{r}
+# the last workflow
+last_rf_workflow_tvertex <- 
+  rf_workflow_tvertex %>% 
+  update_model(last_rf_mod)
+
+# the last fit is apparently another way of spliting doing the final fit
+set.seed(345)
+last_rf_fit_tvertex <- 
+  last_rf_workflow_tvertex %>% 
+  last_fit(brain_split) ## splits
+
+## print accuracy and roc
+last_rf_fit_tvertex %>% 
+  collect_metrics()
+```
+
+```{r fig.height=5, fig.width=6}
+## plotting the very important predictors
+last_rf_fit_tvertex %>% 
+  pluck(".workflow", 1) %>%   
+  pull_workflow_fit() %>% 
+  vip(num_features = 100)
+```
+## fitting pvertex
+
+```{r}
+# the last workflow
+last_rf_workflow_pvertex <- 
+  rf_workflow_pvertex %>% 
+  update_model(last_rf_mod)
+
+# the last fit is apparently another way of spliting doing the final fit
+set.seed(345)
+last_rf_fit_pvertex <- 
+  last_rf_workflow_pvertex %>% 
+  last_fit(brain_split) ## splits
+
+## print accuracy and roc
+last_rf_fit_pvertex %>% 
+  collect_metrics()
+```
+```{r fig.height=5, fig.width=6}
+## plotting the very important predictors
+last_rf_fit_pvertex %>% 
+  pluck(".workflow", 1) %>%   
+  pull_workflow_fit() %>% 
+  vip(num_features = 100)
+```
+
+### ploting the ROC curv 
+
+```{r}
+bind_rows(tvolume = last_rf_fit_tvolume %>% collect_metrics(),
+          tvertex = last_rf_fit_tvertex %>% collect_metrics(),
+          pvertex = last_rf_fit_pvertex %>% collect_metrics(),
+          .id = "vertex_type") %>%
+  spread(.metric, .estimate)
+  
+```
+
+
+
+
+(this one is colour coded across two fits)
+
+```{r}
+rf_auc_tvolume <- 
+  last_rf_fit_tvolume %>% 
+  collect_predictions() %>% 
+  roc_curve(DX, .pred_SSD)
+
+rf_auc_tvertex <- 
+  last_rf_fit_tvertex %>% 
+  collect_predictions() %>% 
+  roc_curve(DX, .pred_SSD)
+
+rf_auc_pvertex <- 
+  last_rf_fit_pvertex %>% 
+  collect_predictions() %>% 
+  roc_curve(DX, .pred_SSD) 
+
+bind_rows(tvolume = rf_auc_tvolume, 
+          tvertex = rf_auc_tvertex,
+          pvertex = rf_auc_pvertex,
+          .id = "vertex_type") %>% 
+  ggplot(aes(x = 1 - specificity, y = sensitivity, col = vertex_type)) + 
+  geom_path(lwd = 1.5, alpha = 0.8) +
+  geom_abline(lty = 3) + 
+  coord_equal() + 
+  scale_color_viridis_d(option = "plasma", end = .6)
+```
+

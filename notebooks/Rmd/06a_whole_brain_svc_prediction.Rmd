@@ -1,9 +1,10 @@
 ---
-title: "R Notebook"
-output:
-  html_document:
-    df_print: paged
+title: "06b_prediction"
+author: "Erin Dickie"
+date: "5/2/2020"
+output: html_document
 ---
+
 
 # whole brain prediction
 
@@ -13,10 +14,6 @@ library(tidymodels)
 library(vip)
 library(tidyverse)
 library(kernlab)
-```
-
-```{r}
-knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
 ```
 
 ```{r setting paths}
@@ -42,52 +39,75 @@ results_pheno <- all_corZ_results %>%
 
 ## merge if with the pheno data
 
+```{r}
+## edge to remove are those where the subcortical ROI's are too small
+subcortical_guide <- get_subcortical_guide()
+rois_too_small <- subcortical_guide %>% filter(size_is_ok == "no") %>% pull(combined_name)
+
+```
+
 
 
 ```{r}
-tvertex_brain_data <- results_pheno %>%
+this_vertex_type <- "tvertex"
+results_pheno_filterered <- results_pheno %>%
+  
+  ## filter for matche sample 
   filter(in_matched_sample) %>%
-  filter(vertex_type == "tvertex") %>%
+  
+  ## filter for vertex type
+  filter(vertex_type == this_vertex_type) %>%
+  
+  ## select the columns we want to include in our model 
   select(subject, dataset, DX, Age, Sex, fd_mean, Site, 
          from, to, weight) %>%
-  unite(FC_edgename, from, to) %>%
+
+  ## remove the edges that are within a subcortical structure or too small
+  filter(!(str_detect(to, "thalamus") & str_detect(from, "thalamus"))) %>%
+  filter(!(str_detect(to, "striatum") & str_detect(from, "striatum"))) %>%
+  filter(!(str_detect(to, "cerebellum") & str_detect(from, "cerebellum"))) %>%
+  filter(!(to %in% rois_too_small)) %>%
+  filter(!(from %in% rois_too_small)) %>%
+
+  ## unite to and from columns into an FC edgename column
+  unite(FC_edgename, from, to) 
+
+## record the list of edges for later computations
+FC_edgenames <- unique(results_pheno_filterered$FC_edgename)
+
+## spread the edges across columns
+brain_data <- results_pheno_filterered %>%
   group_by(subject, dataset, DX, Age, Sex, fd_mean, Site) %>%
   spread(FC_edgename, weight) %>%
   ungroup()
 ```
 
+### Data prepared for `r this_vertex_type`
+
 ## the data splitting
 
 ```{r}
 set.seed(123)
-data1_split <- initial_split(tvertex_brain_data, 
+brain_split <- initial_split(brain_data, 
                             strata = Site)
 
-data1_train <- training(data1_split)
-data1_test  <- testing(data1_split)
+brain_train <- training(brain_split)
+brain_test  <- testing(brain_split)
 
 set.seed(345)
-folds <- vfold_cv(data1_train, v = 5)
+folds <- vfold_cv(brain_train, v = 5)
 folds
 ```
 
 
 ```{r}
-data1_train %>%
+brain_train %>%
   count(DX)
 ```
 ```{r}
-data1_test %>%
+brain_test %>%
   count(DX)
 ```
-
-
-
-```{r}
-data1_split
-```
-
-
 
 
   
@@ -95,14 +115,13 @@ data1_split
 ## set up a random forest engine with parsnip
 
 ```{r}
-rf_recipe_tvertex <- 
-  recipe(DX ~ ., data = tvertex_brain_data) %>%
+svm_recipe <- 
+  recipe(DX ~ ., data = brain_data) %>%
   update_role(subject, dataset, new_role = "ID") %>%
   step_dummy(Site, Sex) %>%
-  step_rm(starts_with("pvertex"), starts_with("tvolume")) %>%
   step_YeoJohnson(all_predictors()) %>%
-  step_normalize(all_predictors()) %>%
-  step_pca(starts_with("tvertex"), threshold = 0.90) 
+  step_normalize(all_predictors()) #%>%
+  #step_pca(one_of(FC_edgenames), threshold = 0.90) 
   
 ```
 
@@ -114,47 +133,39 @@ cores
 
 ```{r model}
 svm_mod <-
-  svm_rbf(mode = "classification", cost = tune(), rbf_sigma = tune()) %>%
+  svm_poly(mode = "classification", cost = 1, degree = 3) %>%
   set_engine("kernlab")
 ```
 
 ```{r}
-rf_workflow <- 
+svm_workflow <- 
   workflow() %>% 
-  add_model(rf_mod) %>% 
-  add_recipe(rf_recipe)
+  add_model(svm_mod) %>% 
+  add_recipe(svm_recipe)
 ```
+
+```{r}
+svm_parameters <- parameters(svm_workflow)
+svm_parameters
+```
+
 
 ```{r}
 # runs the cross validated hyper parameter tuning
 set.seed(345)
-rf_res <- 
-  rf_workflow %>% 
-  tune_grid(resamples = folds,
-            grid = 25,
-            control = control_grid(save_pred = TRUE))
+svm_res <- 
+  svm_workflow %>% 
+  last_fit(brain_split)
 ```
 
-```{r}
-svm_wflow <-
-  workflow() %>%
-  add_model(svm_mod) %>%
-  add_recipe(seg_pre_proc)
 
-```
 
 ```{r}
 ## using autoplot to plot the results across the parameter grid
-autoplot(rf_res)
+autoplot(svm_res)
 ```
 
-```{r}
-## using select best to save the best fit to the 
-rf_best <- 
-  rf_res %>% 
-  select_best(metric = "roc_auc")
-rf_best
-```
+
 
 
 
@@ -186,9 +197,17 @@ last_rf_fit
 
 ```{r}
 ## print accuracy and roc
-last_rf_fit %>% 
+svm_res %>% 
   collect_metrics()
 ```
+```{r}
+### plotting the roc curve
+svm_res %>% 
+  collect_predictions() %>% 
+  roc_curve(DX, .pred_SSD) %>% 
+  autoplot()
+```
+
 
 ```{r fig.height=10, fig.width=6}
 ## plotting the very important predictors
@@ -197,28 +216,11 @@ last_rf_fit %>%
   pull_workflow_fit() %>% 
   vip(num_features = 100)
 ```
-```{r}
-### plotting the roc curve
-last_rf_fit %>% 
-  collect_predictions() %>% 
-  roc_curve(DX, .pred_SSD) %>% 
-  autoplot()
-```
+
 
 ### ploting the ROC curv 
 
-```{r}
-last_rf_fit_tvertex <- last_rf_fit
-save(last_rf_fit_tvertex,
-     file = here("data","processed","mri","all_clinicalplusqa_group","Rdata_cache",
-                 "tvertex_randomforest_lastfit.Rdata"))
-```
 
-let's try from the reduced edges..
-
-```{r}
-
-```
 
 
 

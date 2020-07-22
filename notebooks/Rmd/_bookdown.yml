@@ -13,15 +13,8 @@ rmd_files: [
   #"02c_seedcorr_area_stats.Rmd",
   "03_subcortical_cortical_stats_hemi.Rmd",
   "04_cortical-cortical_changes.Rmd",
-<<<<<<< HEAD
- # "05_sulcal_depth_stats.Rmd"
-  #"06_whole_matrix_stats.Rmd"
-]
-output_dir: "../reports/Rmd_rendered"
-=======
  # "05_sulcal_depth_stats.Rmd",
   "06_whole_matrix_stats.Rmd",
   "09_clinical_vs_FCscores.Rmd"
 ]
 output_dir: "../reports/"
->>>>>>> 0b2e4ac40ccdd7aaccf5223f38abdf726d6ccd2e
