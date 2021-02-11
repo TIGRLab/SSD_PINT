@@ -102,6 +102,11 @@ with_wFC1 <- weighted_subject_scores %>%
   drop_na(dx)
 ```
 
+```{r}
+with_wFC_zhh <- weighted_subject_scores %>%
+  inner_join(ZHH_extended, by = c("subject", "dataset")) 
+```
+
 
 
 
@@ -116,6 +121,7 @@ wFC_corrs <- with_wFC1 %>%
   cor(.)
 heatmap(abs(wFC_corrs))
 ```
+
 ```{r}
 wFC_corrs <- with_wFC1 %>%
    ungroup() %>%
@@ -235,6 +241,8 @@ plt <- with_wFC1 %>%
   
 ggdraw(plt)  
 ```
+
+
 ```{r fig.height=3, fig.width=8}
 with_wFC_zhh %>%
   filter(WRAT3SS > 60) %>%
