@@ -21,7 +21,10 @@ make_swirly_results_plot <- function(lm_df, pos_label, neg_label, plot_title, no
     "DM", "#CD3E3A",
     "LI", "#dcf8a4")
   
-  ## calculate a node order for the swirly plot
+  ## calculate a node order for the swirly plot 
+  ##    using info about the cortical data order
+  ##    adds a gap between subcortical and cortical (10)
+  ##    adds smaller gap between subcorical structures (5)
   node_annotations <- node_annotations %>%
     filter(size_is_ok == "yes") %>%
     arrange(etype, subcort_ROI, network, subregion, hemi) %>%
