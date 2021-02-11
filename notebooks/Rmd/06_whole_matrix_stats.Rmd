@@ -90,6 +90,14 @@ write_csv(vx_counts, '../templates/subcort_vxcounts.csv')
 node_annotations <- get_node_annotations(Yeo7_2011_80verts, the_subcortical_guide)
 ```
 
+```{r}
+names(node_annotations)
+```
+
+[1] "node_name"    
+"subcort_hemi" "subcort_ROI"  "subcort_NET"  "numvx"       
+ [6] "size_is_ok"   "etype"        "cort_NET"     "cort_hemi"    "cort_lobe"   
+[11] "network"      "hemi"         "subregion"
 
 
 ### This reads all the subcortical files it can find
@@ -623,7 +631,7 @@ if (no_ticks==TRUE) {
 make_subcortcort_edges_raincloud(DX_lm_model_DXcohenD,D_threshold = 0.2678)
 ```
 
-```{r fig.height=5, fig.width=5}
+```{r fig.height=6.5, fig.width=5}
 library(ggridges)
 
 make_cortcort_edges_raincloud <- function(data,D_threshold) {
@@ -720,7 +728,7 @@ if (no_ticks==TRUE) {
   DA_SM <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DA", "SM", D_threshold)
   VI_VI <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "VI", "VI", D_threshold, no_ticks = FALSE)
 
-  title <- ggdraw() + draw_label("Subcortical to Cortical", fontface='bold')
+  title <- ggdraw() + draw_label("Selected Cortical to Cortical", fontface='bold')
   full_plt <- plot_grid(title, DM_DA, DM_VA, FP_SM, VA_DA, DA_SM, VI_VI,
                    ncol = 1, rel_heights = c(0.5, 1,  1, 1, 1, 1,1.5))
   return(full_plt)
@@ -730,7 +738,7 @@ if (no_ticks==TRUE) {
 make_cortcort_edges_raincloud(DX_lm_model_DXcohenD,D_threshold = 0.2678)
 ```
 
-```{r fig.height=1.5, fig.width=5}
+```{r fig.height=1.75, fig.width=5}
 D_threshold = 0.2678
 hypo_cerebullum_to <- DX_lm_model_DXcohenD %>%
       ungroup() %>%
