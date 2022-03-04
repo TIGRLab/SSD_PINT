@@ -150,6 +150,10 @@ results_pheno <- all_corZ_results %>%
 
 ```
 
+```{r}
+rm(all_corZ_results)
+```
+
 
 
 
@@ -181,12 +185,24 @@ rm(all_corZ_results)
 
 
 
+```{r}
+simpler_results <- results_pheno %>% 
+  select(vertex_type, to, from, subject, dataset, weight, DX, lm_covar_cols)
+```
+
+```{r}
+results_pheno <- ungroup(simpler_results)
+```
+
+
+
 ```{r calc-DX-cohensD}
 results_pheno_plus_DXd <- function(results_pheno) {
   results_pheno %>%
   semi_join(node_annotations, by = c("to"="node_name")) %>%
   semi_join(node_annotations, by = c("from"="node_name")) %>%
   mutate(corZ = weight) %>%
+  select(vertex_type, to, from, subject, corZ, DX, lm_covar_cols) %>%
   group_by(vertex_type, to, from) %>%
   nest() %>%
   #slice(1:3) %>%
