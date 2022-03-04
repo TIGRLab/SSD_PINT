@@ -1,11 +1,19 @@
 # SZ_PINT
 scripts used for analysis of PINT in SZ samples
 
+## now using docker for a reproducible env
+
+It docker is installed. Start the rstudio env. Set your current directory to base of this repo
+
+```sh
+docker-compose up rstudio
+```
+
+My change here.
+
 ## The SSD PINT paper repo
 
 This is a repo of code (and some data links), relating to the manuscript in preparation:
-
-
 
 
 ```
