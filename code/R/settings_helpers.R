@@ -25,6 +25,18 @@ read_Yeo72011_template <- function() {
   return(Yeo7_2011_80verts)
 }
 
+read_Schaefer_template <- function() {
+  Schaefer7N100P_labels <- read_csv(
+    here("data/raw/templates/Schaefer7N100P_labels.csv"),
+    col_types = cols(
+      roiidx = col_double(),
+      SHORTNAME = col_character(),
+      hemi = col_character(),
+      NETWORK = col_character()
+    ))
+  return(Schaefer7N100P_labels)
+}
+
 define_Yeo7_colours <- function() {
   YeoNet_colours = list("VI" = "#781286",
                         "SM" = "#4682B4",
@@ -102,6 +114,39 @@ get_node_annotations <- function(Yeo7_2011_80verts, the_subcortical_guide) {
                             thalamus = "Thal", cerebellum = "Cblm", striatum = "Stria"),
          subcort_ROI = factor(subcort_ROI, levels = c("striatum", "thalamus", "cerebellum"))) 
 
+  return(node_annotations)
+}
+
+get_Schaefer_node_annotations <- function(Schaefer_labels, the_subcortical_guide) {
+  
+  YeoNet7 <- tribble(
+    ~network, ~hexcode,
+    "VI", "#781286",
+    "SM", "#4682B4",
+    "DA", "#00760E",
+    "VA", "#C43AFA",
+    "FP", "#E69422",
+    "DM", "#CD3E3A",
+    "LI", "#dcf8a4")
+  
+  node_annotations <- tibble(node_name = c(Schaefer_labels$SHORTNAME,
+                                           the_subcortical_guide$combined_name)) %>%
+    left_join(the_subcortical_guide, by = c("node_name" = "combined_name")) %>%
+    left_join(Schaefer_labels, by = c("node_name" = "SHORTNAME")) %>%
+    mutate_if(is.character, list(~ replace(., is.na(.), ''))) %>%
+    mutate(etype = if_else(str_sub(node_name,1,9)=="7Networks","Cort", "SubCort")) %>%
+    rename(cort_NET = NETWORK, cort_hemi = hemi) %>%
+    mutate(cort_NET = if_else(etype == "Cort", str_sub(.$node_name, 1,2), ""),
+           cort_hemi = if_else(etype == "Cort", str_sub(.$node_name, 5,5), ""),
+           network = if_else(etype == "Cort", cort_NET, subcort_NET),
+           network = factor(network, levels = rev(YeoNet7$network)),
+           hemi = if_else(etype == "Cort", cort_hemi, subcort_hemi),
+           size_is_ok = if_else(etype == "Cort", "yes", size_is_ok),
+           subregion = if_else(etype == "Cort", "cortex", subcort_ROI),
+           subregion = recode(subregion,
+                              thalamus = "Thal", cerebellum = "Cblm", striatum = "Stria"),
+           subcort_ROI = factor(subcort_ROI, levels = c("striatum", "thalamus", "cerebellum"))) 
+  
   return(node_annotations)
 }
 

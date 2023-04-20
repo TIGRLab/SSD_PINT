@@ -43,6 +43,9 @@ Yeo7_2011_80verts <- read_Yeo72011_template()
 the_subcortical_guide <- get_subcortical_guide()
 node_annotations <- get_node_annotations(Yeo7_2011_80verts, the_subcortical_guide)
 
+Schaefer_labels <- read_Schaefer_template()
+Schaefer_node_annots <- get_Schaefer_node_annotations(Schaefer_labels, the_subcortical_guide)
+
 source(here('code/R/custom_plot_helpers.R'))
 
 source(here('code/R/file_reading_helpers.R'))
