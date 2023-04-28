@@ -114,13 +114,14 @@ all_schaefer_results <- pheno %>%
   mutate(the_corrs = map2(outputprefix, dataset,
                               ~run_read_all_subject_schaefer_timeseries_and_wholebrain_corZ(.x, .y)))
 ```
-```{r}
+
+
+```{r, eval=FALSE}
 saveRDS(all_schaefer_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrainshaefer_FC_cache.rds"))
 ```
 
-
 ```{r}
-all_corZ_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_cache.rds"))
+all_corZ_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrainshaefer_FC_cache.rds"))
 ```
 
 ### reduce data from the whole brain data to only include the subcortical cortical connections 
@@ -130,10 +131,12 @@ all_corZ_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_gr
 all_subcort_results <- all_corZ_results %>%
   unnest(cols = c(the_corrs)) %>%
   filter(!(from %in% the_subcortical_guide$combined_name)) %>%
+  filter(to %in% the_subcortical_guide$combined_name) %>%
   inner_join(the_subcortical_guide, by = c("to"="combined_name")) %>%
-  mutate(PINT_ROI = from,
-         YeoNet = str_sub(PINT_ROI, 1,2),
-         hemisphere = str_sub(PINT_ROI, 5,5)) %>%
+  inner_join(Schaefer_labels, by = c("from"="SHORTNAME")) %>%
+  rename(CORT_ROI = from,
+         YeoNet = NETWORK,
+         hemisphere = hemi) %>%
   mutate(conn_type = if_else(YeoNet == subcort_NET, "same_net", "diff_net"),
          YeoNet = factor(YeoNet, levels = c("VI", "SM", "DA", "VA", "FP", "DM")),
          subcort_NET = factor(subcort_NET, levels = c("VI", "SM", "DA", "VA", "FP", "DM", "LI")))
@@ -149,7 +152,7 @@ results_pheno <- all_subcort_results %>%
   inner_join(pheno, by = c("subject", "dataset")) %>%
   select(subject, dataset, rval = weight,
          YeoNet, hemisphere, conn_type, 
-         PINT_ROI, subcort_ROI, subcort_NET, subcort_hemi, 
+         CORT_ROI, subcort_ROI, subcort_NET, subcort_hemi, 
          vertex_type, Age, Site, Scanner, fd_mean, fd_perc,
          one_of(lm_predictor_cols),
          in_matched_sample) 
@@ -159,6 +162,9 @@ results_pheno <- all_subcort_results %>%
 
 
 ## make a subject table from resuts pheno
+```{r}
+
+```
 
 
 ```{r report_demographics}
@@ -166,7 +172,7 @@ library(tableone)
 therealtable1 <- CreateTableOne(
   strata = c("DX", "Site"),
   vars = c("Age", "Sex", "fd_mean", "fd_perc"),
-  data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L", vertex_type == "pvertex")
+  data = filter(results_pheno, CORT_ROI=="7Networks_LH_Vis_1",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L", vertex_type == "surfschaefer")
 )
 tabMat <- print(therealtable1, quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
 kable(tabMat)
@@ -177,7 +183,7 @@ kable(tabMat)
 library(tableone)
 therealtable1 <- CreateTableOne(
   vars = c("Age", "Sex", "DX", "fd_mean", "fd_perc"),
-  data = filter(results_pheno, PINT_ROI=="DMP1L",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L", vertex_type == "pvertex")
+  data = filter(results_pheno, CORT_ROI=="7Networks_LH_Vis_1",subcort_ROI=="thalamus", subcort_NET=="VA", subcort_hemi == "L", vertex_type == "surfschaefer")
 )
 tabMat <- print(therealtable1, quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
 kable(tabMat)
@@ -207,8 +213,8 @@ functions to help re-annotated the function axes
 #' sets some the main variables to factors to more descriptive labels
 add_corrtype_and_subcortROI_columns <- function(data) {
   result <- data %>%
-    mutate(corrtype = factor(vertex_type, levels = c('tvolume','tvertex','pvertex'),
-                           labels = c("Volume Template", "Surface Template", "Surface Personalized")),
+    mutate(corrtype = factor(vertex_type, levels = c("volschaefer","surfschaefer" ),
+                           labels = c("Volume Template", "Surface Template")),
          subcortROI = factor(subcort_ROI, 
                              levels = c("striatum", "thalamus", "cerebellum"),
                              labels = c("Striatum", "Thalamus", "Cerebellum"))) 
@@ -228,7 +234,7 @@ drop_VI_DA_LI <- function(data) {
 ```
 
 
-```{r plotting-PINT-change-matrix-reduce, fig.width=7.5, fig.height=7.5}
+```{r plotting-PINT-change-matrix-reduce, fig.width=7.5, fig.height=5}
 
 table1 %>%
   drop_VI_DA_LI() %>%
