@@ -118,7 +118,7 @@ done
 ```
 
 ```sh
-
+cleaning_script=/KIMEL/tigrlab/projects/edickie/code/SZ_PINT/code/bin/participants_Schaefer_meants.sh
 sing_home=/KIMEL/tigrlab/scratch/edickie/saba_PINT/sing_home
 ciftify_container=/KIMEL/tigrlab/archive/code/containers/FMRIPREP_CIFTIFY/tigrlab_fmriprep_ciftify_v1.3.2-2.3.3-2019-08-16-c0fcb37f1b56.simg
 
@@ -133,14 +133,15 @@ cd ${logsdir}
 cp /projects/edickie/code/SZ_PINT/data/raw/templates/Schaefer2018_100Parcels_7Networks_order_FSLMNI152_2mm.nii.gz ${outputdir}/ciftify_meants/templates
 cp /projects/edickie/code/SZ_PINT/data/raw/templates/Schaefer2018_100Parcels_7Networks_order.dlabel.nii ${outputdir}/ciftify_meants/templates
 
-func_base="task-rest_acq-CMH_run-01_bold"
+for func_base in "task-rest_acq-CMH_bold" "task-rest_acq-CMH_run-01_bold" "task-rest_acq-CMH_run-02_bold"; do
 for preprocfile in `ls ${outputdir}/ciftify_PINT/sub-*/ses-*/sub-*_${func_base}_*_summary.csv`; do
   subject=$(basename $(dirname $(dirname ${preprocfile})))
   session=$(basename $(dirname ${preprocfile}))
 
   if [ ! -f ${outputdir}/ciftify_meants/${subject}/${session}/${subject}_${session}_${func_base}_desc-clean_atlas-Shaefer7N100P_timeseries.csv ]; then
-    sbatch --time=00:20:00 --cpus-per-task=4 --nodes=1 --job-name=schaefer_${subject}_${session} ${cleaning_script} ${subject} ${session} ${func_base} ${outputdir} ${sing_home} ${ciftify_container}
+    echo sbatch --time=00:20:00 --cpus-per-task=4 --nodes=1 --job-name=schaefer_${subject}_${session} ${cleaning_script} ${subject} ${session} ${func_base} ${outputdir} ${sing_home} ${ciftify_container}
 fi
+done
 done
 done
 

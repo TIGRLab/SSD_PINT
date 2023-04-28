@@ -292,3 +292,21 @@ run_read_all_subject_timeseries_and_cortcort_corZ <- function(out_prefix, projec
                       .id = "vertex_type")
   return(result)
 }
+
+#' reads in all the timeseries files for one participant
+#' note that Schaefer_labels and output_base are pulled from the global env
+run_read_all_subject_schaefer_timeseries_and_wholebrain_corZ <- function(out_prefix, projectname) {
+  # read the pint meants files
+  surf_schaefer_meants <- read_schaefer_surface_meants(out_prefix, projectname, 
+                                                       output_base)
+  vol_schaefer_meants <- read_schaefer_volume_meants(out_prefix, projectname, output_base)
+
+  # read the subcortical ROIs
+  subcort_meants <-read_concat_subject_subcort(out_prefix, projectname)
+  
+  # calc edgewise correlations
+  result <- bind_rows("surfschaefer" = calc_PINT_plus_subcort_cor_df(subcort_meants, surf_schaefer_meants),
+                      "volschaefer" = calc_PINT_plus_subcort_cor_df(subcort_meants, vol_schaefer_meants),
+                      .id = "vertex_type")
+  return(result)
+}
