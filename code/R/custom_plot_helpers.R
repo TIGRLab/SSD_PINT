@@ -11,29 +11,42 @@ YeoNet7 <- tribble(
 
 specify_decimal <- function(x, k) trimws(format(round(x, k), nsmall=k))
 
+factor_corrtype <- function(x, cort_atlas) {
+  if (cort_atlas == "PINT") {
+    corrtype = factor(x, levels = c('pvertex', 'tvertex', 'tvolume'),
+                      labels = c("Surface Personalized", "Surface Template", "Volume Template"))
+  } else if (cort_atlas == "Schaefer") {
+    corrtype = factor(x, levels = c("volschaefer","surfschaefer" ),
+                      labels = c("Volume Template", "Surface Template"))
+  }
+  return(corrtype)
+}
+
 #' Left section of the raincload plots used in sub-cortical cortical change reporting
 samediff_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
   eff_size_df <- data %>%
     ungroup() %>%
-    mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
-                             labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+    mutate(corrtype = factor_corrtype(vertex_type, cort_atlas)) %>%
     filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>%
     group_by(subcort_ROI, YeoNet, corrtype) %>%
     do(tidy(t.test(.$same_net, .$diff_net, paired = TRUE))) %>%
-    mutate(cohenD = statistic/sqrt(parameter + 1))
+    mutate(cohenD = statistic/sqrt(parameter + 1), 
+           cohenD_str = str_c("d = ", format(cohenD, digits = 2)))
   
   plt <- data %>%
-    mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
-                             labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+    mutate(corrtype = factor_corrtype(vertex_type, cort_atlas)) %>%
     gather(nettype, gvalue, diff_net, same_net) %>%
     filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
     ungroup() %>%
-    ggplot(aes(y = corrtype, x = gvalue, fill = nettype, colour = nettype)) +
-    geom_density_ridges(
-      #jittered_points = TRUE, position = "raincloud",
-      alpha = 0.5, scale = 2,
-      quantile_lines = TRUE, quantiles = 2
+    ggplot(aes(y = corrtype, x = gvalue)) +
+    geom_density_ridges(aes(fill = nettype, colour = nettype),
+                        #jittered_points = TRUE, position = "raincloud",
+                        alpha = 0.5, scale = 2,
+                        quantile_lines = TRUE, quantiles = 2
     ) +
+    geom_text(aes(y = corrtype, label = cohenD_str), 
+              x = 0.55, 
+              nudge_y = 0.1, data = eff_size_df) +
     geom_vline(xintercept = 0) +
     scale_colour_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
     scale_fill_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
@@ -55,8 +68,7 @@ samediff_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_t
 focus_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
   
   plt <- data %>%
-    mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
-                             labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+    mutate(corrtype = factor_corrtype(vertex_type, cort_atlas)) %>%
     mutate(focus = same_net - diff_net) %>%
     filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
     ungroup() %>%

@@ -42,7 +42,6 @@ pheno <- read_pheno_file() %>%
 YeoNet_colours <- define_Yeo7_colours()
 Yeo7_2011_80verts <- read_Yeo72011_template()
 the_subcortical_guide <- get_subcortical_guide()
-node_annotations <- get_node_annotations(Yeo7_2011_80verts, the_subcortical_guide)
 
 Schaefer_labels <- read_Schaefer_template()
 Schaefer_node_annots <- get_Schaefer_node_annotations(Schaefer_labels, the_subcortical_guide)
@@ -57,6 +56,7 @@ lm_predictor_cols <- c("DX",
                         "fd_mean_match_pt",
                         "Site")
 
+cort_atlas = "Schaefer"
 ```
 
 
@@ -76,36 +76,18 @@ pheno <- pheno %>%
 
 a litle chunck I use to test if test if the reader is working...
 
-```{r read_all_the-data, eval=FALSE}
-
-all_corZ_results <- pheno %>%
-  select(subject, outputprefix, dataset) %>%
-  mutate(the_corrs = map2(.$outputprefix, .$dataset,
-                              ~run_read_all_subject_timeseries_and_wholebrain_corZ(.x, .y)))
-```
-
-```{r cache-subcort-Rdata, eval=FALSE}
-save(all_corZ_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_results_cache.Rdata"))
-```
 
 
+### Use this chunk to test if the reader is working
 
 ```{r eval = FALSE}
 run_read_all_subject_schaefer_timeseries_and_wholebrain_corZ(pheno$outputprefix[100], pheno$dataset[100])
 ```
 
-```{r eval = FALSE}
-run_read_all_subject_timeseries_and_subcortcort_corZ(pheno$outputprefix[1], pheno$dataset[1])
-```
+
+### Reading all the data
 
 
-```{r read all the data, eval=FALSE}
-
-all_subcort_results <- pheno %>%
-  select(subject, outputprefix, dataset) %>%
-  mutate(subcort_corrs = map2(outputprefix, dataset,
-                              ~run_read_all_subject_timeseries_and_subcortcort_corZ(.x, .y)))
-```
 
 ```{r read all the schaefer data, eval=FALSE}
 
@@ -119,6 +101,8 @@ all_schaefer_results <- pheno %>%
 ```{r, eval=FALSE}
 saveRDS(all_schaefer_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrainshaefer_FC_cache.rds"))
 ```
+
+### Loading pre-read data from the cache
 
 ```{r}
 all_corZ_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrainshaefer_FC_cache.rds"))
@@ -162,9 +146,6 @@ results_pheno <- all_subcort_results %>%
 
 
 ## make a subject table from resuts pheno
-```{r}
-
-```
 
 
 ```{r report_demographics}
@@ -300,86 +281,13 @@ subject_focus %>%
   mutate(cohenD = statistic/sqrt(parameter + 1)) %>%
   kable()
 ```
-```{r}
-YeoNet7 <- tribble(
-  ~network, ~hexcode,
-  "VI", "#781286",
-  "SM", "#4682B4",
-  "DA", "#00760E",
-  "VA", "#C43AFA",
-  "FP", "#E69422",
-  "DM", "#CD3E3A",
-  "LI", "#dcf8a4")
-
-#' Left section of the raincload plots used in sub-cortical cortical change reporting
-samediff_subcort_raincloud <- function(data, this_subcort_ROI, this_YeoNet, no_ticks = TRUE) {
-  eff_size_df <- data %>%
-    ungroup() %>%
-    mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
-                             labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
-    filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>%
-    group_by(subcort_ROI, YeoNet, corrtype) %>%
-    do(tidy(t.test(.$same_net, .$diff_net, paired = TRUE))) %>%
-    mutate(cohenD = statistic/sqrt(parameter + 1),
-           cohenD_str = str_c("d = ", format(cohenD, digits = 3))) 
-    
-  
-  plt <- data %>%
-    mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
-                             labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
-    gather(nettype, gvalue, diff_net, same_net) %>%
-    filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
-    ungroup() %>%
-    ggplot(aes(y = corrtype, x = gvalue)) +
-    geom_density_ridges(aes(fill = nettype, colour = nettype),
-      #jittered_points = TRUE, position = "raincloud",
-      alpha = 0.5, scale = 2,
-      quantile_lines = TRUE, quantiles = 2
-    ) +
-    geom_text(aes(y = corrtype, label = cohenD_str), 
-              x = 0.55, 
-              nudge_y = 0.1, data = eff_size_df) +
-    geom_vline(xintercept = 0) +
-    scale_colour_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
-    scale_fill_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
-    scale_x_continuous(limits = c(-0.5, 0.6)) +
-    labs(y = NULL,
-         x = NULL) +
-    theme(legend.position='none')
-  if (no_ticks==TRUE) {
-    plt <- plt + theme(axis.title.x=element_blank(),
-                       axis.text.x=element_blank())
-  } else {
-    plt <- plt + labs(x = "Subcortical-Cortical Correlation (Z)")
-  }
-  return(plt)
-  
-}
-
-subcortical_rainclouds <- function(subject_focus, this_subcort) {
-  DM <- samediff_subcort_raincloud(subject_focus, this_subcort, "DM")
-  FP <- samediff_subcort_raincloud(subject_focus,this_subcort, "FP")
-  VA <- samediff_subcort_raincloud(subject_focus,this_subcort, "VA")
-  SM <- samediff_subcort_raincloud(subject_focus,this_subcort, "SM", no_ticks = FALSE)
-  title <- ggdraw() + draw_label(this_subcort, fontface='bold')
-  plt <- plot_grid(title, DM, FP, VA, SM, ncol = 1, rel_heights = c(0.5, 1, 1, 1, 1.5))
-  return(plt)
-}
-```
 
 
 
 
-```{r stiatum-rainclouds}
-subcortical_rainclouds(subject_focus, "striatum")
-```
 
-```{r thalamus-rainclouds}
-subcortical_rainclouds(subject_focus, "thalamus")
-```
-```{r cerebellum-raincloud}
-subcortical_rainclouds(subject_focus, "cerebellum")
-```
+
+
 ```{r cerebellum-raincloud2}
 subcortical_raincloud(subject_focus, "cerebellum")
 ```

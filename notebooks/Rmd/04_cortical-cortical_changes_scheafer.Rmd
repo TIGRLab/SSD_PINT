@@ -1,0 +1,414 @@
+---
+title: "Cortial-cortical Stats with Schafer Atlas"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    keep_md: yes
+---
+
+# Cortical-cortical results
+
+Checking how the cortical-cortical stats change with adding surfaced based analyses and PINT
+
+```{r}
+library(tidyverse)
+library(broom)
+library(knitr)
+library(cowplot)
+library(ggridges)
+library(igraph)
+library(here)
+```
+
+```{r}
+knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
+```
+
+```{r setting paths}
+source(here('code/R/settings_helpers.R'))
+pheno <- read_pheno_file() %>%
+    drop_na(DX) %>%
+    drop_na(Age_match) # dropping un-matched subjects
+
+Schaefer_labels <- read_Schaefer_template()
+source(here('code/R/file_reading_helpers.R'))
+source(here('code/R/custom_plot_helpers.R'))
+```
+
+
+```{r}
+pheno <- pheno %>%
+  mutate(func_base = get_func_base_from_pint_summary_filename(filename,subject, session), 
+         outputprefix = construct_output_prefix(subject, session, func_base)) 
+```
+
+```{r eval = FALSE}
+map2(pheno$outputprefix[1], pheno$dataset[1],
+                              ~run_read_all_subject_timeseries_and_cortcort_corZ(.x, .y))
+```
+
+```{r read-all-the-data, eval = FALSE}
+
+all_corZ_cort_results <- pheno %>%
+  select(subject, outputprefix, dataset) %>%
+  mutate(the_corrs = map2(.$outputprefix, .$dataset,
+                              ~run_read_all_subject_timeseries_and_cortcort_corZ(.x, .y)))
+```
+
+--- use the cache to load the data
+
+```{r}
+all_corZ_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrainshaefer_FC_cache.rds"))
+
+all_corZ_cort_results <- all_corZ_results %>%
+  semi_join(pheno, by = c("subject", "dataset")) %>%
+  unnest(cols = c(the_corrs)) %>%
+  filter(from %in% Schaefer_labels$SHORTNAME) %>%
+  filter(to %in% Schaefer_labels$SHORTNAME) %>%
+  group_by(subject, dataset, outputprefix) %>%
+  nest(the_corrs = c(vertex_type, from, to, weight))
+
+rm(all_corZ_results)
+```
+
+
+```{r}
+
+#' go uppertri data to full dataframe for geom_tile
+uppertri_df_to_full <- function(graph_df) {
+  # converts from three col graph df to adjacency matrix
+  uppertri_df_to_agjmat <- function(graph_df) {
+    
+    names(graph_df) <- c('to', 'from', 'myattr')
+    matrix_out <- graph_df %>%
+      graph_from_data_frame(.,directed = F) %>%
+      get.adjacency(., type = "both", attr = "myattr") %>%
+      as.matrix() 
+    return(matrix_out)
+  }
+  
+  result <- graph_df %>%
+    uppertri_df_to_agjmat() %>%
+    as.data.frame() %>%
+    mutate(to = row.names(.)) %>%
+    gather(from, value, -to) 
+  return(result)
+}
+```
+
+```{r}
+mean_cors <- all_corZ_cort_results %>%
+  unnest(cols = c(the_corrs)) %>%
+  group_by(vertex_type, to, from) %>%
+  summarise(mcorZ = mean(weight)) %>%
+  ungroup()
+```
+
+```{r}
+# build the full heatmap plot object
+withincortical_heatmap <- function(data, plt_title = "", 
+                                   fillvar = "weight") {
+
+  fillvar <- enquo(fillvar)
+  max_fill <- 1.15
+  
+  ## filter the node_annotations to take only cortical edges
+  cortical_annotations <- Schaefer_labels %>%
+    mutate(network = factor(NETWORK, levels = YeoNet7$network)) %>%
+    arrange(desc(network), SHORTNAME)
+  
+  # figure out where the white lines goes
+  hgrid_beaks <-  cortical_annotations %>%
+      arrange(network, SHORTNAME) %>%
+      mutate(netnum = as.numeric(network),
+      diffnet = (netnum -lag(netnum))*100:1) %>%
+      filter(diffnet > 0) %>%
+      pull(diffnet)
+  
+  # make the Yeo 6 network color bar for the axis
+  network_bar <- Schaefer_labels %>%
+    mutate(to_lab = factor(SHORTNAME, levels = rev(cortical_annotations$SHORTNAME))) %>%
+    ggplot(aes(x=1, y=to_lab, fill = NETWORK)) +
+    geom_tile() +
+    geom_hline(yintercept= 100.5-hgrid_beaks, color='white', size=1) +
+    scale_fill_manual(values = YeoNet7$hexcode) +
+    coord_fixed(ratio = 0.75)
+  
+  network_top_bar <- cortical_annotations %>%
+    mutate(from_lab = factor(SHORTNAME, levels = cortical_annotations$SHORTNAME)) %>%
+    ggplot(aes(x=from_lab, y=1, fill = network)) +
+    geom_tile() +
+    geom_vline(xintercept= hgrid_beaks + 0.5, color='white', size=1) +
+    scale_fill_manual(values = rev(YeoNet7$hexcode)) +
+    coord_fixed(ratio = 0.75)
+
+  plt <- data %>%
+    filter(to %in% cortical_annotations$SHORTNAME) %>%
+    filter(from %in% cortical_annotations$SHORTNAME) %>%
+    ungroup() %>%
+    select(to, from, !!fillvar) %>%
+    uppertri_df_to_full() %>%
+    mutate(to_lab = factor(to, levels = cortical_annotations$SHORTNAME), 
+           from_lab = factor(from, levels = rev(cortical_annotations$SHORTNAME)),
+           value = if_else(value > max_fill, max_fill, value)) %>%
+    ggplot(aes(x=to_lab, y=from_lab, fill=value)) + 
+    geom_tile() +
+    geom_hline(yintercept= 100.5-hgrid_beaks, color='white', size=1) +
+    geom_vline(xintercept= hgrid_beaks + 0.5, color='white', size=1) +
+    scale_fill_gradient2(high = "#b2182b", mid = "white", low = "#2166ac", 
+                         midpoint = 0, limits = c(-(max_fill), max_fill)) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 5),
+          axis.text = element_text(size = 5)) +
+      #    panel.border = element_rect(linetype = "solid", color = "black")) +
+    coord_fixed() +
+    labs(title = plt_title,
+         x = NULL, y = NULL, fill = "Correlation (Z)")
+  #p1<- insert_yaxis_grob(plt, network_top_bar, grid::unit(.03, "null"), position = "bottom")
+  p2<- insert_yaxis_grob(plt, network_bar, grid::unit(.03, "null"), position = "left")
+  
+  return(p2)
+}
+```
+
+
+
+
+```{r mean_cortical_matrixes, fig.height=6, fig.width=7.5}
+
+mean_cors %>%
+  filter(vertex_type == "surfschaefer") %>%
+  withincortical_heatmap("Surface Schaefer100 Mean Correlation", mcorZ) %>%
+  ggdraw()
+
+mean_cors %>%
+  filter(vertex_type == "volschaefer") %>%
+  withincortical_heatmap("Volume Schaefer100 Mean Correlation", mcorZ) %>%
+  ggdraw()
+```
+
+
+
+## To do - rainclouds for withing between changes in cortical cortical??
+
+
+Need to start by calculating indvididual subject same and diff means by network
+
+```{r}
+
+
+
+calc_wtn_and_cross_network_means <- function(graph_df, node_df) { 
+  result <- graph_df %>%
+    # setup the data by switching from upper-tri to full
+    filter(to %in% node_df$SHORTNAME) %>%
+    filter(from %in% node_df$SHORTNAME) %>%
+    ungroup() %>%
+    select(to, from, weight) %>%
+    uppertri_df_to_full() %>%
+    
+    # add columns we need to do the computation based on YeoNet7 naming convention..
+    inner_join(node_df, by = c("to" = "SHORTNAME")) %>%  
+    inner_join(node_df, by = c("from" = "SHORTNAME"), 
+               suffix = c("_to", "_from")) %>%
+    mutate(wtn_or_cross = if_else(NETWORK_to == NETWORK_from, 
+                                  "within", "cross")) %>%
+    # remove the same-edge bits
+    filter(to != from) %>%
+    
+    # group_by and compute the means
+    group_by(NETWORK_to, wtn_or_cross) %>%
+    summarise(net_mean = mean(value))
+  
+  return(result)
+}
+
+
+
+# calculate all the subject-wise within and cross edge means
+all_subject_wtn_cross_means <-  all_corZ_cort_results %>%
+  # slice(1) %>%
+  ungroup() %>%
+  unnest(cols = c(the_corrs)) %>%
+  select(vertex_type, subject, dataset, to, from, weight) %>%
+  ungroup() %>%
+  group_by(vertex_type, subject, dataset) %>%
+  nest() %>%
+  mutate(net_means_res = map(data, 
+                             ~calc_wtn_and_cross_network_means(
+                               .x, Schaefer_labels))) %>%
+  
+  unnest(net_means_res) %>%
+  select(vertex_type, subject, dataset, NETWORK_to, wtn_or_cross, net_mean)
+
+
+```
+
+
+
+```{r}
+#' Left section of the raincload plots used in sub-cortical cortical change reporting
+samediff_cortcort_raincloud <- function(data, this_YeoNet, no_ticks = TRUE) {
+  
+  ## grab the color
+  this_YeoNet_color = YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode)
+  
+  ## label plot data
+  plt_data <- data %>%
+    ungroup() %>%
+    mutate(corrtype = factor(vertex_type, levels = c("volschaefer","surfschaefer" ),
+                      labels = c("Volume Template", "Surface Template"))) %>%
+    filter(NETWORK_to == this_YeoNet) 
+  
+  ## calculate effect sizes
+    eff_size_df <- plt_data %>%
+      ungroup() %>%
+      group_by(subject, dataset, NETWORK_to, corrtype) %>%
+      spread(wtn_or_cross, net_mean) %>%
+      ungroup() %>%
+      group_by(NETWORK_to, corrtype) %>%
+      do(tidy(t.test(.$within, .$cross, paired = TRUE))) %>%
+      mutate(cohenD = statistic/sqrt(parameter + 1),
+           cohenD_str = str_c("d = ", format(cohenD, digits = 3, nsmall=1)))
+    
+  ## make the plot
+  plt <- plt_data %>%  
+    ungroup() %>%
+    ggplot(aes(y = corrtype, x = net_mean)) +
+    geom_density_ridges(aes(fill = wtn_or_cross, colour = wtn_or_cross),
+      #jittered_points = TRUE, position = "raincloud",
+      alpha = 0.5, scale = 2,
+      quantile_lines = TRUE, quantiles = 2
+    ) +
+    geom_text(aes(y = corrtype, label = cohenD_str), 
+              x = 1.25, label.size = 0.18,
+              nudge_y = 0.4, data = eff_size_df) +
+    geom_vline(xintercept = 0) +
+    scale_colour_manual(values = c("#808080", this_YeoNet_color)) +
+    scale_fill_manual(values = c("#808080", this_YeoNet_color)) +
+    scale_x_continuous(limits = c(-0.5, 1.5)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+  if (no_ticks==TRUE) {
+    plt <- plt + theme(axis.title.x=element_blank(),
+                       axis.text.x=element_blank())
+  } else {
+    plt <- plt + labs(x = "Correlation (Z)")
+  }
+  return(plt)
+  
+}
+
+
+#' Combined subcortical-cortical correlation rainclouds for one subcortical structure
+cortical_raincloud <- function(subject_focus, YeoNet7) {
+  DM <- samediff_cortcort_raincloud(subject_focus, "DM")
+  FP <- samediff_cortcort_raincloud(subject_focus, "FP")
+  VA <- samediff_cortcort_raincloud(subject_focus, "VA")
+  DA <- samediff_cortcort_raincloud(subject_focus, "DA")
+  SM <- samediff_cortcort_raincloud(subject_focus, "SM")
+  VI <- samediff_cortcort_raincloud(subject_focus, "VI", no_ticks = FALSE)
+  title <- ggdraw() + draw_label("Within Cortical", fontface='bold')
+  plt <- plot_grid(title, DM, FP, VA, DA, SM, VI,
+                   ncol = 1, rel_heights = c(0.5, 1, 1, 1, 1, 1, 1.5))
+  return(plt)
+}
+```
+
+
+```{r fig.height=8, fig.width=5}
+cortical_raincloud(all_subject_wtn_cross_means, YeoNet7)
+```
+```{r}
+specify_decimal <- function(x, k) trimws(format(round(x, k), nsmall=k))
+
+report_ds <- all_subject_wtn_cross_means %>%
+      ungroup() %>%
+      mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
+                             labels = c("Surface Personalized", "Surface Template", "Volume Template"))) %>%
+      group_by(subject, dataset, to_network, corrtype) %>%
+      spread(wtn_or_cross, net_mean) %>%
+      ungroup() %>%
+      group_by(to_network, corrtype) %>%
+      do(tidy(t.test(.$within, .$cross, paired = TRUE))) %>%
+      mutate(cohenD = statistic/sqrt(parameter + 1),
+           cohenD_str = str_c("d = ", specify_decimal(cohenD, 2)))
+
+report_ds
+```
+
+
+```{r}
+# bonfferoni correct for the number of networks
+bonf_cor_factor = 6
+
+subject_focus_wrgl <- all_subject_wtn_cross_means %>%
+  ungroup() %>%
+  group_by(subject, dataset, to_network, vertex_type) %>%
+  spread(wtn_or_cross, net_mean) %>%
+  ungroup() %>%
+  mutate(focus_effect = within - cross) %>%
+  group_by(subject, dataset, to_network) %>%
+  gather(conntype, netmean, within, cross, focus_effect) %>% 
+  spread(vertex_type, netmean) %>%
+  ungroup()
+
+pvertex_vs_tvertex <- subject_focus_wrgl %>%
+  group_by(to_network, conntype) %>%
+  do(tidy(t.test(.$pvertex, .$tvertex, paired = TRUE))) %>%
+  mutate(cohenD = statistic/sqrt(parameter + 1),
+         p_bonf = p.value*bonf_cor_factor)
+
+tvertex_vs_tvolume <- subject_focus_wrgl %>%
+  group_by(to_network, conntype) %>%
+  do(tidy(t.test(.$tvertex, .$tvolume, paired = TRUE))) %>%
+  mutate(cohenD = statistic/sqrt(parameter + 1),
+         p_bonf = p.value*bonf_cor_factor)
+
+focus_results <- bind_rows(pvertex_vs_tvertex = pvertex_vs_tvertex,
+                           tvertex_vs_tvolume = tvertex_vs_tvolume,
+                           .id = "test_vars")
+```
+```{r}
+focus_results %>%
+  mutate(pval_str = ifelse(p_bonf < 0.001, 
+                           format(p_bonf, scientific = TRUE, digits = 2),
+                           specify_decimal(p_bonf,3)),
+         pval_str = ifelse(p_bonf > 0.10, "ns", pval_str)) %>%
+  mutate(report_str = str_c("d = ", specify_decimal(cohenD, 2),
+                            ", t(",parameter, ') =', 
+                            specify_decimal(statistic, 2),
+                            ', p=', pval_str)) %>%
+  select(test_vars, conntype, to_network, report_str) %>%
+  spread(conntype, report_str) %>%
+  select(test_vars, to_network, within, cross, focus_effect) %>%
+  ungroup() %>%
+  mutate(test_vars = factor(test_vars, levels = c("tvertex_vs_tvolume","pvertex_vs_tvertex")),
+         to_network = factor(to_network, levels = c("DM", "FP", "VA", "DA", "SM", "VI"))) %>%
+  arrange(test_vars, to_network) %>%
+  knitr::kable()
+```
+```{r}
+report_ds_by_corrtype <- report_ds %>%
+  ungroup() %>%
+  group_by(corrtype) %>%
+  summarise(d_min = specify_decimal(min(cohenD),2),
+            d_max = specify_decimal(max(cohenD),2),
+            d_str = str_glue('{d_min}-{d_max}'))
+```
+
+```{r}
+library(glue)
+focus_results_ranges <- focus_results %>% 
+  ungroup() %>%
+  group_by(test_vars, conntype) %>%
+  summarise(d_min = specify_decimal(min(cohenD),2),
+            d_max = specify_decimal(max(cohenD),2),
+            d_str = str_glue('{d_min}-{d_max}'))
+
+```
+
+
+The sample mean cortical-cortical correlation matrixes were calculated after fMRI timeseries were extracted using a volume-based, surface-based and personalized surface-based approach are plotted in Figure 1. Within network correlations are higher than between network correlations, evidence of a resting-state network structure, were observed for all networks tested, for the volume-based approach (Cohen's D `r report_ds_by_corrtype %>% filter(corrtype == "Volume Template") %>% pull(d_str)`), as well as for the surface-based approach (Cohen's D `r report_ds_by_corrtype %>% filter(corrtype == "Surface Template") %>% pull(d_str)`) and the personalized surface approach (Cohen's D `r report_ds_by_corrtype %>% filter(corrtype == "Surface Personalized") %>% pull(d_str)`)(see Figure 1H). Using a surface-based approach, as opposed to a volume-based approach has a mixed effect on this witin-to-between network differences according to instrinsic network (see Supple Table 2): increases these within to between network correlation difference increases in the Dorsal and Ventral Attentional Network, but decreases for the Default Mode, Sensory Motor and Visual Networks. Using PINT increases within network correlations again further for all networks (Surface Template vs PINT cohen D `r focus_results_ranges %>% filter(test_vars == "pvertex_vs_tvertex", conntype == "focus_effect") %>% pull(d_str)`, see Suppl Table 2). Note that this change from Surface Template and Surface Personalized is not surprising given that the PINT algorithm was designed to increase within network correlations. 
+
+
