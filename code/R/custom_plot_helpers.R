@@ -16,8 +16,8 @@ factor_corrtype <- function(x, cort_atlas) {
     corrtype = factor(x, levels = c('pvertex', 'tvertex', 'tvolume'),
                       labels = c("Surface Personalized", "Surface Template", "Volume Template"))
   } else if (cort_atlas == "Schaefer") {
-    corrtype = factor(x, levels = c("volschaefer","surfschaefer" ),
-                      labels = c("Volume Template", "Surface Template"))
+    corrtype = factor(x, levels = c("surfschaefer","volschaefer"),
+                      labels = c( "Surface Template", "Volume Template"))
   }
   return(corrtype)
 }
