@@ -136,9 +136,7 @@ get_Schaefer_node_annotations <- function(Schaefer_labels, the_subcortical_guide
     mutate_if(is.character, list(~ replace(., is.na(.), ''))) %>%
     mutate(etype = if_else(str_sub(node_name,1,9)=="7Networks","Cort", "SubCort")) %>%
     rename(cort_NET = NETWORK, cort_hemi = hemi) %>%
-    mutate(cort_NET = if_else(etype == "Cort", str_sub(.$node_name, 1,2), ""),
-           cort_hemi = if_else(etype == "Cort", str_sub(.$node_name, 5,5), ""),
-           network = if_else(etype == "Cort", cort_NET, subcort_NET),
+    mutate(network = if_else(etype == "Cort", cort_NET, subcort_NET),
            network = factor(network, levels = rev(YeoNet7$network)),
            hemi = if_else(etype == "Cort", cort_hemi, subcort_hemi),
            size_is_ok = if_else(etype == "Cort", "yes", size_is_ok),
