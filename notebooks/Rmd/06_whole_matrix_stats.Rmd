@@ -114,7 +114,7 @@ saveRDS(all_corZ_results, file = file.path(output_base, "all_clinicalplusqa_grou
 
 
 
-```{r load-cached-results}
+```{r load-cached-results eval = FALSE}
 all_corZ_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_cache.rds"))
 ```
 
@@ -127,7 +127,7 @@ results_pheno <- all_corZ_results %>%
 
 ```
 
-```{r}
+```{r eval = FALSE}
 rm(all_corZ_results)
 ```
 
@@ -241,12 +241,12 @@ helpers functions for dealing with correlation matrixes
 #' convert from three col graph df to adjacency matrix
 uppertri_df_to_agjmat <- function(graph_df) {
   
-names(graph_df) <- c('to', 'from', 'myattr')
-matrix_out <- graph_df %>%
-  graph_from_data_frame(.,directed = F) %>%
-  get.adjacency(., type = "both", attr = "myattr") %>%
-  as.matrix() 
-return(matrix_out)
+  names(graph_df) <- c("to", "from", "myattr")
+  matrix_out <- graph_df %>%
+    graph_from_data_frame(., directed = F) %>%
+    as_adjacency_matrix(., type = "both", attr = "myattr", sparse = FALSE) #%>%
+    #as.matrix() 
+  return(matrix_out)
 }
 
 #' go uppertri data to full dataframe for geom_tile
@@ -434,7 +434,7 @@ DX_lm_model_DXcohenD_networkwise %>%
 
 Plotting the networkwise results to a using ggtile
 
-```{r}
+```{r fig.height=4, fig.width=8}
 
 DX_lm_model_DXcohenD_networkwise %>%
   mutate(to = factor(to, levels = rev(networkg_order)),
@@ -445,7 +445,7 @@ DX_lm_model_DXcohenD_networkwise %>%
   ggplot(aes(x = to, y = from, fill = DX_cohenD)) +
   geom_tile() +
   geom_text(aes(label = sig)) +
-  scale_fill_distiller(breaks = c(-1,1), type = "div", palette = 5) +
+  scale_fill_distiller(breaks = c(-1,1), type = "div", palette = 5, trans = "reverse") +
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   facet_wrap(~ corrtype) +
@@ -744,9 +744,7 @@ uppertri_df_to_full <- function(graph_df) {
 }
 ```
 
-```{r}
-results_pheno
-```
+
 
 
 ```{r}
@@ -1142,7 +1140,7 @@ hypo_cerebullum_to %>%
 
 
 
-```{r}
+```{r eval = FALSE}
 
 calc_fc_weights <- function(lm_df, t_threshold) {
   
@@ -1281,7 +1279,7 @@ Fz_weigths <-bind_rows(hyper_cortDA_to_SM = hyper_cortDA_to_SM,
 
 ### calculated extract edge weights for per participant scores
 
-```{r}
+```{r eval=FALSE}
 cohenD_threshold = 0.2678
 cohenD_thresname = "pFDR"
 
@@ -1322,7 +1320,7 @@ Fz_DXweigths %>%
 ### calculated scores per participant
 
 
-```{r}
+```{r eval = FALSE}
 
 #' calculates a subjects weigthed FC score from their edgewise values
 #'
@@ -1350,7 +1348,7 @@ calc_subjects_wFC_score <- function(subject_edges_df, edge_weights) {
 ```
 
 
-```{r}
+```{r eval = FALSE}
 pvertex_subject_FC_scores <- results_pheno %>%
   ungroup() %>%
   filter(vertex_type == "pvertex") %>%
@@ -1382,7 +1380,7 @@ write_csv(FC_scores_together, file.path(output_base,
                                         "SSD4cohorts_DXweighted_subject_scores.csv"))
 ```
 
-```{r}
+```{r eval = FALSE}
 DX_sig_edge_table %>% filter(vertex_type == "pvertex") %>% pull(sig)
 ```
 
@@ -1396,7 +1394,7 @@ To investigate these patterns further, sub-scored for these groups of edges were
 
 
 
-```{r}
+```{r eval = FALSE}
 FC_scores_lmfit <- FC_scores_together %>%
   inner_join(pheno, by = c("subject", "dataset")) %>%
   ungroup() %>%
@@ -1416,7 +1414,7 @@ FC_scores_lmfit %>%
     geom_point() +
     geom_line(aes(group = edge_group))
 ```
-```{r}
+```{r eval = FALSE}
 FC_scores_lmfit <- FC_scores_together %>%
   inner_join(pheno, by = c("subject", "dataset")) %>%
   ungroup() %>%
@@ -1451,12 +1449,12 @@ heatmap(abs(SSD_cors))
 ```
 
 ```{r eval = FALSE}
-HC_cors <- FC_scores_together %>%
-    inner_join(pheno, by = c("subject", "dataset")) %>%
+HC_cors <- results_net_pheno %>%
   ungroup() %>%
-  filter(DX == "CTRL", vertex_type == "pvertex") %>%
-  select(subject, dataset, edge_group, wFC_score) %>%
-  spread(edge_group, wFC_score) %>%
+  filter(vertex_type == "pvertex") %>%
+  select(subject, dataset, to, from, weight) %>%
+  unite(edge_group, to:from) %>%
+  spread(edge_group, weight) %>%
   select(-subject, -dataset) %>%
   cor(.) 
 
@@ -1498,33 +1496,27 @@ plot_DX_scatter_elipsed <- function(df, x, y) {
 
 ```{r , fig.height=4, fig.width = 5}
 library(cowplot)
-fplot <- FC_scores_together %>%
-  inner_join(pheno, by = c("subject", "dataset")) %>%
+fplot <- results_net_pheno %>%
   ungroup() %>%
   filter(vertex_type == "pvertex") %>%
-  unite(directed_edge_group, effect_direction, edge_group) %>%
+  unite(edge_group, to:from) %>%
   unite(dat_sub, dataset, subject) %>%  
-  select(dat_sub, Site, DX, directed_edge_group, wFC_score) %>%
-  spread(directed_edge_group, wFC_score) 
+  select(dat_sub, Site, DX, edge_group, weight) %>%
+  spread(edge_group, weight) 
 
 ```
 
 ```{r, fig.width=5, fig.height = 4}
-ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_subcort_to_VI, y = hypo_subcort_to_FP))
+ggdraw(plot_DX_scatter_elipsed(fplot, x = thalamus_CortSM, y = striatum_CortFP))
 ```
 
 
-```{r, fig.width=5, fig.height = 4}
-ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_subcort_to_VI, y = hypo_cerebullum_to_striatum))
-```
-```{r, fig.width=5, fig.height = 4}
-ggdraw(plot_DX_scatter_elipsed(fplot, x = hyper_subcort_to_SM, y = hypo_subcort_to_FP))
-```
+
 
 
 ```{r, fig.height=4, fig.width=6}
 fig1 <- fplot %>%
-  ggplot(aes(y = hypo_subcort_to_FP, x = DX, color = DX)) + 
+  ggplot(aes(y = striatum_CortFP, x = DX, color = DX)) + 
   geom_boxplot(outlier.shape = NA) + 
   geom_dotplot(binaxis = 'y', stackdir = 'center', binwidth = 0.01, alpha = 0.5) +
   scale_color_manual(values = c("grey20","red")) +
@@ -1539,7 +1531,7 @@ fig1
 
 ```{r, fig.height=4, fig.width=6}
 fig1 <- fplot %>%
-  ggplot(aes(y = hyper_subcort_to_SM, x = DX, color = DX)) + 
+  ggplot(aes(y = thalamus_CortVI, x = DX, color = DX)) + 
   geom_boxplot(outlier.shape = NA) + 
   geom_dotplot(binaxis = 'y', stackdir = 'center', binwidth = 0.01, alpha = 0.5) +
   scale_color_manual(values = c("grey20","red")) +
@@ -1558,7 +1550,7 @@ fig1
 
 
 
-```{r}
+```{r eval = FALSE}
 define_hypohyper_weights <- function(lm_df, cohenD_threshold, node_annotations, edge_guide) {
 full_DX_mat <- lm_df %>%
       ungroup() %>%
@@ -1601,7 +1593,7 @@ define_vertex_hypohyper_weights <- function(lm_df, v_type, cohenD_threshold) {
 
 ```
 
-```{r}
+```{r eval = FALSE}
 size_threshold = 8
 cohenD_threshold = 0.26
 
@@ -1636,7 +1628,7 @@ groupwise_weights_table
 
 
 
-```{r}
+```{r eval = FALSE}
 edge_groups_to_use <- groupwise_weights_table %>%
   ungroup() %>%
   select(use_hypo, use_hyper, edge_group) %>%
@@ -1646,7 +1638,7 @@ edge_groups_to_use <- groupwise_weights_table %>%
 edge_groups_to_use
 ```
 
-```{r}
+```{r eval = FALSE}
 hyper_edgegroups <- edge_groups_to_use %>% filter(use_hyper) %>% pull(edge_group)
 hypo_edgegroups <- edge_groups_to_use %>% filter(use_hypo) %>% pull(edge_group)
 groupwise_weights_hyper <- groupwise_weights %>%
@@ -1674,7 +1666,7 @@ groupwise_weights_both %>%
 
 
 
-```{r}
+```{r eval = FALSE}
 groupwise_weights_both %>%
   mutate(node_class = if_else(str_detect(edge_group,'_Cort'), 
                  "Within_Cortical",
@@ -1686,7 +1678,7 @@ groupwise_weights_both %>%
   geom_line(aes(group = edge_group)) +
   facet_wrap(~effect_direction*node_class)
 ```
-```{r}
+```{r eval = FALSE}
 write_csv(groupwise_weights_both, file.path(output_base, 
                                         "all_clinicalplusqa_group", 
                                         "weighted_subject_FC_weigths",
@@ -1695,7 +1687,7 @@ write_csv(groupwise_weights_both, file.path(output_base,
 
 
 
-```{r}
+```{r eval = FALSE}
 
 all_subject_FC_weights_by_vertex <- function(results_data, edge_weights, vtype) {
 result <- results_data %>%
@@ -1712,7 +1704,7 @@ all_subject_FC_weights <- tibble(vertex_type = c("pvertex", "tvertex", "tvolume"
   unnest(cols = c(result))
 ```
 
-```{r}
+```{r eval = F}
 
 write_csv(all_subject_FC_weights, file.path(output_base, 
                                         "all_clinicalplusqa_group", 
@@ -1720,7 +1712,7 @@ write_csv(all_subject_FC_weights, file.path(output_base,
                                     'SSD4cohorts_DXweighted_edgegroupwise_subject_scores.csv'))
 ```
 
-```{r}
+```{r eval = F}
 FC_gscores_lmfit <- all_subject_FC_weights %>%
   inner_join(pheno, by = c("subject", "dataset")) %>%
   ungroup() %>%
@@ -1743,27 +1735,26 @@ FC_gscores_lmfit %>%
     geom_line(aes(group = edge_group)) +
   facet_wrap(~effect_direction*node_class)
 ```
+
 ```{r}
-FC_gscores_lmfitbySite <- all_subject_FC_weights %>%
-  inner_join(pheno, by = c("subject", "dataset")) %>%
-  ungroup() %>%
-  group_by(effect_direction, edge_group, vertex_type, Site) %>%
-  do(tidy(lm(wFC_score ~ DX + Age_pt + Sex + fd_mean_pt,.))) 
+FC_gscores_lmfitbySite <- results_net_pheno %>%
+  group_by(to, from, vertex_type, Site) %>%
+  do(tidy(lm(weight ~ DX + Age_match_pt + Sex + fd_mean_match_pt,.))) 
 
 FC_gscores_lmfitbySite %>%
-  select(effect_direction, edge_group, Site, vertex_type, term, statistic, p.value) %>%
+  select(to, from, Site, vertex_type, term, statistic, p.value) %>%
   filter(term == "DXSSD") %>%
   knitr::kable()
 
 FC_gscores_lmfitbySite %>% 
-  mutate(node_class = if_else(str_detect(edge_group,'_Cort'), 
+  mutate(node_class = if_else(str_detect(to,'Cort'), 
                  "Within_Cortical",
                  "Subcortical_to")) %>%
   filter(term == "DXSSD",
          node_class == "Subcortical_to") %>%
-  ggplot(aes(y = abs(statistic), x = rev(vertex_type), color = effect_direction)) +
+  ggplot(aes(y = abs(statistic), x = rev(vertex_type))) +
     geom_point() +
-    geom_line(aes(group = edge_group)) +
+    geom_line(aes(group = to)) +
   facet_wrap(~Site)
 ```
 
