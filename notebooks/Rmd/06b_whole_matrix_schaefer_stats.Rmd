@@ -86,7 +86,7 @@ write_csv(vx_counts, '../templates/subcort_vxcounts.csv')
 
 Write a func_base and outputprefix cols into the pheno file for the file reading step
 
-```{r}
+```{r eval=FALSE}
 pheno <- pheno %>%
   mutate(func_base = get_func_base_from_pint_summary_filename(filename,subject, session), 
          outputprefix = construct_output_prefix(subject, session, func_base)) 
@@ -137,7 +137,7 @@ results_pheno <- all_corZ_results %>%
 
 ```
 
-```{r}
+```{r eval = FALSE}
 rm(all_corZ_results)
 ```
 
@@ -237,35 +237,39 @@ helpers functions for dealing with correlation matrixes
 #' convert from three col graph df to adjacency matrix
 uppertri_df_to_agjmat <- function(graph_df) {
   
-names(graph_df) <- c('to', 'from', 'myattr')
-matrix_out <- graph_df %>%
-  graph_from_data_frame(.,directed = F) %>%
-  get.adjacency(., type = "both", attr = "myattr") %>%
-  as.matrix() 
-return(matrix_out)
+  names(graph_df) <- c("to", "from", "myattr")
+  matrix_out <- graph_df %>%
+    graph_from_data_frame(., directed = F) %>%
+    as_adjacency_matrix(., type = "both", attr = "myattr", sparse = FALSE) #%>%
+    #as.matrix() 
+  return(matrix_out)
 }
 
 #' go uppertri data to full dataframe for geom_tile
 uppertri_df_to_full <- function(graph_df) {
-result <- graph_df %>%
-  uppertri_df_to_agjmat() %>%
-  as.data.frame() %>%
-  mutate(to = row.names(.)) %>%
-  gather(from, value, -to) 
-return(result)
+  result <- graph_df %>%
+    uppertri_df_to_agjmat() %>%
+    as.data.frame() %>%
+    mutate(to = row.names(.)) %>%
+    gather(from, value, -to) 
+  return(result)
 }
+
 ```
 
 Defining function to reduce the whole brain correlation matrix to networkwise correlations
 
+
+
+
 ```{r}
 
-networkg_order = c("CortDM","CortFP", "CortVA","CortDA","CortSM","CortVI", 
+networkg_order = c("CortLI", "CortDM","CortFP", "CortVA","CortDA","CortSM","CortVI", 
                    "striatum", "thalamus","cerebellum")
 
-node_annotations1 <- node_annotations %>%
+node_annotations1 <- Schaefer_node_annots %>%
   mutate(node_grouping  = if_else(etype == "Cort",
-                                  str_c("Cort", cort_NET),
+                                  str_c("Cort", as.character(network)),
                                   as.character(subcort_ROI))) %>%
   filter(!(etype == "SubCort" & numvx < 10))
 
@@ -294,10 +298,9 @@ within_tbw_net_corrs <- function(upper_tri_edges) {
 }
 
 
-### un-comment the line below to test the above function
+# ### un-comment the line below to test the above function
 # test_edges <- results_pheno %>%
-#  select(vertex_type, subject, dataset, to, from, weight) %>%
-#   ungroup() %>%
+#   select(vertex_type, subject, dataset, to, from, weight) %>%
 #   group_by(vertex_type, subject, dataset) %>%
 #   nest() %>%
 #   slice(1) %>%
@@ -307,6 +310,7 @@ within_tbw_net_corrs <- function(upper_tri_edges) {
 # 
 # within_tbw_net_corrs(test_edges)
 ```
+
 
 ```{r}
 networkwise_corrz <- function(results_pheno_df) {
@@ -321,26 +325,26 @@ networkwise_corrz <- function(results_pheno_df) {
 }
 
 ## had to split this by vertex because of RAM issues on laptop
-pvertex_networkwise <- results_pheno %>%
-  filter(vertex_type == "pvertex") %>%
+surf_networkwise <- results_pheno %>%
+  filter(vertex_type == "surfschaefer") %>%
   networkwise_corrz()
-tvertex_networkwise <- results_pheno %>%
-  filter(vertex_type == "tvertex") %>%
-  networkwise_corrz()
-tvolume_networkwise <- results_pheno %>%
-  filter(vertex_type == "tvolume") %>%
+vol_networkwise <- results_pheno %>%
+  filter(vertex_type == "volschaefer") %>%
   networkwise_corrz()
 
 networkwise_corrs <- bind_rows(
-  pvertex_networkwise,
-  tvertex_networkwise,
-  tvolume_networkwise
+  surf_networkwise,
+  vol_networkwise,
 )
 
 ```
 
 ```{r}
-saveRDS(networkwise_corrs, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_networkwise_cache.rds"))
+saveRDS(networkwise_corrs, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_Schaefercombat_networkwise_cache.rds"))
+```
+
+```{r}
+networkwise_corrs <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_Schaefercombat_networkwise_cache.rds"))
 ```
 
 
@@ -435,8 +439,8 @@ Plotting the networkwise results to a using ggtile
 DX_lm_model_DXcohenD_networkwise %>%
   mutate(to = factor(to, levels = rev(networkg_order)),
          from = factor(from, levels = rev(networkg_order)),
-         corrtype = factor(vertex_type, levels = rev(c('pvertex', 'tvertex', 'tvolume')),
-                      labels = rev(c("Surface Personalized", "Surface Template", "Volume Template"))),
+         corrtype = factor(vertex_type, levels = c("volschaefer","surfschaefer" ),
+                      labels = c("Volume Template", "Surface Template")),
          sig = if_else(p_FDR < 0.05, "*","")) %>%
   ggplot(aes(x = to, y = from, fill = DX_cohenD)) +
   geom_tile() +
@@ -485,9 +489,7 @@ for (i in 1:1000) {
     pivot_wider(id_cols = c("to", "from"),
                 names_from = "vertex_type",
                 values_from = DX_cohenD) %>%
-    mutate("pvertex_minus_tvertex" = pvertex - tvertex,
-           "tvertex_minus_tvolume" = tvertex - tvolume,
-           "pvertex_minus_tvolume" = pvertex - tvolume)
+    mutate("pvertex_minus_tvertex" = volschaefer-surfschaefer)
              
   
   # Combine the results with the existing data frame
@@ -498,6 +500,199 @@ for (i in 1:1000) {
 
 
 ```
+
+```{r}
+saveRDS(networkwise_boot_cohenDDX_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_Schaefercombat_networkwiseboot_cache.rds"))
+```
+
+```{r}
+library(ggridges)
+
+make_subcortcort_edges_raincloud <- function(data, this_subCort) {
+  
+  plt_data <- data
+
+make_one_net_ridgelines <- function(plt_data, this_YeoNet, this_subCort, no_ticks = TRUE) {
+    plt <- plt_data %>%
+    filter(from == str_c("Cort",this_YeoNet)) %>%
+    filter(to == this_subCort) %>%
+    pivot_longer(cols = c("surfschaefer", "volschaefer"),
+               names_to = "vertex_type", 
+               values_to = "gvalue") %>%
+    mutate(corrtype = factor_corrtype(vertex_type, "Schaefer")) %>%
+    ggplot(aes(y = corrtype, x = gvalue)) +
+    geom_density_ridges(
+      #jittered_points = TRUE, position = "raincloud",
+      alpha = 0.5, scale = 2,
+      quantile_lines = TRUE, quantiles = 2,
+      color = YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode)
+    ) +
+    # geom_text(aes(y = corrtype, label = hyper), 
+    #       x = 0.5, 
+    #       nudge_y = 0.2, data = plt_counts %>% filter(as.character(network.y) %in% c(this_YeoNet))) +
+    # geom_text(aes(y = corrtype, label = hypo), 
+    #       x = -0.5, 
+    #       nudge_y = 0.2, data = plt_counts %>% filter(as.character(network.y) %in% c(this_YeoNet))) +
+    geom_vline(xintercept = 0) +
+    # geom_vline(xintercept = D_threshold, linetype = "dashed") +
+    # geom_vline(xintercept = -D_threshold, linetype = "dashed") +
+    scale_colour_manual(values = c(YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_x_continuous(limits = c(-0.8, 0.8)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+
+if (no_ticks==TRUE) {
+    plt <- plt + theme(axis.title.x=element_blank(),
+                       axis.text.x=element_blank())
+  } else {
+    plt <- plt + labs(x = "Subcortical to Cortical Edges")
+  }
+  return(plt)
+  
+}
+
+#' Right section of the raincload plots used in sub-cortical cortical change reporting
+focus_subcort_raincloud <- function(data, this_YeoNet, this_subCort, no_ticks = TRUE) {
+  
+  plt <- data %>%
+    filter(to == this_subCort, from == str_c("Cort",this_YeoNet)) %>% 
+    ungroup() %>%
+    ggplot(aes(x = pvertex_minus_tvertex, y = 1)) +
+    geom_density_ridges(
+      # jittered_points = TRUE, position = "raincloud",
+      alpha = 0.5, scale = 2,
+      quantile_lines = TRUE, quantiles = 2,
+      fill = YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode),
+      colour = YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode)
+    ) +
+    geom_vline(xintercept = 0) +
+    scale_x_continuous(limits = c(-0.3, 0.6)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none', 
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank()) 
+  if (no_ticks==TRUE) {
+    plt <- plt + theme(axis.title.x=element_blank(),
+                       axis.text.x=element_blank())
+  } else {
+    plt <- plt + labs(x = "Surface - Volume.")
+  }
+  return(plt)
+  
+}
+
+
+#' Combined left and right section of the raincload plots used in sub-cortical cortical change reporting
+compare_with_rainclouds <- function(plt_data, this_YeoNet, this_subCort, no_ticks = TRUE) {
+  plt <- plot_grid(make_one_net_ridgelines(plt_data, this_YeoNet, this_subCort, no_ticks),
+                   focus_subcort_raincloud(plt_data, this_YeoNet, this_subCort, no_ticks), 
+                   rel_widths = c(2,1))
+  return(plt)
+}
+
+  DM <- compare_with_rainclouds(plt_data, "DM", this_subCort)
+  FP <- compare_with_rainclouds(plt_data, "FP", this_subCort)
+  VA <- compare_with_rainclouds(plt_data, "VA", this_subCort)
+  DA <- compare_with_rainclouds(plt_data, "DA", this_subCort)
+  SM <- compare_with_rainclouds(plt_data, "SM", this_subCort)
+  VI <- compare_with_rainclouds(plt_data, "VI", this_subCort, no_ticks = FALSE)
+
+  title <- ggdraw() + draw_label(str_c(this_subCort, " to Cortical"), fontface='bold')
+  full_plt <- plot_grid(title, DM, FP, VA, DA, SM, VI,
+                   ncol = 1, rel_heights = c(0.5, 1, 1, 1, 1, 1, 1.5))
+  return(full_plt)
+}
+
+
+make_subcortcort_edges_raincloud(networkwise_boot_cohenDDX_results, this_subCort = "thalamus")
+```
+
+```{r}
+make_subcortcort_edges_raincloud(networkwise_boot_cohenDDX_results, this_subCort = "cerebellum")
+```
+
+
+```{r}
+to_ROI <- "thalamus"
+from_ROI <- "CortVI"
+networkwise_boot_cohenDDX_results %>%
+  filter(to == to_ROI, from == from_ROI) %>%
+  pivot_longer(cols = c("surfschaefer", "volschaefer"),
+               names_to = "vertex_type", 
+               values_to = "gvalue") %>%
+  mutate(corrtype = factor_corrtype(vertex_type, "Schaefer")) %>%
+  ungroup() %>%
+  ggplot(aes(y = corrtype, x = gvalue)) +
+  geom_density_ridges(aes(fill = nettype, colour = nettype),
+                        #jittered_points = TRUE, position = "raincloud",
+                        alpha = 0.5, scale = 2,
+                        quantile_lines = TRUE, quantiles = 2
+    ) +
+    geom_text(aes(y = corrtype, label = cohenD_str), 
+              x = 0.55, 
+              nudge_y = 0.1, data = eff_size_df) +
+    geom_vline(xintercept = 0) +
+    scale_colour_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_fill_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_x_continuous(limits = c(-0.5, 0.6)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+  
+```
+
+```{r}
+
+YeoNet7 <- tribble(
+  ~network, ~hexcode,
+  "VI", "#781286",
+  "SM", "#4682B4",
+  "DA", "#00760E",
+  "VA", "#C43AFA",
+  "FP", "#E69422",
+  "DM", "#CD3E3A",
+  "LI", "#dcf8a4")
+
+specify_decimal <- function(x, k) trimws(format(round(x, k), nsmall=k))
+
+factor_corrtype <- function(x, cort_atlas) {
+  if (cort_atlas == "PINT") {
+    corrtype = factor(x, levels = c('pvertex', 'tvertex', 'tvolume'),
+                      labels = c("Surface Personalized", "Surface Template", "Volume Template"))
+  } else if (cort_atlas == "Schaefer") {
+    corrtype = factor(x, levels = c("volschaefer","surfschaefer" ),
+                      labels = c("Volume Template", "Surface Template"))
+  }
+  return(corrtype)
+}
+```
+
+```{r}
+data %>%
+    mutate(corrtype = factor_corrtype(vertex_type, cort_atlas)) %>%
+    gather(nettype, gvalue, diff_net, same_net) %>%
+    filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
+    ungroup() %>%
+    ggplot(aes(y = corrtype, x = gvalue)) +
+    geom_density_ridges(aes(fill = nettype, colour = nettype),
+                        #jittered_points = TRUE, position = "raincloud",
+                        alpha = 0.5, scale = 2,
+                        quantile_lines = TRUE, quantiles = 2
+    ) +
+    geom_text(aes(y = corrtype, label = cohenD_str), 
+              x = 0.55, 
+              nudge_y = 0.1, data = eff_size_df) +
+    geom_vline(xintercept = 0) +
+    scale_colour_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_fill_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_x_continuous(limits = c(-0.5, 0.6)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+```
+
 
 
 
