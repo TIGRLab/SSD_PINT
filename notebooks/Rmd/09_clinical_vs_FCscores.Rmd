@@ -46,21 +46,9 @@ ZHH_extended <- read_csv(here("data/processed/pheno/20200722_ZHH_clinical.csv"))
 
 
 ```{r}
-weighted_subject_scores <- read_csv(here("data/processed/mri/all_clinicalplusqa_group/weighted_subject_FC_scores/SSD4cohorts_DXweighted_subject_scores.csv"))
-
+networkwise_corrs = readRDS(networkwise_corrs, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_networkwise_cache.rds"))
 ```
 
-```{r}
-weighted_subject_scores <- weighted_subject_scores%>%
-  group_by(vertex_type, edge_group, effect_direction) %>%
-  mutate(upper_wFC = mean(wFC_score) + 3*sd(wFC_score),
-         lower_wFC = mean(wFC_score) - 3*sd(wFC_score),
-         upper_out = upper_wFC < wFC_score,
-         lower_out = lower_wFC > wFC_score,
-         wFC_score_cliped = if_else(upper_out, upper_wFC, wFC_score),
-         wFC_score_cliped = if_else(lower_out, lower_wFC, wFC_score_cliped)) 
-#  facet_grid(edge_group ~ vertex_type, scales = "free")
-```
 
 
 ```{r}
@@ -97,13 +85,14 @@ summary(pheno_extended$sans_G_total)
 
 
 ```{r}
-with_wFC1 <- weighted_subject_scores %>%
+with_wFC1 <- networkwise_corrs %>%
   inner_join(pheno_extended, by = c("subject", "dataset")) %>%
-  drop_na(dx)
+  drop_na(dx) %>%
+  unnest(results)
 ```
 
 ```{r}
-with_wFC_zhh <- weighted_subject_scores %>%
+with_wFC_zhh <- networkwise_corrs %>%
   inner_join(ZHH_extended, by = c("subject", "dataset")) 
 ```
 
@@ -115,31 +104,20 @@ wFC_corrs <- with_wFC1 %>%
    ungroup() %>%
   filter(vertex_type == "pvertex", 
          dx == "SSD") %>%
-  select(subject, dataset, edge_group, wFC_score) %>%
-  spread(edge_group, wFC_score) %>%
+  unite(edge_group, to, from) %>%
+  select(subject, dataset, edge_group, weight) %>%
+  spread(edge_group, weight) %>%
   select(-subject, -dataset) %>%
   cor(.)
 heatmap(abs(wFC_corrs))
 ```
-
-```{r}
-wFC_corrs <- with_wFC1 %>%
-   ungroup() %>%
-  filter(vertex_type == "pvertex", 
-         dx == "CTRL") %>%
-  select(subject, dataset, edge_group, wFC_score) %>%
-  spread(edge_group, wFC_score) %>%
-  select(-subject, -dataset) %>%
-  cor(.)
-heatmap(abs(wFC_corrs))
-```
-
 ```{r}
 wFC_corrs <- with_wFC1 %>%
    ungroup() %>%
   filter(vertex_type == "pvertex") %>%
-  select(subject, dataset, edge_group, wFC_score) %>%
-  spread(edge_group, wFC_score) %>%
+  unite(edge_group, to, from) %>%
+  select(subject, dataset, edge_group, weight) %>%
+  spread(edge_group, weight) %>%
   select(-subject, -dataset) %>%
   cor(.)
 heatmap(abs(wFC_corrs))
@@ -149,23 +127,16 @@ heatmap(abs(wFC_corrs))
 wFC_corrs <- with_wFC1 %>%
    ungroup() %>%
   filter(vertex_type == "tvertex") %>%
-  select(subject, dataset, edge_group, wFC_score) %>%
-  spread(edge_group, wFC_score) %>%
+  unite(edge_group, to, from) %>%
+  select(subject, dataset, edge_group, weight) %>%
+  spread(edge_group, weight) %>%
   select(-subject, -dataset) %>%
   cor(.)
 heatmap(abs(wFC_corrs))
 ```
 
-```{r}
-wFC_corrs <- with_wFC1 %>%
-   ungroup() %>%
-  filter(vertex_type == "tvolume") %>%
-  select(subject, dataset, edge_group, wFC_score) %>%
-  spread(edge_group, wFC_score) %>%
-  select(-subject, -dataset) %>%
-  cor(.)
-heatmap(abs(wFC_corrs))
-```
+
+
 
 ```{r}
 library(cowplot)
