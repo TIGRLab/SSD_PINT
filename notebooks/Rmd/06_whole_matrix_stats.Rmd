@@ -347,6 +347,10 @@ networkwise_corrs <- bind_rows(
 saveRDS(networkwise_corrs, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_networkwise_cache.rds"))
 ```
 
+```{r}
+networkwise_corrs <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_networkwise_cache.rds"))
+```
+
 
 ## calcualate Diagnosis Effect - Networkwise
 
@@ -432,6 +436,20 @@ DX_lm_model_DXcohenD_networkwise %>%
   count(vertex_type)
 ```
 
+
+```{r}
+DX_effectednets <- DX_lm_model_DXcohenD_networkwise %>%
+   filter(p_FDR < 0.05) %>%
+   select(to, from, vertex_type) %>%
+  distinct() %>%
+   count(to, from) %>%
+  filter(n >1)
+
+write_csv(DX_effectednets, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_PINTcombat_networkwise_signetworks_cache.csv"))
+  
+DX_effectednets
+```
+
 Plotting the networkwise results to a using ggtile
 
 ```{r fig.height=4, fig.width=8}
@@ -503,6 +521,71 @@ for (i in 1:1000) {
 
 ```
 
+```{r}
+saveRDS(networkwise_boot_cohenDDX_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_networkwise_DXboots_cache.rds"))
+```
+
+```{r}
+networkwise_boot_cohenDDX_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_networkwise_DXboots_cache.rds"))
+```
+
+### building tables of the DX boots
+
+```{r}
+to_test <- "thalamus"
+from_test <- "CortVI"
+
+calculate_mean_ci <- function(data) {
+  n <- length(data)
+  mean_val <- mean(data)
+  lower <- quantile(data, 0.025)
+  upper <- quantile(data, 0.975)
+  
+  result <- sprintf("%.2f [%.2f; %.2f]", mean_val, lower, upper)
+  if ((lower < 0 & upper < 0 ) | (lower > 0 & upper > 0)) {
+    result <- str_c(result, "*")
+  }
+  return(result)
+}
+
+
+```
+
+
+```{r}
+networkwise_boot_cohenDDX_results %>% 
+  pivot_longer(pvertex:pvertex_minus_tvolume,
+               names_to = "colname",
+               values_to = "D") %>%
+  group_by(to, from, colname) %>%
+  summarise(ci_str = calculate_mean_ci(D)) %>%
+  pivot_wider(names_from = colname,
+              values_from = ci_str) %>%
+  select(to, from, tvolume, tvertex, pvertex, tvertex_minus_tvolume, pvertex_minus_tvertex) %>%
+  knitr::kable(col.names = c("","","Volume Template", "Surface Template", "Surface Personalized", "Surface-Volume", "Personalized-Template"))
+  
+```
+
+```{r}
+calc_DX_reproducible <- function(this_vertex_type) {
+matrix_data <- networkwise_boot_cohenDDX_results %>%
+  mutate(pnum = rep(seq(from = 1, to = 1000), each = 45)) %>%
+  pivot_wider(id_cols = c("to", "from"),
+              names_from = "pnum",
+              values_from = this_vertex_type,
+              names_prefix = "pnum") %>%
+  select(starts_with("pnum")) %>%
+  cor() 
+
+result <- calculate_mean_ci(matrix_data[upper.tri(matrix_data)])
+   return(result)
+}
+
+print(str_c("pvertex: ",calc_DX_reproducible("pvertex")))
+print(str_c("tvertex: ",calc_DX_reproducible("tvertex")))
+print(str_c("tvolume: ",calc_DX_reproducible("tvolume")))
+
+```
 
 
 ## Running a whole brain (edgewise) models
