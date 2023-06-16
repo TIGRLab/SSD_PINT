@@ -233,126 +233,7 @@ results_pheno <- ungroup(simpler_results)
 
 
 
-# Running Networkwise models 
-
-helpers functions for dealing with correlation matrixes
-
-```{r}
-#' convert from three col graph df to adjacency matrix
-uppertri_df_to_agjmat <- function(graph_df) {
-  
-  names(graph_df) <- c("to", "from", "myattr")
-  matrix_out <- graph_df %>%
-    graph_from_data_frame(., directed = F) %>%
-    as_adjacency_matrix(., type = "both", attr = "myattr", sparse = FALSE) #%>%
-    #as.matrix() 
-  return(matrix_out)
-}
-
-#' go uppertri data to full dataframe for geom_tile
-uppertri_df_to_full <- function(graph_df) {
-result <- graph_df %>%
-  uppertri_df_to_agjmat() %>%
-  as.data.frame() %>%
-  mutate(to = row.names(.)) %>%
-  gather(from, value, -to) 
-return(result)
-}
-```
-
-Defining function to reduce the whole brain correlation matrix to networkwise correlations
-
-```{r}
-
-networkg_order = c("CortDM","CortFP", "CortVA","CortDA","CortSM","CortVI", 
-                   "striatum", "thalamus","cerebellum")
-
-node_annotations1 <- node_annotations %>%
-  mutate(node_grouping  = if_else(etype == "Cort",
-                                  str_c("Cort", cort_NET),
-                                  as.character(subcort_ROI))) %>%
-  filter(!(etype == "SubCort" & numvx < 10))
-
-
-within_tbw_net_corrs <- function(upper_tri_edges) {
-  results <- upper_tri_edges %>%
-  uppertri_df_to_full() %>%
-  inner_join(node_annotations1 %>% select(node_name, node_grouping), 
-             by = c("to" = "node_name")) %>%
-  inner_join(node_annotations1 %>% select(node_name, node_grouping), 
-             by = c("from" = "node_name"), suffix = c("_to", "_from")) %>%
-  filter(!(to == from)) %>%
-  group_by(node_grouping_to, node_grouping_from) %>%
-  summarise(mean_corZ = mean(value), .groups = "keep") %>%
-  
-  # taking only the upper triangle 
-  mutate(node_grouping_to  = factor(node_grouping_to, levels = networkg_order),
-         node_grouping_from = factor(node_grouping_from, levels = networkg_order)) %>%
-  arrange(node_grouping_to, node_grouping_from) %>%
-  uppertri_df_to_agjmat() %>%
-  graph_from_adjacency_matrix(mode="upper", 
-                                weighted=T, diag=T) %>%
-  as_data_frame()
-  
-  return(results)
-}
-
-
-### un-comment the line below to test the above function
-# test_edges <- results_pheno %>%
-#  select(vertex_type, subject, dataset, to, from, weight) %>%
-#   ungroup() %>%
-#   group_by(vertex_type, subject, dataset) %>%
-#   nest() %>%
-#   slice(1) %>%
-#   unnest(data) %>%
-#   ungroup() %>%
-#   select(to, from, weight)
-# 
-# within_tbw_net_corrs(test_edges)
-```
-
-```{r}
-networkwise_corrz <- function(results_pheno_df) {
-  result <- results_pheno_df %>%
-  select(vertex_type, subject, dataset, to, from, weight) %>%
-  ungroup() %>%
-  group_by(vertex_type, subject, dataset) %>%
-  nest() %>%
-  mutate(results = map(data, ~within_tbw_net_corrs(.x))) %>%
-  select(vertex_type, subject, dataset, results) %>%
-  return(result)
-}
-
-## had to split this by vertex because of RAM issues on laptop
-pvertex_networkwise <- results_pheno %>%
-  filter(vertex_type == "pvertex") %>%
-  networkwise_corrz()
-tvertex_networkwise <- results_pheno %>%
-  filter(vertex_type == "tvertex") %>%
-  networkwise_corrz()
-tvolume_networkwise <- results_pheno %>%
-  filter(vertex_type == "tvolume") %>%
-  networkwise_corrz()
-
-networkwise_corrs <- bind_rows(
-  pvertex_networkwise,
-  tvertex_networkwise,
-  tvolume_networkwise
-)
-
-```
-
-```{r}
-saveRDS(networkwise_corrs, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_networkwise_cache.rds"))
-```
-
-```{r}
-networkwise_corrs <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_networkwise_cache.rds"))
-```
-
-
-## calcualate Diagnosis Effect - Networkwise
+## calcualate Diagnosis Effect 
 
 a helper function for calculating cohen's D (after regressing out the covars)
 
@@ -370,221 +251,6 @@ result <-df %>%
   .$estimate
 return(result)
 }
-```
-
-merging the networkwise correlations with the phenotypic data for modeling
-
-```{r}
-results_net_pheno <- networkwise_corrs %>%
-  inner_join(pheno, by = c("subject", "dataset")) %>%
-  unnest(cols = c(results)) %>%
-  select(vertex_type, to, from, subject, dataset, weight, DX, all_of(lm_covar_cols))
-  
-```
-
-
-calculating cohen's D of the DX for all edges
-
-```{r}
-cohenD_DX_networkwise <-  results_net_pheno %>%
-  mutate(corZ = weight) %>%
-  ungroup() %>%
-  select(vertex_type, to, from, subject, corZ, DX, all_of(lm_covar_cols)) %>%
-  group_by(vertex_type, to, from) %>%
-  nest() %>%
-  #slice(1:3) %>%
-  mutate(DX_cohenD = map(data, ~calc_DX_cohenD(.x, 
-                                               outcome = "corZ", 
-                                               predictor = "DX",
-                                               covars = lm_covar_cols))) %>%
-  unnest(DX_cohenD) %>%
-  ungroup() %>%
-  select(vertex_type, to, from, DX_cohenD)
-```
-
-running a linear model for all edges
-
-```{r}
-DX_lm_formula <- formula(paste("corZ ~ ", lm_predictor_col, "+",
-                               paste(lm_covar_cols, collapse = " + ")))
-
-print(str_glue("fitting: lm formula {DX_lm_formula}"))
-
-DX_lm_model_fit_networkwise <-  results_net_pheno %>%
-  mutate(corZ = weight) %>%
-  group_by(vertex_type, to, from) %>%
-  do(tidy(lm(DX_lm_formula,.))) %>%
-  
-  # doing the 
-  ungroup() %>%
-  group_by(term) %>%
-  mutate(p_FDR = p.adjust(p.value, method = "fdr")) %>%
-  arrange(p.value)
-
-```
-merging the cohen's D with the DX results from the models
-
-```{r}
-DX_lm_model_DXcohenD_networkwise <- DX_lm_model_fit_networkwise %>%
-  filter(term == "DXSSD") %>%
-  inner_join(cohenD_DX_networkwise, by = c("vertex_type", "to", "from")) %>%
-  mutate(cohenD_DX_tstatdir = -1 * DX_cohenD)
-
-DX_lm_model_DXcohenD_networkwise %>%
-   filter(p_FDR < 0.05) %>%
-   arrange(p.value) %>%
-  count(vertex_type)
-```
-
-
-```{r}
-DX_effectednets <- DX_lm_model_DXcohenD_networkwise %>%
-   filter(p_FDR < 0.05) %>%
-   select(to, from, vertex_type) %>%
-  distinct() %>%
-   count(to, from) %>%
-  filter(n >1)
-
-write_csv(DX_effectednets, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_PINTcombat_networkwise_signetworks_cache.csv"))
-  
-DX_effectednets
-```
-
-Plotting the networkwise results to a using ggtile
-
-```{r fig.height=4, fig.width=8}
-
-DX_lm_model_DXcohenD_networkwise %>%
-  mutate(to = factor(to, levels = rev(networkg_order)),
-         from = factor(from, levels = rev(networkg_order)),
-         corrtype = factor(vertex_type, levels = rev(c('pvertex', 'tvertex', 'tvolume')),
-                      labels = rev(c("Surface Personalized", "Surface Template", "Volume Template"))),
-         sig = if_else(p_FDR < 0.05, "*","")) %>%
-  ggplot(aes(x = to, y = from, fill = DX_cohenD)) +
-  geom_tile() +
-  geom_text(aes(label = sig)) +
-  scale_fill_distiller(breaks = c(-1,1), type = "div", palette = 5, trans = "reverse") +
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  facet_wrap(~ corrtype) +
-  labs(x = NULL, y = NULL)
-
-```
-
-## Compare networkwise cohen's D across cortical surface methods using bootstrap permutations on half the sample
-
-```{r}
-# Create an empty data frame to store the results
-networkwise_boot_cohenDDX_results <- data.frame()
-
-# Run the code snippet 100 times
-for (i in 1:1000) {
-  
-  set.seed(i*10)
-  
-  #print(paste("boot",i))
-  # Execute the code snippet
-  this_subsample <- pheno %>%
-    group_by(DX) %>%
-    sample_frac(size = 0.5) %>%
-    select(subject, dataset, DX) 
-  
-  this_result <-  results_net_pheno %>%
-    semi_join(this_subsample, by = c("subject", "dataset")) %>%
-    mutate(corZ = weight) %>%
-    ungroup() %>%
-    select(vertex_type, to, from, subject, corZ, DX, all_of(lm_covar_cols)) %>%
-    group_by(vertex_type, to, from) %>%
-    nest() %>%
-    #slice(1:3) %>%
-    mutate(DX_cohenD = map(data, ~calc_DX_cohenD(.x, 
-                                                 outcome = "corZ", 
-                                                 predictor = "DX",
-                                                 covars = lm_covar_cols))) %>%
-    unnest(DX_cohenD) %>%
-    ungroup() %>%
-    select(vertex_type, to, from, DX_cohenD) %>%
-    pivot_wider(id_cols = c("to", "from"),
-                names_from = "vertex_type",
-                values_from = DX_cohenD) %>%
-    mutate("pvertex_minus_tvertex" = pvertex - tvertex,
-           "tvertex_minus_tvolume" = tvertex - tvolume,
-           "pvertex_minus_tvolume" = pvertex - tvolume)
-             
-  
-  # Combine the results with the existing data frame
-  networkwise_boot_cohenDDX_results <- bind_rows(networkwise_boot_cohenDDX_results, this_result)
-  
-}
-
-
-
-```
-
-```{r}
-saveRDS(networkwise_boot_cohenDDX_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_networkwise_DXboots_cache.rds"))
-```
-
-```{r}
-networkwise_boot_cohenDDX_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_networkwise_DXboots_cache.rds"))
-```
-
-### building tables of the DX boots
-
-```{r}
-to_test <- "thalamus"
-from_test <- "CortVI"
-
-calculate_mean_ci <- function(data) {
-  n <- length(data)
-  mean_val <- mean(data)
-  lower <- quantile(data, 0.025)
-  upper <- quantile(data, 0.975)
-  
-  result <- sprintf("%.2f [%.2f; %.2f]", mean_val, lower, upper)
-  if ((lower < 0 & upper < 0 ) | (lower > 0 & upper > 0)) {
-    result <- str_c(result, "*")
-  }
-  return(result)
-}
-
-
-```
-
-
-```{r}
-networkwise_boot_cohenDDX_results %>% 
-  pivot_longer(pvertex:pvertex_minus_tvolume,
-               names_to = "colname",
-               values_to = "D") %>%
-  group_by(to, from, colname) %>%
-  summarise(ci_str = calculate_mean_ci(D)) %>%
-  pivot_wider(names_from = colname,
-              values_from = ci_str) %>%
-  select(to, from, tvolume, tvertex, pvertex, tvertex_minus_tvolume, pvertex_minus_tvertex) %>%
-  knitr::kable(col.names = c("","","Volume Template", "Surface Template", "Surface Personalized", "Surface-Volume", "Personalized-Template"))
-  
-```
-
-```{r}
-calc_DX_reproducible <- function(this_vertex_type) {
-matrix_data <- networkwise_boot_cohenDDX_results %>%
-  mutate(pnum = rep(seq(from = 1, to = 1000), each = 45)) %>%
-  pivot_wider(id_cols = c("to", "from"),
-              names_from = "pnum",
-              values_from = this_vertex_type,
-              names_prefix = "pnum") %>%
-  select(starts_with("pnum")) %>%
-  cor() 
-
-result <- calculate_mean_ci(matrix_data[upper.tri(matrix_data)])
-   return(result)
-}
-
-print(str_c("pvertex: ",calc_DX_reproducible("pvertex")))
-print(str_c("tvertex: ",calc_DX_reproducible("tvertex")))
-print(str_c("tvolume: ",calc_DX_reproducible("tvolume")))
-
 ```
 
 ## Edgewise permutations
@@ -640,6 +306,15 @@ saveRDS(roiwise_boot_cohenDDX_resultse, file = file.path(output_base, "all_clini
 
 ```
 
+This ended up being too much for one node so we needed to use the HPC for the roiwise permutations
+
+```{sh eval=FALSE}
+ssh hawking
+# meant to be run from the base of the project
+# cd ~/code/SSD_PINT
+sbatch --array=0-99 ./code/bin/submit_PINTFC_DXeffect_10permutations.sh
+```
+
 ```{r}
 FC_boots <- list.files(path = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache","06_PINTFC_boots"), pattern = "*.rds", full.names = TRUE ) %>%
   map_dfr(readRDS)
@@ -648,9 +323,22 @@ FC_boots <- list.files(path = file.path(output_base, "all_clinicalplusqa_group",
 
 
 ```{r}
+calculate_mean_ci <- function(data) {
+  n <- length(data)
+  mean_val <- mean(data)
+  lower <- quantile(data, 0.025)
+  upper <- quantile(data, 0.975)
+  
+  result <- sprintf("%.2f [%.2f; %.2f]", mean_val, lower, upper)
+  if ((lower < 0 & upper < 0 ) | (lower > 0 & upper > 0)) {
+    result <- str_c(result, "*")
+  }
+  return(result)
+}
+
 calc_DX_reproducible_edgewise <- function(this_vertex_type) {
 matrix_data <- FC_boots %>%
-  pivot_wider(id_cols = c("to", "from"),
+  pivot_wider(id_cols = all_of(c("to", "from")),
               names_from = "i",
               values_from = this_vertex_type,
               names_prefix = "i") %>%
@@ -665,12 +353,24 @@ print(str_c("pvertex: ",calc_DX_reproducible_edgewise("pvertex")))
 print(str_c("tvertex: ",calc_DX_reproducible_edgewise("tvertex")))
 print(str_c("tvolume: ",calc_DX_reproducible_edgewise("tvolume")))
 ```
-Show in New Window
 [1] "pvertex: 0.78 [0.72; 0.84]*"
 [1] "tvertex: 0.78 [0.72; 0.83]*"
-[1] "tvolume: 0.75 [0.69; 0.81]*"
+[1] "tvolume: 0.75 [0.68; 0.81]*"
 
 ```{r}
+
+annotated_graph_edges <- FC_boots %>%
+  ungroup() %>%
+  select(to, from) %>%
+  distinct() %>%
+  inner_join(node_annotations, by = c("to"="node_name")) %>%
+  inner_join(node_annotations, by = c("from"="node_name"), suffix = c('_to','_from')) %>%
+  unite(from_to_type, etype_from, etype_to) %>%
+  unite(hemis, hemi_from, hemi_to, sep = "") %>%
+  unite(networks, network_from, network_to, sep = "", remove = FALSE) %>%
+  mutate(from_to_type = recode(from_to_type, "Cort_SubCort" = "SubCort_Cort")) %>%
+  mutate(hemis = recode(hemis, "RL" = "LR")) 
+
 calc_DX_reproducible_edgewise <- function(this_vertex_type) {
 matrix_data <- FC_boots %>%
   inner_join(annotated_graph_edges, by = c("to", "from")) %>%
@@ -695,6 +395,9 @@ print(str_c("tvolume: ",calc_DX_reproducible_edgewise("tvolume")))
 [1] "pvertex: 0.68 [0.58; 0.76]*"
 [1] "tvertex: 0.69 [0.61; 0.75]*"
 [1] "tvolume: 0.62 [0.53; 0.70]*"
+
+
+
 ```{r}
 calc_DX_reproducible_edgewise <- function(this_vertex_type) {
 matrix_data <- FC_boots %>%
@@ -721,9 +424,7 @@ Show in New Window
 [1] "pvertex: 0.76 [0.67; 0.83]*"
 [1] "tvertex: 0.74 [0.66; 0.81]*"
 [1] "tvolume: 0.72 [0.63; 0.79]*"
-```{r}
-annotated_graph_edges %>% pull(from_to_type) %>% unique()
-```
+
 
 
 ```{r}
@@ -739,31 +440,49 @@ edgewise_vertex_type_delta_summary <- FC_boots %>%
   summarise(mean_val = mean(value),
          min = min(value),
          max = max(value),   
-         lower = quantile(value, 0.025),
-         upper = quantile(value, 0.975)) %>%
-  mutate(sig_range = ((min < 0 & max < 0 ) | (min > 0 & max > 0)),
-         sig_05CI = ((lower < 0 & upper < 0 ) | (lower > 0 & upper > 0))) %>%
-  select(-lower, -upper) %>%
+         lower99 = quantile(value, 0.005),
+         upper99 = quantile(value, 0.995),
+         lower95 = quantile(value, 0.025),
+         upper95 = quantile(value, 0.975)) %>%
+  mutate(sigrange = ((min < 0 & max < 0 ) | (min > 0 & max > 0)),
+         sig99CI = ((lower99 < 0 & upper99 < 0 ) | (lower99 > 0 & upper99 > 0)),
+         sig95CI = ((lower95 < 0 & upper95 < 0 ) | (lower95 > 0 & upper95 > 0))) %>%
+  select(-lower99, -upper99, -lower95, -upper95) %>%
   pivot_wider(id_cols = c("to", "from"),
               names_from = comparison_type,
-              values_from = c(mean_val:sig_05CI))
+              values_from = c(mean_val:sig95CI),
+              names_glue = "{comparison_type}_{.value}")
 
 saveRDS(edgewise_vertex_type_delta_summary, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_roi_DXboots_summary.rds"))
 ```
 
 ```{r} 
-edgewise_vertex_type_delta_summary %>%
-  filter(sig_range_pvertex) %>%
-  filter(sig_05CI_pvertex_minus_tvertex) %>%
-  select(to, from, mean_val_tvertex, mean_val_pvertex)
+pvertex_sum <- edgewise_vertex_type_delta_summary %>%
+  filter(pvertex_sig99CI | tvertex_sig99CI) %>%
+  filter(pvertex_minus_tvertex_sig99CI) %>%
+  select(to, from, tvertex_mean_val, pvertex_mean_val) %>%
+  mutate(pvertex_min_tvertex_abs = abs(pvertex_mean_val) - abs(tvertex_mean_val),
+         pvertex_better = pvertex_min_tvertex_abs > 0)
 
+pvertex_sum %>%
+  ungroup() %>%
+  count(pvertex_better)
 ```
 ```{r} 
-edgewise_vertex_type_delta_summary %>%
-  filter(sig_range_tvertex) %>%
-  filter(sig_05CI_tvertex_minus_tvolume) %>%
-  select(to, from, mean_val_tvertex, mean_val_tvolume, mean_val_tvertex_minus_tvolume)
+tvertex_sum <- edgewise_vertex_type_delta_summary %>%
+  filter(tvertex_sig99CI | tvolume_sig99CI) %>%
+  filter(tvertex_minus_tvolume_sig99CI) %>%
+  select(to, from, tvertex_mean_val, tvolume_mean_val, tvertex_minus_tvolume_mean_val) %>%
+  mutate(tvertex_min_tvolume_abs = abs(tvertex_mean_val) - abs(tvolume_mean_val),
+         tvertex_better = tvertex_min_tvolume_abs > 0)
 
+tvertex_sum %>%
+  ungroup() %>%
+  count(tvertex_better)
+```
+```{r}
+tvertex_sum %>%
+  arrange(tvertex_better)
 ```
 
 ## Running a whole brain (edgewise) models
@@ -863,7 +582,9 @@ annotated_graph_edges <- DX_lm_model_full %>%
   unite(networks, network_from, network_to, sep = "", remove = FALSE) %>%
   mutate(from_to_type = recode(from_to_type, "Cort_SubCort" = "SubCort_Cort")) %>%
   mutate(hemis = recode(hemis, "RL" = "LR")) 
+```
 
+```{r}
 
 DX_lm_model <- DX_lm_model_full %>%
   ungroup() %>%
@@ -883,7 +604,8 @@ combine the models with the cohen's D estimate and plot t-stat vs cohen's D
 DX_lm_model_DXcohenD <- DX_lm_model %>%
   filter(term == "DXSSD") %>%
   inner_join(DX_cohensD_results, by = c("vertex_type", "to", "from")) %>%
-  mutate(cohenD_DX_tstatdir = -1 * DX_cohenD)
+  mutate(cohenD_DX_tstatdir = -1 * DX_cohenD) 
+  
 DX_lm_model_DXcohenD %>%
   ggplot(aes(cohenD_DX_tstatdir, statistic, color = (p_FDR < 0.05))) +
   geom_point()
@@ -891,10 +613,25 @@ DX_lm_model_DXcohenD %>%
 
 show the significant edges
 
+
+
+
+
 ```{r}
-DX_lm_model_DXcohenD %>%
-  filter(p_FDR < 0.05) %>%
-  arrange(desc(p.value)) %>%
+DX_lm_model_DXcohenD_booted <- DX_lm_model_DXcohenD %>%
+  pivot_wider(id_cols = all_of(c("to", "from")), 
+              values_from = statistic:cohenD_DX_tstatdir,
+              names_from = vertex_type,
+              names_glue = "{vertex_type}_{.value}") %>%
+  inner_join(edgewise_vertex_type_delta_summary, by = c("to", "from"))
+
+saveRDS(DX_lm_model_DXcohenD_booted, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_DXlmfits_plusboots.rds"))
+```
+
+```{r}
+DX_lm_model_DXcohenD_booted %>%
+  filter(pvertex_p_FDR < 0.05) %>%
+  arrange(desc(pvertex_p.value)) %>%
   slice(1:5)
 ```
 
@@ -903,12 +640,32 @@ DX_lm_model_DXcohenD %>%
 saveRDS(DX_lm_model_DXcohenD, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_DXlmfits.rds"))
 ```
 
-can get the model fit back from here..
-
-```{r eval = FALSE}
+```{r}
 DX_lm_model_DXcohenD <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_DXlmfits.rds"))
 ```
 
+can get the model fit back from here..
+
+```{r eval = FALSE}
+DX_lm_model_DXcohenD_booted <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_DXlmfits_plusboots.rds"))
+```
+
+```{r}
+DX_lm_model_DXcohenD_booted_long <- DX_lm_model_DXcohenD_booted %>%
+  select(!(contains("minus"))) %>%
+  pivot_longer(c(-to,-from),
+               cols_vary = "slowest",
+               names_to = c("vertex_type", ".value"),
+               names_sep = "_") %>%
+  rename("full_cohenD" = DX, 
+         "full_abscohenD" = cohenD,
+         "booted_mean_cohenD" = mean,
+         "p_FDR" = p,
+         "booted_min_cohenD" = min,
+         "botted_max_cohenD" = max)
+  
+  
+```
 
 
 ## Make swirly plots of edgewise results
@@ -966,18 +723,82 @@ DX_lm_model_DXcohenD %>%
 
 ```
 
+
+## significant edges looking using whole sample
+
 ```{r}
-DX_sig_edge_table <- DX_lm_model_DXcohenD %>%
+DX_sig_edge_table <- DX_lm_model_DXcohenD_booted_long %>%
   inner_join(annotated_graph_edges, by = c("to", "from")) %>%
   mutate(sig_edge = if_else(p_FDR < 0.05, "sig", "ns"),
          stat_pos = if_else(statistic > 0, "pos", "neg")) %>%
-  filter(term == "DXSSD", from_to_type != "SubCort_SubCort") %>% 
   count(vertex_type,  sig_edge) %>%
   spread(sig_edge, n) %>%
   mutate(perc_sig = sig/(ns + sig)*100)
 
 DX_sig_edge_table
 
+```
+
+## significant edges looking using bootstrapped sample
+
+```{r}
+DX_lm_model_DXcohenD_booted_long %>% names()
+```
+
+
+
+```{r}
+
+DX_sig_edge_table <- DX_lm_model_DXcohenD_booted_long %>%
+  count(vertex_type,  sig99CI) %>%
+  spread(sig99CI, n) %>%
+  mutate(perc_sig = `TRUE`/(`TRUE` + `FALSE`)*100)
+
+DX_sig_edge_table
+```
+```{r}
+
+DX_sig_edge_table <- DX_lm_model_DXcohenD_booted_long %>%
+  count(vertex_type,  sig95CI) %>%
+  spread(sig95CI, n) %>%
+  mutate(perc_sig = `TRUE`/(`TRUE` + `FALSE`)*100)
+
+DX_sig_edge_table
+```
+
+```{r}
+pvertex_sum <- DX_lm_model_DXcohenD_booted %>%
+  filter(tvertex_p_FDR < 0.05 | pvertex_p_FDR < 0.05) %>%
+  filter(pvertex_minus_tvertex_sig95CI) %>%
+  select(to, from, tvertex_mean_val, pvertex_mean_val) %>%
+  mutate(pvertex_min_tvertex_abs = abs(pvertex_mean_val) - abs(tvertex_mean_val),
+         pvertex_better = pvertex_min_tvertex_abs > 0) 
+
+
+pvertex_sum %>%
+  ungroup() %>%
+  count(pvertex_better)
+```
+```{r}
+pvertex_sum
+```
+```{r}
+tvertex_sum <- DX_lm_model_DXcohenD_booted %>%
+  filter(tvertex_p_FDR < 0.05 | tvolume_p_FDR < 0.05) %>%
+  filter(tvertex_minus_tvolume_sig95CI) %>%
+  select(to, from, tvertex_mean_val, tvolume_mean_val) %>%
+  mutate(tvertex_min_tvolume_abs = abs(tvertex_mean_val) - abs(tvolume_mean_val),
+         tvertex_better = tvertex_min_tvolume_abs > 0) 
+
+
+tvertex_sum %>%
+  ungroup() %>%
+  count(tvertex_better)
+```
+```{r}
+DX_lm_model_DXcohenD_booted %>%
+  filter(p_FDR_tvertex < 0.05 | p_FDR_tvolume < 0.05) %>%
+  
 ```
 
 ```{r}
@@ -1030,6 +851,11 @@ uppertri_df_to_full <- function(graph_df) {
 }
 ```
 
+```{r}
+DX_lm_model_DXcohenD_booted_long %>% 
+  ggplot(aes(x = full_cohenD, y = booted_mean_cohenD)) +
+  geom_point()
+```
 
 
 
@@ -1276,7 +1102,17 @@ if (no_ticks==TRUE) {
 make_subcortcort_edges_raincloud(DX_lm_model_DXcohenD,D_threshold = 0.2678)
 ```
 
-```{r fig.height=6.5, fig.width=5}
+```{r}
+DX_lm_model_DXcohenD_booted_long %>% names()
+```
+```{r}
+annotated_graph_edges %>% filter(from_to_type=="SubCort_Cort") %>% unique()
+```
+
+
+
+
+```{r fig.height=5, fig.width=5}
 library(ggridges)
 
 make_cortcort_edges_raincloud <- function(data,D_threshold) {
@@ -1368,13 +1204,11 @@ if (no_ticks==TRUE) {
   DM_DA <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DM", "DA", D_threshold)
   DM_VA <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DM", "VA", D_threshold)
   DM_SM <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DM", "SM", D_threshold)
-  FP_SM <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "FP", "SM", D_threshold)
-  VA_DA <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DA", "VA", D_threshold)
   DA_SM <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "DA", "SM", D_threshold)
   VI_VI <- make_two_net_ridgelines(Fz_DXweigths, all_plt_counts, "VI", "VI", D_threshold, no_ticks = FALSE)
 
   title <- ggdraw() + draw_label("Selected Cortical to Cortical", fontface='bold')
-  full_plt <- plot_grid(title, DM_DA, DM_VA, FP_SM, VA_DA, DA_SM, VI_VI,
+  full_plt <- plot_grid(title, DM_DA, DM_VA, DA_SM, VI_VI,
                    ncol = 1, rel_heights = c(0.5, 1,  1, 1, 1, 1,1.5))
   return(full_plt)
 }
@@ -1426,7 +1260,7 @@ hypo_cerebullum_to %>%
 
 
 
-```{r eval = FALSE}
+```{r}
 
 calc_fc_weights <- function(lm_df, t_threshold) {
   
@@ -1565,7 +1399,7 @@ Fz_weigths <-bind_rows(hyper_cortDA_to_SM = hyper_cortDA_to_SM,
 
 ### calculated extract edge weights for per participant scores
 
-```{r eval=FALSE}
+```{r }
 cohenD_threshold = 0.2678
 cohenD_thresname = "pFDR"
 
@@ -1606,7 +1440,7 @@ Fz_DXweigths %>%
 ### calculated scores per participant
 
 
-```{r eval = FALSE}
+```{r}
 
 #' calculates a subjects weigthed FC score from their edgewise values
 #'
@@ -1634,7 +1468,7 @@ calc_subjects_wFC_score <- function(subject_edges_df, edge_weights) {
 ```
 
 
-```{r eval = FALSE}
+```{r}
 pvertex_subject_FC_scores <- results_pheno %>%
   ungroup() %>%
   filter(vertex_type == "pvertex") %>%
@@ -1666,16 +1500,9 @@ write_csv(FC_scores_together, file.path(output_base,
                                         "SSD4cohorts_DXweighted_subject_scores.csv"))
 ```
 
-```{r eval = FALSE}
-DX_sig_edge_table %>% filter(vertex_type == "pvertex") %>% pull(sig)
-```
 
 
-## write up to this point..
 
-We observed robust patterns of dysconnectivity that were strengthened using a surface-based approach and PINT (Number of differing pairwise-correlations: volume: {`r DX_sig_edge_table %>% filter(vertex_type == "tvolume") %>% pull(sig)`}, surface: {`r DX_sig_edge_table %>% filter(vertex_type == "tvertex") %>% pull(sig)`},  PINT: {`r DX_sig_edge_table %>% filter(vertex_type == "pvertex") %>% pull(sig)`}, FDR corrected). Moreover, patterns of dyscnnectivity became more interpretable in terms of individual resting state networks and cortical heirarchy (see Supplemental Figure 2 for breakdown by cortical network). Overall, regardless of cortical mapping approach, hypoconnectivity, that is decreased connectivity in participants with schizophrenia relative to controls as observed for edges connecting subcortical regions to the fronto-parietal network. Hyperconnectivity, or increased connectivity in participants with SSD relative to controls was observed for subcortical connections to those visual, somatomor, and dorsal attention networks, which increased when moving from volume-to-surface, and again from surface-to-PINT. Additional patterns of hypoconnectivity where observed between the cortical default-mode network and the dorsal and ventral attention netoworks, as well as within visual network edges. Cortical hyperconnectivity was observed between the dorsal and ventral attenetion networks, as well as the frontoparietal network to the somatomotor network. Moreover, hypoconnectivity was observed for nearly half of edges connecting the cerebellum to the striatum and the cerebellum to the thalamus.
-
-To investigate these patterns further, sub-scored for these groups of edges were calculated to for each participants by taking the weighted-mean of all edges with that survived FDR corretion (Cohen's D threshold = {`r cohenD_threshold`}, means were weighted by the SSD diagnosis effect size).
 
 
 
@@ -1780,21 +1607,7 @@ plot_DX_scatter_elipsed <- function(df, x, y) {
 ```
 
 
-```{r , fig.height=4, fig.width = 5}
-library(cowplot)
-fplot <- results_net_pheno %>%
-  ungroup() %>%
-  filter(vertex_type == "pvertex") %>%
-  unite(edge_group, to:from) %>%
-  unite(dat_sub, dataset, subject) %>%  
-  select(dat_sub, Site, DX, edge_group, weight) %>%
-  spread(edge_group, weight) 
 
-```
-
-```{r, fig.width=5, fig.height = 4}
-ggdraw(plot_DX_scatter_elipsed(fplot, x = thalamus_CortSM, y = striatum_CortFP))
-```
 
 
 
@@ -2022,6 +1835,352 @@ FC_gscores_lmfit %>%
   facet_wrap(~effect_direction*node_class)
 ```
 
+
+
+
+
+
+
+
+# Running Networkwise models 
+
+helpers functions for dealing with correlation matrixes
+
+```{r}
+#' convert from three col graph df to adjacency matrix
+uppertri_df_to_agjmat <- function(graph_df) {
+  
+  names(graph_df) <- c("to", "from", "myattr")
+  matrix_out <- graph_df %>%
+    graph_from_data_frame(., directed = F) %>%
+    as_adjacency_matrix(., type = "both", attr = "myattr", sparse = FALSE) #%>%
+    #as.matrix() 
+  return(matrix_out)
+}
+
+#' go uppertri data to full dataframe for geom_tile
+uppertri_df_to_full <- function(graph_df) {
+result <- graph_df %>%
+  uppertri_df_to_agjmat() %>%
+  as.data.frame() %>%
+  mutate(to = row.names(.)) %>%
+  gather(from, value, -to) 
+return(result)
+}
+```
+
+Defining function to reduce the whole brain correlation matrix to networkwise correlations
+
+```{r}
+
+networkg_order = c("CortDM","CortFP", "CortVA","CortDA","CortSM","CortVI", 
+                   "striatum", "thalamus","cerebellum")
+
+node_annotations1 <- node_annotations %>%
+  mutate(node_grouping  = if_else(etype == "Cort",
+                                  str_c("Cort", cort_NET),
+                                  as.character(subcort_ROI))) %>%
+  filter(!(etype == "SubCort" & numvx < 10))
+
+
+within_tbw_net_corrs <- function(upper_tri_edges) {
+  results <- upper_tri_edges %>%
+  uppertri_df_to_full() %>%
+  inner_join(node_annotations1 %>% select(node_name, node_grouping), 
+             by = c("to" = "node_name")) %>%
+  inner_join(node_annotations1 %>% select(node_name, node_grouping), 
+             by = c("from" = "node_name"), suffix = c("_to", "_from")) %>%
+  filter(!(to == from)) %>%
+  group_by(node_grouping_to, node_grouping_from) %>%
+  summarise(mean_corZ = mean(value), .groups = "keep") %>%
+  
+  # taking only the upper triangle 
+  mutate(node_grouping_to  = factor(node_grouping_to, levels = networkg_order),
+         node_grouping_from = factor(node_grouping_from, levels = networkg_order)) %>%
+  arrange(node_grouping_to, node_grouping_from) %>%
+  uppertri_df_to_agjmat() %>%
+  graph_from_adjacency_matrix(mode="upper", 
+                                weighted=T, diag=T) %>%
+  as_data_frame()
+  
+  return(results)
+}
+
+
+### un-comment the line below to test the above function
+# test_edges <- results_pheno %>%
+#  select(vertex_type, subject, dataset, to, from, weight) %>%
+#   ungroup() %>%
+#   group_by(vertex_type, subject, dataset) %>%
+#   nest() %>%
+#   slice(1) %>%
+#   unnest(data) %>%
+#   ungroup() %>%
+#   select(to, from, weight)
+# 
+# within_tbw_net_corrs(test_edges)
+```
+
+```{r}
+networkwise_corrz <- function(results_pheno_df) {
+  result <- results_pheno_df %>%
+  select(vertex_type, subject, dataset, to, from, weight) %>%
+  ungroup() %>%
+  group_by(vertex_type, subject, dataset) %>%
+  nest() %>%
+  mutate(results = map(data, ~within_tbw_net_corrs(.x))) %>%
+  select(vertex_type, subject, dataset, results) %>%
+  return(result)
+}
+
+## had to split this by vertex because of RAM issues on laptop
+pvertex_networkwise <- results_pheno %>%
+  filter(vertex_type == "pvertex") %>%
+  networkwise_corrz()
+tvertex_networkwise <- results_pheno %>%
+  filter(vertex_type == "tvertex") %>%
+  networkwise_corrz()
+tvolume_networkwise <- results_pheno %>%
+  filter(vertex_type == "tvolume") %>%
+  networkwise_corrz()
+
+networkwise_corrs <- bind_rows(
+  pvertex_networkwise,
+  tvertex_networkwise,
+  tvolume_networkwise
+)
+
+```
+
+```{r}
+saveRDS(networkwise_corrs, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_networkwise_cache.rds"))
+```
+
+```{r}
+networkwise_corrs <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_networkwise_cache.rds"))
+```
+
+
+merging the networkwise correlations with the phenotypic data for modeling
+
+```{r}
+results_net_pheno <- networkwise_corrs %>%
+  inner_join(pheno, by = c("subject", "dataset")) %>%
+  unnest(cols = c(results)) %>%
+  select(vertex_type, to, from, subject, dataset, weight, DX, all_of(lm_covar_cols))
+  
+```
+
+
+calculating cohen's D of the DX for all edges
+
+```{r}
+cohenD_DX_networkwise <-  results_net_pheno %>%
+  mutate(corZ = weight) %>%
+  ungroup() %>%
+  select(vertex_type, to, from, subject, corZ, DX, all_of(lm_covar_cols)) %>%
+  group_by(vertex_type, to, from) %>%
+  nest() %>%
+  #slice(1:3) %>%
+  mutate(DX_cohenD = map(data, ~calc_DX_cohenD(.x, 
+                                               outcome = "corZ", 
+                                               predictor = "DX",
+                                               covars = lm_covar_cols))) %>%
+  unnest(DX_cohenD) %>%
+  ungroup() %>%
+  select(vertex_type, to, from, DX_cohenD)
+```
+
+running a linear model for all edges
+
+```{r}
+DX_lm_formula <- formula(paste("corZ ~ ", lm_predictor_col, "+",
+                               paste(lm_covar_cols, collapse = " + ")))
+
+print(str_glue("fitting: lm formula {DX_lm_formula}"))
+
+DX_lm_model_fit_networkwise <-  results_net_pheno %>%
+  mutate(corZ = weight) %>%
+  group_by(vertex_type, to, from) %>%
+  do(tidy(lm(DX_lm_formula,.))) %>%
+  
+  # doing the 
+  ungroup() %>%
+  group_by(term) %>%
+  mutate(p_FDR = p.adjust(p.value, method = "fdr")) %>%
+  arrange(p.value)
+
+```
+merging the cohen's D with the DX results from the models
+
+```{r}
+DX_lm_model_DXcohenD_networkwise <- DX_lm_model_fit_networkwise %>%
+  filter(term == "DXSSD") %>%
+  inner_join(cohenD_DX_networkwise, by = c("vertex_type", "to", "from")) %>%
+  mutate(cohenD_DX_tstatdir = -1 * DX_cohenD)
+
+DX_lm_model_DXcohenD_networkwise %>%
+   filter(p_FDR < 0.05) %>%
+   arrange(p.value) %>%
+  count(vertex_type)
+```
+
+
+```{r}
+DX_effectednets <- DX_lm_model_DXcohenD_networkwise %>%
+   filter(p_FDR < 0.05) %>%
+   select(to, from, vertex_type) %>%
+  distinct() %>%
+   count(to, from) %>%
+  filter(n >1)
+
+write_csv(DX_effectednets, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_PINTcombat_networkwise_signetworks_cache.csv"))
+  
+DX_effectednets
+```
+
+Plotting the networkwise results to a using ggtile
+
+```{r fig.height=4, fig.width=8}
+
+DX_lm_model_DXcohenD_networkwise %>%
+  mutate(to = factor(to, levels = rev(networkg_order)),
+         from = factor(from, levels = rev(networkg_order)),
+         corrtype = factor(vertex_type, levels = rev(c('pvertex', 'tvertex', 'tvolume')),
+                      labels = rev(c("Surface Personalized", "Surface Template", "Volume Template"))),
+         sig = if_else(p_FDR < 0.05, "*","")) %>%
+  ggplot(aes(x = to, y = from, fill = DX_cohenD)) +
+  geom_tile() +
+  geom_text(aes(label = sig)) +
+  scale_fill_distiller(breaks = c(-1,1), type = "div", palette = 5, trans = "reverse") +
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_wrap(~ corrtype) +
+  labs(x = NULL, y = NULL)
+
+```
+
+## Compare networkwise cohen's D across cortical surface methods using bootstrap permutations on half the sample
+
+```{r}
+# Create an empty data frame to store the results
+networkwise_boot_cohenDDX_results <- data.frame()
+
+# Run the code snippet 100 times
+for (i in 1:1000) {
+  
+  set.seed(i*10)
+  
+  #print(paste("boot",i))
+  # Execute the code snippet
+  this_subsample <- pheno %>%
+    group_by(DX) %>%
+    sample_frac(size = 0.5) %>%
+    select(subject, dataset, DX) 
+  
+  this_result <-  results_net_pheno %>%
+    semi_join(this_subsample, by = c("subject", "dataset")) %>%
+    mutate(corZ = weight) %>%
+    ungroup() %>%
+    select(vertex_type, to, from, subject, corZ, DX, all_of(lm_covar_cols)) %>%
+    group_by(vertex_type, to, from) %>%
+    nest() %>%
+    #slice(1:3) %>%
+    mutate(DX_cohenD = map(data, ~calc_DX_cohenD(.x, 
+                                                 outcome = "corZ", 
+                                                 predictor = "DX",
+                                                 covars = lm_covar_cols))) %>%
+    unnest(DX_cohenD) %>%
+    ungroup() %>%
+    select(vertex_type, to, from, DX_cohenD) %>%
+    pivot_wider(id_cols = c("to", "from"),
+                names_from = "vertex_type",
+                values_from = DX_cohenD) %>%
+    mutate("pvertex_minus_tvertex" = pvertex - tvertex,
+           "tvertex_minus_tvolume" = tvertex - tvolume,
+           "pvertex_minus_tvolume" = pvertex - tvolume)
+             
+  
+  # Combine the results with the existing data frame
+  networkwise_boot_cohenDDX_results <- bind_rows(networkwise_boot_cohenDDX_results, this_result)
+  
+}
+
+
+
+```
+
+```{r}
+saveRDS(networkwise_boot_cohenDDX_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_networkwise_DXboots_cache.rds"))
+```
+
+```{r}
+networkwise_boot_cohenDDX_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_PINTcombat_networkwise_DXboots_cache.rds"))
+```
+
+### building tables of the DX boots
+
+```{r}
+to_test <- "thalamus"
+from_test <- "CortVI"
+
+
+
+
+```
+
+
+```{r}
+networkwise_boot_cohenDDX_results %>% 
+  pivot_longer(pvertex:pvertex_minus_tvolume,
+               names_to = "colname",
+               values_to = "D") %>%
+  group_by(to, from, colname) %>%
+  summarise(ci_str = calculate_mean_ci(D)) %>%
+  pivot_wider(names_from = colname,
+              values_from = ci_str) %>%
+  select(to, from, tvolume, tvertex, pvertex, tvertex_minus_tvolume, pvertex_minus_tvertex) %>%
+  knitr::kable(col.names = c("","","Volume Template", "Surface Template", "Surface Personalized", "Surface-Volume", "Personalized-Template"))
+  
+```
+
+```{r}
+calc_DX_reproducible <- function(this_vertex_type) {
+matrix_data <- networkwise_boot_cohenDDX_results %>%
+  mutate(pnum = rep(seq(from = 1, to = 1000), each = 45)) %>%
+  pivot_wider(id_cols = c("to", "from"),
+              names_from = "pnum",
+              values_from = this_vertex_type,
+              names_prefix = "pnum") %>%
+  select(starts_with("pnum")) %>%
+  cor() 
+
+result <- calculate_mean_ci(matrix_data[upper.tri(matrix_data)])
+   return(result)
+}
+
+print(str_c("pvertex: ",calc_DX_reproducible("pvertex")))
+print(str_c("tvertex: ",calc_DX_reproducible("tvertex")))
+print(str_c("tvolume: ",calc_DX_reproducible("tvolume")))
+
+```
+
+```{r , fig.height=4, fig.width = 5}
+library(cowplot)
+fplot <- results_net_pheno %>%
+  ungroup() %>%
+  filter(vertex_type == "pvertex") %>%
+  unite(edge_group, to:from) %>%
+  unite(dat_sub, dataset, subject) %>%  
+  select(dat_sub, Site, DX, edge_group, weight) %>%
+  spread(edge_group, weight) 
+
+```
+
+```{r, fig.width=5, fig.height = 4}
+ggdraw(plot_DX_scatter_elipsed(fplot, x = thalamus_CortSM, y = striatum_CortFP))
+```
+
 ```{r}
 FC_gscores_lmfitbySite <- results_net_pheno %>%
   group_by(to, from, vertex_type, Site) %>%
@@ -2043,39 +2202,3 @@ FC_gscores_lmfitbySite %>%
     geom_line(aes(group = to)) +
   facet_wrap(~Site)
 ```
-
-```{r}
-FC_gscores_lmfitbySite_mFC <- all_subject_FC_weights %>%
-  inner_join(pheno, by = c("subject", "dataset")) %>%
-  ungroup() %>%
-  group_by(effect_direction, edge_group, vertex_type, Site) %>%
-  do(tidy(lm(mFC_score ~ DX + Age_pt + Sex + fd_mean_pt,.))) 
-
-FC_gscores_lmfitbySite_mFC %>%
-  select(effect_direction, edge_group, Site, vertex_type, term, statistic, p.value) %>%
-  filter(term == "DXSSD") %>%
-  knitr::kable()
-
-FC_gscores_lmfitbySite_mFC %>% 
-  mutate(node_class = if_else(str_detect(edge_group,'_Cort'), 
-                 "Within_Cortical",
-                 "Subcortical_to")) %>%
-  filter(term == "DXSSD",
-         node_class == "Subcortical_to") %>%
-  ggplot(aes(y = abs(statistic), x = rev(vertex_type), color = effect_direction)) +
-    geom_point() +
-    geom_line(aes(group = edge_group)) +
-  facet_wrap(~Site)
-```
-
-
-```{r fig.height=7, fig.width=7}
-wFC_corrs <- all_subject_FC_weights %>%
-  filter(vertex_type == "tvertex") %>%
-  select(subject, dataset, edge_group, wFC_score) %>%
-  spread(edge_group, wFC_score) %>%
-  select(-subject, -dataset) %>%
-  cor(.)
-heatmap(abs(wFC_corrs))
-```
-

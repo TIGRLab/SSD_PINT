@@ -1,0 +1,564 @@
+---
+title: "Run clinical against FC scores"
+output:
+  html_document:
+    keep_md: true
+---
+```{r}
+knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
+```
+
+```{r}
+library(tidyverse)
+library(here)
+library(broom)
+```
+```{r}
+knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
+```
+
+Note: to self (as of April - the one thing that is coming out is wtar wiht VI to thalamus)
+
+
+## The paths to data
+
+
+```{r setting paths}
+# These functions are for reading timeseries files
+source(here('code/R/settings_helpers.R'))
+#source(here('code/R/file_reading_helpers.R'))
+
+pheno <- read_pheno_file()%>%
+  drop_na(DX)
+YeoNet_colours <- define_Yeo7_colours()
+Yeo7_2011_80verts <- read_Yeo72011_template()  
+
+```
+
+```{r}
+pheno_extended <- read_csv(here("data/processed/pheno/qa_pheno_compiled_2020_mar02.csv")) %>%
+  mutate(subject = str_c("sub-",sub_id))
+```
+
+```{r}
+ZHH_extended <- read_csv(here("data/processed/pheno/20200722_ZHH_clinical.csv"))
+```
+
+
+```{r}
+weighted_subject_scores <- read_csv(here("data/processed/mri/all_clinicalplusqa_group/weighted_subject_FC_scores/SSD4cohorts_DXweighted_subject_scores.csv"))
+
+```
+
+```{r}
+weighted_subject_scores <- weighted_subject_scores%>%
+  group_by(vertex_type, edge_group, effect_direction) %>%
+  mutate(upper_wFC = mean(wFC_score) + 3*sd(wFC_score),
+         lower_wFC = mean(wFC_score) - 3*sd(wFC_score),
+         upper_out = upper_wFC < wFC_score,
+         lower_out = lower_wFC > wFC_score,
+         wFC_score_cliped = if_else(upper_out, upper_wFC, wFC_score),
+         wFC_score_cliped = if_else(lower_out, lower_wFC, wFC_score_cliped)) 
+#  facet_grid(edge_group ~ vertex_type, scales = "free")
+```
+
+
+```{r}
+inner_join(pheno, pheno_extended, by = c("subject", "dataset")) %>%
+  select(subject, dataset) %>%
+  distinct() %>%
+  count()
+```
+```{r}
+pheno_extended %>%
+  count(sub_id, dataset) %>%
+  filter(n > 1) 
+```
+```{r}
+pheno_extended %>%
+  names()
+```
+```{r}
+pheno_extended %>%
+  gather(clinical_measure, clinical_score, 
+         starts_with("panss"), 
+         starts_with("sans"),
+         starts_with("wtar"),
+         "Edu") %>%
+  group_by(Site, dx, clinical_measure) %>%
+  summarise(n = sum(!is.na(clinical_score))) %>%
+  spread(clinical_measure, n)
+```
+```{r}
+summary(pheno_extended$sans_G_total)
+```
+
+
+
+
+```{r}
+with_wFC1 <- weighted_subject_scores %>%
+  inner_join(pheno_extended, by = c("subject", "dataset")) %>%
+  drop_na(dx)
+```
+
+```{r}
+with_wFC_zhh <- weighted_subject_scores %>%
+  inner_join(ZHH_extended, by = c("subject", "dataset")) 
+```
+
+
+
+
+```{r}
+wFC_corrs <- with_wFC1 %>%
+   ungroup() %>%
+  filter(vertex_type == "pvertex", 
+         dx == "SSD") %>%
+  select(subject, dataset, edge_group, wFC_score) %>%
+  spread(edge_group, wFC_score) %>%
+  select(-subject, -dataset) %>%
+  cor(.)
+heatmap(abs(wFC_corrs))
+```
+
+```{r}
+wFC_corrs <- with_wFC1 %>%
+   ungroup() %>%
+  filter(vertex_type == "pvertex", 
+         dx == "CTRL") %>%
+  select(subject, dataset, edge_group, wFC_score) %>%
+  spread(edge_group, wFC_score) %>%
+  select(-subject, -dataset) %>%
+  cor(.)
+heatmap(abs(wFC_corrs))
+```
+
+```{r}
+wFC_corrs <- with_wFC1 %>%
+   ungroup() %>%
+  filter(vertex_type == "pvertex") %>%
+  select(subject, dataset, edge_group, wFC_score) %>%
+  spread(edge_group, wFC_score) %>%
+  select(-subject, -dataset) %>%
+  cor(.)
+heatmap(abs(wFC_corrs))
+```
+
+```{r}
+wFC_corrs <- with_wFC1 %>%
+   ungroup() %>%
+  filter(vertex_type == "tvertex") %>%
+  select(subject, dataset, edge_group, wFC_score) %>%
+  spread(edge_group, wFC_score) %>%
+  select(-subject, -dataset) %>%
+  cor(.)
+heatmap(abs(wFC_corrs))
+```
+
+```{r}
+wFC_corrs <- with_wFC1 %>%
+   ungroup() %>%
+  filter(vertex_type == "tvolume") %>%
+  select(subject, dataset, edge_group, wFC_score) %>%
+  spread(edge_group, wFC_score) %>%
+  select(-subject, -dataset) %>%
+  cor(.)
+heatmap(abs(wFC_corrs))
+```
+
+```{r}
+library(cowplot)
+# Marginal densities along x axis
+plot_greyred_scatter_elipsed <- function(df, x, y, color) {
+  #the tidy eval ness
+  xvar <- enquo(x)
+  yvar <- enquo(y)
+  colorvar <- enquo(color)
+  # make the main scatte bit using above
+  main_scatter <-  ggplot(data = df, 
+               aes(x = !!xvar, y = !!yvar, color = !!colorvar)) +
+  geom_point(alpha = 0.7, size = 1) +
+  geom_smooth(method = "lm") +
+  #stat_ellipse() +
+  theme_bw() +
+  scale_color_manual(values = c("grey20","red"))
+
+  xdens <- axis_canvas(main_scatter, axis = "x")+
+    geom_density(data = df, aes(x = !!xvar, fill = !!colorvar),
+              alpha = 0.5, size = 0.2) +
+    scale_fill_manual(values = c("grey20","red"))
+
+  ydens <- axis_canvas(main_scatter, axis = "y", coord_flip = TRUE)+
+    geom_density(data = df, aes(x = !!yvar, fill = !!colorvar),
+                alpha = 0.5, size = 0.2) +
+  scale_fill_manual(values = c("grey20","red")) +
+  coord_flip()
+  
+  #putting the peices together
+  p1 <- insert_xaxis_grob(main_scatter, xdens, grid::unit(.2, "null"), position = "top")
+  p2<- insert_yaxis_grob(p1, ydens, grid::unit(.2, "null"), position = "right")
+  return(p2)
+}
+```
+
+```{r}
+with_wFC1 %>%
+  ungroup() %>%
+  select(subject, dataset, dx) %>%
+  distinct() %>%
+  count(dx)
+```
+
+```{r fig.width=5, fig.height = 4}
+plt <- with_wFC1 %>%
+  ungroup() %>%
+  select(subject, dataset, dx, vertex_type, edge_group, wFC_score) %>%
+  filter(vertex_type=="pvertex") %>%
+  spread(edge_group, wFC_score) %>%
+  plot_greyred_scatter_elipsed(subcort_to_VI, subcort_to_FP, dx)
+  
+ggdraw(plt)  
+```
+```{r fig.width=5, fig.height = 4}
+plt <- with_wFC1 %>%
+  ungroup() %>%
+  select(subject, dataset, dx, vertex_type, edge_group, wFC_score) %>%
+  filter(vertex_type=="tvertex") %>%
+  spread(edge_group, wFC_score) %>%
+  plot_greyred_scatter_elipsed(subcort_to_VI, subcort_to_FP, dx)
+  
+ggdraw(plt)  
+```
+
+```{r fig.width=5, fig.height = 4}
+plt <- with_wFC1 %>%
+  ungroup() %>%
+  select(subject, dataset, dx, vertex_type, edge_group, wFC_score) %>%
+  filter(vertex_type=="tvolume") %>%
+  spread(edge_group, wFC_score) %>%
+  plot_greyred_scatter_elipsed(subcort_to_VI, subcort_to_FP, dx)
+  
+ggdraw(plt)  
+```
+
+
+```{r fig.height=3, fig.width=8}
+with_wFC_zhh %>%
+  filter(WRAT3SS > 60) %>%
+  filter(edge_group %in% c("subcort_to_VI")) %>%
+  ggplot(aes(x = WRAT3SS, y = wFC_score, color = DX)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  scale_color_manual(values = c("grey20","red")) +
+  facet_grid(edge_group~vertex_type, scales = "free_x") +
+  theme_bw() +
+  labs(x = "WRAT Standard score (ZHH Site)")
+  
+```
+```{r fig.height=3, fig.width=8}
+with_wFC_zhh %>%
+  filter(WRAT3SS > 60) %>%
+  filter(edge_group %in% c("subcort_to_FP")) %>%
+  ggplot(aes(x = WRAT3SS, y = wFC_score, color = DX)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  scale_color_manual(values = c("grey20","red")) +
+  facet_grid(edge_group~vertex_type, scales = "free_x") +
+  theme_bw() +
+  labs(x = "WRAT Standard score (ZHH Site)")
+  
+```
+
+```{r fig.height=3, fig.width=8}
+with_wFC1 %>%
+  filter(Site %in% c("CMH", "COBRE"),
+         dx == "SSD",
+         wtar_std < 900) %>%
+  filter(edge_group %in% c("subcort_to_VI")) %>%
+  ggplot(aes(x = wtar_std, y = wFC_score, color = Site)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  scale_color_manual(values = c("tomato3", "orangered3")) +
+  facet_grid(edge_group~vertex_type, scales = "free_x") +
+  theme_bw()
+  
+```
+```{r fig.height=3, fig.width=8}
+with_wFC1 %>%
+  filter(Site %in% c("CMH", "COBRE"),
+         dx == "SSD",
+         wtar_std < 900) %>%
+  filter(edge_group %in% c("subcort_to_FP")) %>%
+  ggplot(aes(x = wtar_std, y = wFC_score, color = Site)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  scale_color_manual(values = c("tomato3", "orangered3")) +
+  facet_grid(edge_group~vertex_type, scales = "free_x") +
+  theme_bw()
+  
+```
+```{r fig.height=3, fig.width=8}
+with_wFC1 %>%
+  filter(Site %in% c("CMH", "COBRE"),
+         dx == "SSD",
+         wtar_std < 900) %>%
+  filter(edge_group %in% c("subcort_to_DA")) %>%
+  ggplot(aes(x = wtar_std, y = wFC_score_cliped, color = Site)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  facet_grid(edge_group~vertex_type, scales = "free_x")
+  
+```
+
+
+```{r fig.height=3, fig.width=8}
+with_wFC1 %>%
+  filter(Site %in% c("CMH", "COBRE"),
+         dx == "SSD") %>%
+  filter(edge_group %in% c("subcort_to_DA")) %>%
+  ggplot(aes(x = panss_total_calc, y = wFC_score, color = Site)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  facet_grid(edge_group~vertex_type, scales = "free_x")
+  
+```
+
+
+
+```{r}
+wf1_edgegroup_num <- unique(with_wFC1$edge_group) %>% length()
+wtar_panss_models_lm_glance <- with_wFC_zhh %>%
+  gather(clinical_measure, clinical_score, WRAT3SS) %>%
+  filter(clinical_score > 70) %>%
+  group_by(edge_group, effect_direction, vertex_type, clinical_measure) %>%
+  do(glance(lm(wFC_score_cliped ~ clinical_score*DX, data = .))) 
+
+wtar_panss_models_tidylm <- with_wFC_zhh %>%
+  gather(clinical_measure, clinical_score, WRAT3SS) %>%
+  filter(clinical_score > 70) %>%
+  group_by(edge_group, effect_direction, vertex_type, clinical_measure) %>%
+  do(tidy(lm(wFC_score_cliped ~ clinical_score*DX, data = .))) %>%
+  filter(term == "clinical_score") %>%
+  mutate(p_bonf = p.value*wf1_edgegroup_num)
+  
+wtar_panss_models_tidylm %>% 
+  arrange(p.value) %>%
+  select(vertex_type, clinical_measure, edge_group, statistic, p.value, p_bonf) %>% 
+knitr::kable()
+```
+
+```{r}
+wf1_edgegroup_num <- unique(with_wFC1$edge_group) %>% length()
+wtar_panss_models_lm_glance <- with_wFC1 %>%
+  filter(Site %in% c("CMH", "COBRE"),
+         dx == "SSD") %>%
+  gather(clinical_measure, clinical_score, wtar_std, panss_total_calc) %>%
+  filter(clinical_score < 900) %>%
+  group_by(edge_group, effect_direction, vertex_type, clinical_measure) %>%
+  do(glance(lm(wFC_score_cliped ~ clinical_score + Site, data = .))) 
+
+wtar_panss_models_tidylm <- with_wFC1 %>%
+  filter(Site %in% c("CMH", "COBRE"),
+         dx == "SSD") %>%
+  gather(clinical_measure, clinical_score, wtar_std, panss_total_calc) %>%
+  filter(clinical_score < 900) %>%
+  group_by(edge_group, effect_direction, vertex_type, clinical_measure) %>%
+  do(tidy(lm(wFC_score_cliped ~ clinical_score + Site, data = .))) %>%
+  filter(term == "clinical_score") %>%
+  mutate(p_bonf = p.value*wf1_edgegroup_num)
+  
+wtar_panss_models_tidylm %>% 
+  arrange(p.value) %>%
+  select(vertex_type, clinical_measure, edge_group, statistic, p.value, p_bonf) %>% knitr::kable()
+```
+
+
+
+
+
+```{r}
+with_wFC1 %>%
+  filter(Site %in% c("CMH", "ds000030_R1.0.5", "ZHH"),
+         dx == "SSD") %>%
+  gather(clinical_measure, clinical_score, starts_with("sans")) %>%
+  group_by(edge_group, effect_direction, clinical_measure, vertex_type) %>%
+  do(tidy(lm(wFC_score_cliped ~ clinical_score + Site, data = .))) %>%
+  filter(term == "clinical_score") %>%
+  mutate(p_bonf = p.value*wf1_edgegroup_num) %>%
+  arrange(p.value) %>%
+  select(clinical_measure, edge_group, statistic, p.value, p_bonf) %>%
+  knitr::kable()
+```
+
+```{r fig.height=3, fig.width=8}
+with_wFC1 %>%
+  filter(Site %in% c("CMH", "ds000030_R1.0.5", "ZHH"),
+         dx == "SSD") %>%
+  filter(edge_group %in% c("cortDA_to_SM")) %>%
+  ggplot(aes(x = sans_G_total, y = wFC_score_cliped, color = Site)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  facet_grid(edge_group~vertex_type, scales = "free_y")
+  
+```
+
+
+
+```{r fig.height=12, fig.width=12}
+weighted_subject_scores %>%
+  inner_join(pheno, by = c("subject", "dataset")) %>%
+  filter(Site == "ZHH") %>%
+  filter(effect_direction == "hypo") %>% 
+  drop_na(isFEP) %>%
+  ggplot(aes(x = isFEP, y = wFC_score)) +
+  geom_boxplot() +
+  geom_jitter(alpha = 0.3) +
+  facet_grid(vertex_type~edge_group, scales = "free_y")
+  
+```
+
+
+```{r}
+with_wFC1 %>%
+  filter(Site == "ZHH") %>%
+  drop_na(isFEP) %>%
+  group_by(edge_group, vertex_type) %>%
+  do(tidy(lm(wFC_score ~ isFEP, data = .))) %>%
+  mutate(p_bonf = p.value*wf1_edgegroup_num) %>%
+  arrange(p.value) %>%
+  filter(term != "(Intercept)") %>%
+  select(term, statistic, p.value, p_bonf) %>%
+  knitr::kable()
+```
+
+### refit the models with Education included
+
+```{r}
+refit_w_edu_pooled_glance <- with_wFC1 %>%
+  inner_join(pheno, by = c("subject","dataset")) %>%
+  filter(in_matched_sample) %>%
+  group_by(edge_group, vertex_type) %>%
+  do(glance(lm(wFC_score ~ DX + Age_match_pt + Sex + fd_mean_match_pt + Site.x + Edu, data = .))) %>%
+  select(edge_group, vertex_type, df.residual) %>%
+  distinct()
+
+refit_w_edu_pooled_tidy <- with_wFC1 %>%
+  inner_join(pheno, by = c("subject","dataset")) %>%
+  filter(in_matched_sample) %>%
+  group_by(edge_group, vertex_type) %>%
+  do(tidy(lm(wFC_score ~ DX + Age_match_pt + Sex + fd_mean_match_pt + Site.x + Edu, data = .))) %>%
+  mutate(p_bonf = p.value*wf1_edgegroup_num) 
+
+refit_w_edu_pooled <- refit_w_edu_pooled_glance %>% 
+  select(edge_group, vertex_type, `df.residual`) %>%
+  distinct() %>%
+  inner_join(refit_w_edu_pooled_tidy, by = c("vertex_type", "edge_group")) %>%
+  mutate(Site = "pooled") %>%
+  mutate(
+      beta = specify_decimal(estimate,2),
+      beta_se = specify_decimal(std.error,2),
+      t_stat = specify_decimal(statistic,2),
+      pval_str = ifelse(p_bonf < 0.001, 
+                           format(p_bonf, scientific = TRUE, digits = 2),
+                           specify_decimal(p_bonf,3)),
+      pval_str = ifelse(p_bonf > 0.10, "ns", pval_str),
+      report_str = str_glue("beta(SE)={beta}({beta_se}), t({df.residual})={t_stat}, p={pval_str}")) %>%
+    filter(term == "DXSSD") %>%
+    select(edge_group, vertex_type, report_str) %>%
+    spread(vertex_type, report_str)
+
+refit_w_edu_pooled %>% knitr::kable()
+```
+
+The Site-wise version
+
+```{r}
+refit_w_edu_sitewise_glance <- with_wFC1 %>%
+  inner_join(pheno, by = c("subject","dataset")) %>%
+  filter(in_matched_sample) %>%
+  group_by(edge_group, vertex_type, Site.x) %>%
+  do(glance(lm(wFC_score ~ DX + Age_match_pt + Sex + fd_mean_match_pt, data = .))) %>%
+  select(edge_group, vertex_type, Site.x, df.residual) %>%
+  distinct()
+
+refit_w_edu_sitewise_tidy <- with_wFC1 %>%
+  inner_join(pheno, by = c("subject","dataset")) %>%
+  filter(in_matched_sample) %>%
+  group_by(edge_group, vertex_type, Site.x) %>%
+  do(tidy(lm(wFC_score ~ DX + Age_match_pt + Sex + fd_mean_match_pt, data = .))) %>%
+  mutate(p_bonf = p.value*wf1_edgegroup_num) 
+
+refit_w_edu_sitewise <- refit_w_edu_sitewise_glance %>% 
+  select(edge_group, vertex_type, Site.x, `df.residual`) %>%
+  distinct() %>%
+  inner_join(refit_w_edu_sitewise_tidy, by = c("vertex_type", "edge_group", "Site.x")) %>%
+  mutate(
+      beta = specify_decimal(estimate,2),
+      beta_se = specify_decimal(std.error,2),
+      t_stat = specify_decimal(statistic,2),
+      pval_str = ifelse(p_bonf < 0.001, 
+                           format(p_bonf, scientific = TRUE, digits = 2),
+                           specify_decimal(p_bonf,3)),
+      pval_str = ifelse(p_bonf > 0.10, "ns", pval_str),
+      report_str = str_glue("beta(SE)={beta}({beta_se}), t({df.residual})={t_stat}, p={pval_str}")) %>%
+    filter(term == "DXSSD") %>%
+    select(edge_group, vertex_type, Site.x, report_str) %>%
+    spread(vertex_type, report_str)
+
+refit_w_edu_sitewise  %>% knitr::kable()
+```
+
+
+
+
+
+```{r}
+report_model_beta_t_wdf <- function(tidy_model, glance_models, this_term, p_value_col = p.value, ...) {
+  p_value_col = enquo(p_value_col)
+  the_df <- glance_models %>% 
+    filter(...) %>%
+    pull(df.residual) %>% unique()
+  tidy_model %>% 
+    filter(...) %>%
+    filter(term == this_term) %>%
+    mutate(
+      beta = specify_decimal(estimate,2),
+      beta_se = specify_decimal(std.error,2),
+      t_stat = specify_decimal(statistic,2),
+      pval_str = ifelse(!!p_value_col < 0.001, 
+                           format(!!p_value_col, scientific = TRUE, digits = 2),
+                           specify_decimal(!!p_value_col,3)),
+      pval_str = ifelse(!!p_value_col > 0.10, "ns", pval_str),
+      report_str = str_glue("beta(SE)={beta}({beta_se}), t({the_df})={t_stat}, p={pval_str}")) %>%
+    pull(report_str)
+}
+
+
+
+report_model_beta_t_wdf(wtar_panss_models_tidylm,                         wtar_panss_models_lm_glance,"clinical_score", p_value_col = p_bonf,                         vertex_type == "pvertex", clinical_measure=="wtar_std", edge_group == "subcort_to_VI")
+```
+
+```{r}
+report_wtar_model_t <- function(this_edgegroup, this_vertextype) {
+  report_model_beta_t_wdf(
+      wtar_panss_models_tidylm,   
+      wtar_panss_models_lm_glance,
+      "clinical_score", 
+      p_value_col = p_bonf,                         
+      vertex_type == this_vertextype, 
+      clinical_measure=="wtar_std", 
+      edge_group == this_edgegroup)
+  
+  }
+
+report_wtar_model_t("subcort_to_VI", "tvolume")
+```
+
+
+
+### The results write-up
+
+A significant main effect of SSD diagnosis was also observed when models were refitted with an additional covariate of years of Education (see Supplemental Table 4 for all model fits).  When models were fit separately for each site all model fits remained significant for the two larger cohort ZHH and CAMH sample, with more variability observed in the COBRE and UCLA cohorts. 
+Interestingly, hypoconnectivity between the subcortical areas and the frontal-partietal network was negatively correlated with hyperconnectivity between subcortical areas and the visual networks (see Figure 4a). These dysconnectivity patterns were also associated with verbal intelligence (WTAR scores) within participants with SSD from the COBRE and CAMH cohorts (subcortical to VI: template volume `r report_wtar_model_t("subcort_to_VI", "tvolume")` , template surface `r report_wtar_model_t("subcort_to_VI", "tvertex")`, PINT `r report_wtar_model_t("subcort_to_VI", "pvertex")` ; subcortical to FP: template volume `r report_wtar_model_t("subcort_to_FP", "tvolume")` template surface `r report_wtar_model_t("subcort_to_FP", "tvertex")`, PINT `r report_wtar_model_t("subcort_to_FP", "pvertex")`)see Supplemental Figure 4b). However, these associations between intelligence and functinal connectivity were not observed in the ZHH sample where intelligence was measures using the WRAT. Clinical scores (SANS for CMH, UCLA, ZHH cohorts) nor PANSS total scores (in CAMH and COBRE), were not correlated with any FC weighted scores after correction for multiple comparisons. In the ZHH sample, no significant differences between first episode and chronic SSD participants in FC scores were observed after correction for multiple comparisons ().
+

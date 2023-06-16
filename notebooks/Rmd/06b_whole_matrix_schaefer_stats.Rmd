@@ -122,7 +122,7 @@ saveRDS(all_schaefer_results, file = file.path(output_base, "all_clinicalplusqa_
 
 ###  Use this section to the un-harmonized correlation matrixes
 
-```{r}
+```{r eval = FALSE}
 all_corZ_results <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrainshaefer_FC_cache.rds"))
 ```
 
@@ -228,129 +228,7 @@ results_pheno <- ungroup(simpler_results)
 ```
 
 
-
-# Running Networkwise models 
-
-helpers functions for dealing with correlation matrixes
-
-```{r}
-#' convert from three col graph df to adjacency matrix
-uppertri_df_to_agjmat <- function(graph_df) {
-  
-  names(graph_df) <- c("to", "from", "myattr")
-  matrix_out <- graph_df %>%
-    graph_from_data_frame(., directed = F) %>%
-    as_adjacency_matrix(., type = "both", attr = "myattr", sparse = FALSE) #%>%
-    #as.matrix() 
-  return(matrix_out)
-}
-
-#' go uppertri data to full dataframe for geom_tile
-uppertri_df_to_full <- function(graph_df) {
-  result <- graph_df %>%
-    uppertri_df_to_agjmat() %>%
-    as.data.frame() %>%
-    mutate(to = row.names(.)) %>%
-    gather(from, value, -to) 
-  return(result)
-}
-
-```
-
-Defining function to reduce the whole brain correlation matrix to networkwise correlations
-
-
-
-
-```{r}
-
-networkg_order = c("CortLI", "CortDM","CortFP", "CortVA","CortDA","CortSM","CortVI", 
-                   "striatum", "thalamus","cerebellum")
-
-node_annotations1 <- Schaefer_node_annots %>%
-  mutate(node_grouping  = if_else(etype == "Cort",
-                                  str_c("Cort", as.character(network)),
-                                  as.character(subcort_ROI))) %>%
-  filter(!(etype == "SubCort" & numvx < 10))
-
-
-within_tbw_net_corrs <- function(upper_tri_edges) {
-  results <- upper_tri_edges %>%
-  uppertri_df_to_full() %>%
-  inner_join(node_annotations1 %>% select(node_name, node_grouping), 
-             by = c("to" = "node_name")) %>%
-  inner_join(node_annotations1 %>% select(node_name, node_grouping), 
-             by = c("from" = "node_name"), suffix = c("_to", "_from")) %>%
-  filter(!(to == from)) %>%
-  group_by(node_grouping_to, node_grouping_from) %>%
-  summarise(mean_corZ = mean(value), .groups = "keep") %>%
-  
-  # taking only the upper triangle 
-  mutate(node_grouping_to  = factor(node_grouping_to, levels = networkg_order),
-         node_grouping_from = factor(node_grouping_from, levels = networkg_order)) %>%
-  arrange(node_grouping_to, node_grouping_from) %>%
-  uppertri_df_to_agjmat() %>%
-  graph_from_adjacency_matrix(mode="upper", 
-                                weighted=T, diag=T) %>%
-  as_data_frame()
-  
-  return(results)
-}
-
-
-# ### un-comment the line below to test the above function
-# test_edges <- results_pheno %>%
-#   select(vertex_type, subject, dataset, to, from, weight) %>%
-#   group_by(vertex_type, subject, dataset) %>%
-#   nest() %>%
-#   slice(1) %>%
-#   unnest(data) %>%
-#   ungroup() %>%
-#   select(to, from, weight)
-# 
-# within_tbw_net_corrs(test_edges)
-```
-
-
-```{r}
-networkwise_corrz <- function(results_pheno_df) {
-  result <- results_pheno_df %>%
-  select(vertex_type, subject, dataset, to, from, weight) %>%
-  ungroup() %>%
-  group_by(vertex_type, subject, dataset) %>%
-  nest() %>%
-  mutate(results = map(data, ~within_tbw_net_corrs(.x))) %>%
-  select(vertex_type, subject, dataset, results) %>%
-  return(result)
-}
-
-## had to split this by vertex because of RAM issues on laptop
-surf_networkwise <- results_pheno %>%
-  filter(vertex_type == "surfschaefer") %>%
-  networkwise_corrz()
-vol_networkwise <- results_pheno %>%
-  filter(vertex_type == "volschaefer") %>%
-  networkwise_corrz()
-
-networkwise_corrs <- bind_rows(
-  surf_networkwise,
-  vol_networkwise,
-)
-
-```
-
-```{r}
-saveRDS(networkwise_corrs, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_Schaefercombat_networkwise_cache.rds"))
-```
-
-```{r}
-networkwise_corrs <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_Schaefercombat_networkwise_cache.rds"))
-```
-
-
-## calcualate Diagnosis Effect - Networkwise
-
-a helper function for calculating cohen's D (after regressing out the covars)
+## Running a whole brain (edgewise) models
 
 ```{r}
 library(modelr)
@@ -368,343 +246,13 @@ return(result)
 }
 ```
 
-merging the networkwise correlations with the phenotypic data for modeling
-
-```{r}
-results_net_pheno <- networkwise_corrs %>%
-  inner_join(pheno, by = c("subject", "dataset")) %>%
-  unnest(cols = c(results)) %>%
-  select(vertex_type, to, from, subject, dataset, weight, DX, all_of(lm_covar_cols))
-  
-```
-
-
-calculating cohen's D of the DX for all edges
-
-```{r}
-cohenD_DX_networkwise <-  results_net_pheno %>%
-  mutate(corZ = weight) %>%
-  ungroup() %>%
-  select(vertex_type, to, from, subject, corZ, DX, all_of(lm_covar_cols)) %>%
-  group_by(vertex_type, to, from) %>%
-  nest() %>%
-  #slice(1:3) %>%
-  mutate(DX_cohenD = map(data, ~calc_DX_cohenD(.x, 
-                                               outcome = "corZ", 
-                                               predictor = "DX",
-                                               covars = lm_covar_cols))) %>%
-  unnest(DX_cohenD) %>%
-  ungroup() %>%
-  select(vertex_type, to, from, DX_cohenD)
-```
-
-running a linear model for all edges
-
-```{r}
-DX_lm_formula <- formula(paste("corZ ~ ", lm_predictor_col, "+",
-                               paste(lm_covar_cols, collapse = " + ")))
-
-print(str_glue("fitting: lm formula {DX_lm_formula}"))
-
-DX_lm_model_fit_networkwise <-  results_net_pheno %>%
-  mutate(corZ = weight) %>%
-  group_by(vertex_type, to, from) %>%
-  do(tidy(lm(DX_lm_formula,.))) %>%
-  
-  # doing the 
-  ungroup() %>%
-  group_by(term) %>%
-  mutate(p_FDR = p.adjust(p.value, method = "fdr")) %>%
-  arrange(p.value)
-
-```
-merging the cohen's D with the DX results from the models
-
-```{r}
-DX_lm_model_DXcohenD_networkwise <- DX_lm_model_fit_networkwise %>%
-  filter(term == "DXSSD") %>%
-  inner_join(cohenD_DX_networkwise, by = c("vertex_type", "to", "from")) %>%
-  mutate(cohenD_DX_tstatdir = -1 * DX_cohenD)
-
-DX_lm_model_DXcohenD_networkwise %>%
-   filter(p_FDR < 0.05) %>%
-   arrange(p.value) %>%
-  count(vertex_type)
-```
-
-Plotting the networkwise results to a using ggtile
-
-```{r}
-
-DX_lm_model_DXcohenD_networkwise %>%
-  mutate(to = factor(to, levels = rev(networkg_order)),
-         from = factor(from, levels = rev(networkg_order)),
-         corrtype = factor(vertex_type, levels = c("volschaefer","surfschaefer" ),
-                      labels = c("Volume Template", "Surface Template")),
-         sig = if_else(p_FDR < 0.05, "*","")) %>%
-  ggplot(aes(x = to, y = from, fill = DX_cohenD)) +
-  geom_tile() +
-  geom_text(aes(label = sig)) +
-  scale_fill_distiller(breaks = c(-1,1), type = "div", palette = 5) +
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  facet_wrap(~ corrtype) +
-  labs(x = NULL, y = NULL)
-
-```
-
-## Compare networkwise cohen's D across cortical surface methods using bootstrap permutations on half the sample
-
-```{r}
-# Create an empty data frame to store the results
-networkwise_boot_cohenDDX_results <- data.frame()
-
-# Run the code snippet 100 times
-for (i in 1:1000) {
-  
-  set.seed(i*10)
-  
-  #print(paste("boot",i))
-  # Execute the code snippet
-  this_subsample <- pheno %>%
-    group_by(DX) %>%
-    sample_frac(size = 0.5) %>%
-    select(subject, dataset, DX) 
-  
-  this_result <-  results_net_pheno %>%
-    semi_join(this_subsample, by = c("subject", "dataset")) %>%
-    mutate(corZ = weight) %>%
-    ungroup() %>%
-    select(vertex_type, to, from, subject, corZ, DX, all_of(lm_covar_cols)) %>%
-    group_by(vertex_type, to, from) %>%
-    nest() %>%
-    #slice(1:3) %>%
-    mutate(DX_cohenD = map(data, ~calc_DX_cohenD(.x, 
-                                                 outcome = "corZ", 
-                                                 predictor = "DX",
-                                                 covars = lm_covar_cols))) %>%
-    unnest(DX_cohenD) %>%
-    ungroup() %>%
-    select(vertex_type, to, from, DX_cohenD) %>%
-    pivot_wider(id_cols = c("to", "from"),
-                names_from = "vertex_type",
-                values_from = DX_cohenD) %>%
-    mutate("pvertex_minus_tvertex" = volschaefer-surfschaefer)
-             
-  
-  # Combine the results with the existing data frame
-  networkwise_boot_cohenDDX_results <- bind_rows(networkwise_boot_cohenDDX_results, this_result)
-  
-}
-
-
-
-```
-
-```{r}
-saveRDS(networkwise_boot_cohenDDX_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_Schaefercombat_networkwiseboot_cache.rds"))
-```
-
-```{r}
-library(ggridges)
-
-make_subcortcort_edges_raincloud <- function(data, this_subCort) {
-  
-  plt_data <- data
-
-make_one_net_ridgelines <- function(plt_data, this_YeoNet, this_subCort, no_ticks = TRUE) {
-    plt <- plt_data %>%
-    filter(from == str_c("Cort",this_YeoNet)) %>%
-    filter(to == this_subCort) %>%
-    pivot_longer(cols = c("surfschaefer", "volschaefer"),
-               names_to = "vertex_type", 
-               values_to = "gvalue") %>%
-    mutate(corrtype = factor_corrtype(vertex_type, "Schaefer")) %>%
-    ggplot(aes(y = corrtype, x = gvalue)) +
-    geom_density_ridges(
-      #jittered_points = TRUE, position = "raincloud",
-      alpha = 0.5, scale = 2,
-      quantile_lines = TRUE, quantiles = 2,
-      color = YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode)
-    ) +
-    # geom_text(aes(y = corrtype, label = hyper), 
-    #       x = 0.5, 
-    #       nudge_y = 0.2, data = plt_counts %>% filter(as.character(network.y) %in% c(this_YeoNet))) +
-    # geom_text(aes(y = corrtype, label = hypo), 
-    #       x = -0.5, 
-    #       nudge_y = 0.2, data = plt_counts %>% filter(as.character(network.y) %in% c(this_YeoNet))) +
-    geom_vline(xintercept = 0) +
-    # geom_vline(xintercept = D_threshold, linetype = "dashed") +
-    # geom_vline(xintercept = -D_threshold, linetype = "dashed") +
-    scale_colour_manual(values = c(YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
-    scale_x_continuous(limits = c(-0.8, 0.8)) +
-    labs(y = NULL,
-         x = NULL) +
-    theme(legend.position='none')
-
-if (no_ticks==TRUE) {
-    plt <- plt + theme(axis.title.x=element_blank(),
-                       axis.text.x=element_blank())
-  } else {
-    plt <- plt + labs(x = "Subcortical to Cortical Edges")
-  }
-  return(plt)
-  
-}
-
-#' Right section of the raincload plots used in sub-cortical cortical change reporting
-focus_subcort_raincloud <- function(data, this_YeoNet, this_subCort, no_ticks = TRUE) {
-  
-  plt <- data %>%
-    filter(to == this_subCort, from == str_c("Cort",this_YeoNet)) %>% 
-    ungroup() %>%
-    ggplot(aes(x = pvertex_minus_tvertex, y = 1)) +
-    geom_density_ridges(
-      # jittered_points = TRUE, position = "raincloud",
-      alpha = 0.5, scale = 2,
-      quantile_lines = TRUE, quantiles = 2,
-      fill = YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode),
-      colour = YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode)
-    ) +
-    geom_vline(xintercept = 0) +
-    scale_x_continuous(limits = c(-0.3, 0.6)) +
-    labs(y = NULL,
-         x = NULL) +
-    theme(legend.position='none', 
-          axis.title.y=element_blank(),
-          axis.text.y=element_blank()) 
-  if (no_ticks==TRUE) {
-    plt <- plt + theme(axis.title.x=element_blank(),
-                       axis.text.x=element_blank())
-  } else {
-    plt <- plt + labs(x = "Surface - Volume.")
-  }
-  return(plt)
-  
-}
-
-
-#' Combined left and right section of the raincload plots used in sub-cortical cortical change reporting
-compare_with_rainclouds <- function(plt_data, this_YeoNet, this_subCort, no_ticks = TRUE) {
-  plt <- plot_grid(make_one_net_ridgelines(plt_data, this_YeoNet, this_subCort, no_ticks),
-                   focus_subcort_raincloud(plt_data, this_YeoNet, this_subCort, no_ticks), 
-                   rel_widths = c(2,1))
-  return(plt)
-}
-
-  DM <- compare_with_rainclouds(plt_data, "DM", this_subCort)
-  FP <- compare_with_rainclouds(plt_data, "FP", this_subCort)
-  VA <- compare_with_rainclouds(plt_data, "VA", this_subCort)
-  DA <- compare_with_rainclouds(plt_data, "DA", this_subCort)
-  SM <- compare_with_rainclouds(plt_data, "SM", this_subCort)
-  VI <- compare_with_rainclouds(plt_data, "VI", this_subCort, no_ticks = FALSE)
-
-  title <- ggdraw() + draw_label(str_c(this_subCort, " to Cortical"), fontface='bold')
-  full_plt <- plot_grid(title, DM, FP, VA, DA, SM, VI,
-                   ncol = 1, rel_heights = c(0.5, 1, 1, 1, 1, 1, 1.5))
-  return(full_plt)
-}
-
-
-make_subcortcort_edges_raincloud(networkwise_boot_cohenDDX_results, this_subCort = "thalamus")
-```
-
-```{r}
-make_subcortcort_edges_raincloud(networkwise_boot_cohenDDX_results, this_subCort = "cerebellum")
-```
-
-
-```{r}
-to_ROI <- "thalamus"
-from_ROI <- "CortVI"
-networkwise_boot_cohenDDX_results %>%
-  filter(to == to_ROI, from == from_ROI) %>%
-  pivot_longer(cols = c("surfschaefer", "volschaefer"),
-               names_to = "vertex_type", 
-               values_to = "gvalue") %>%
-  mutate(corrtype = factor_corrtype(vertex_type, "Schaefer")) %>%
-  ungroup() %>%
-  ggplot(aes(y = corrtype, x = gvalue)) +
-  geom_density_ridges(aes(fill = nettype, colour = nettype),
-                        #jittered_points = TRUE, position = "raincloud",
-                        alpha = 0.5, scale = 2,
-                        quantile_lines = TRUE, quantiles = 2
-    ) +
-    geom_text(aes(y = corrtype, label = cohenD_str), 
-              x = 0.55, 
-              nudge_y = 0.1, data = eff_size_df) +
-    geom_vline(xintercept = 0) +
-    scale_colour_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
-    scale_fill_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
-    scale_x_continuous(limits = c(-0.5, 0.6)) +
-    labs(y = NULL,
-         x = NULL) +
-    theme(legend.position='none')
-  
-```
-
-```{r}
-
-YeoNet7 <- tribble(
-  ~network, ~hexcode,
-  "VI", "#781286",
-  "SM", "#4682B4",
-  "DA", "#00760E",
-  "VA", "#C43AFA",
-  "FP", "#E69422",
-  "DM", "#CD3E3A",
-  "LI", "#dcf8a4")
-
-specify_decimal <- function(x, k) trimws(format(round(x, k), nsmall=k))
-
-factor_corrtype <- function(x, cort_atlas) {
-  if (cort_atlas == "PINT") {
-    corrtype = factor(x, levels = c('pvertex', 'tvertex', 'tvolume'),
-                      labels = c("Surface Personalized", "Surface Template", "Volume Template"))
-  } else if (cort_atlas == "Schaefer") {
-    corrtype = factor(x, levels = c("volschaefer","surfschaefer" ),
-                      labels = c("Volume Template", "Surface Template"))
-  }
-  return(corrtype)
-}
-```
-
-```{r}
-data %>%
-    mutate(corrtype = factor_corrtype(vertex_type, cort_atlas)) %>%
-    gather(nettype, gvalue, diff_net, same_net) %>%
-    filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
-    ungroup() %>%
-    ggplot(aes(y = corrtype, x = gvalue)) +
-    geom_density_ridges(aes(fill = nettype, colour = nettype),
-                        #jittered_points = TRUE, position = "raincloud",
-                        alpha = 0.5, scale = 2,
-                        quantile_lines = TRUE, quantiles = 2
-    ) +
-    geom_text(aes(y = corrtype, label = cohenD_str), 
-              x = 0.55, 
-              nudge_y = 0.1, data = eff_size_df) +
-    geom_vline(xintercept = 0) +
-    scale_colour_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
-    scale_fill_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
-    scale_x_continuous(limits = c(-0.5, 0.6)) +
-    labs(y = NULL,
-         x = NULL) +
-    theme(legend.position='none')
-```
-
-
-
-
-## Running a whole brain (edgewise) models
-
 Calculating cohen's D for the DX effect for each edge
 
 ```{r calc-DX-cohensD}
 results_pheno_plus_DXd <- function(results_pheno) {
   results_pheno %>%
-  semi_join(node_annotations, by = c("to"="node_name")) %>%
-  semi_join(node_annotations, by = c("from"="node_name")) %>%
+  semi_join(Schaefer_node_annots, by = c("to"="node_name")) %>%
+  semi_join(Schaefer_node_annots, by = c("from"="node_name")) %>%
   mutate(corZ = weight) %>%
   select(vertex_type, to, from, subject, corZ, DX, lm_covar_cols) %>%
   group_by(vertex_type, to, from) %>%
@@ -720,18 +268,14 @@ results_pheno_plus_DXd <- function(results_pheno) {
 }
 
 ## had to split this by vertex because of RAM issues on laptop
-pvertex_DXd <- results_pheno %>%
-  filter(vertex_type == "pvertex") %>%
-  results_pheno_plus_DXd()
 tvertex_DXd <- results_pheno %>%
-  filter(vertex_type == "tvertex") %>%
+  filter(vertex_type == "surfschaefer") %>%
   results_pheno_plus_DXd()
 tvolume_DXd <- results_pheno %>%
-  filter(vertex_type == "tvolume") %>%
+  filter(vertex_type == "volschaefer") %>%
   results_pheno_plus_DXd()
 
 DX_cohensD_results <- bind_rows(
-  pvertex_DXd,
   tvertex_DXd,
   tvolume_DXd
 ) 
@@ -749,26 +293,22 @@ print(str_c("fitting: lm formula {DX_lm_formula}"))
 
 DX_lm_model_fit <- function(results_pheno) {
   results_pheno %>%
-  semi_join(node_annotations, by = c("to"="node_name")) %>%
-  semi_join(node_annotations, by = c("from"="node_name")) %>%
+  semi_join(Schaefer_node_annots, by = c("to"="node_name")) %>%
+  semi_join(Schaefer_node_annots, by = c("from"="node_name")) %>%
   mutate(corZ = weight) %>%
   group_by(vertex_type, to, from) %>%
   do(tidy(lm(DX_lm_formula,.))) 
 }
 
 ## had to split this by vertex because of RAM issues on laptop
-pvertex_DX_lm <- results_pheno %>%
-  filter(vertex_type == "pvertex") %>%
-  DX_lm_model_fit()
 tvertex_DX_lm <- results_pheno %>%
-  filter(vertex_type == "tvertex") %>%
+  filter(vertex_type == "surfschaefer") %>%
   DX_lm_model_fit()
 tvolume_DX_lm <- results_pheno %>%
-  filter(vertex_type == "tvolume") %>%
+  filter(vertex_type == "volschaefer") %>%
   DX_lm_model_fit()
 
 DX_lm_model_full <- bind_rows(
-  pvertex_DX_lm,
   tvertex_DX_lm,
   tvolume_DX_lm
 ) 
@@ -786,8 +326,8 @@ annotated_graph_edges <- DX_lm_model_full %>%
   ungroup() %>%
   select(to, from) %>%
   distinct() %>%
-  inner_join(node_annotations, by = c("to"="node_name")) %>%
-  inner_join(node_annotations, by = c("from"="node_name"), suffix = c('_to','_from')) %>%
+  inner_join(Schaefer_node_annots, by = c("to"="node_name")) %>%
+  inner_join(Schaefer_node_annots, by = c("from"="node_name"), suffix = c('_to','_from')) %>%
   unite(from_to_type, etype_from, etype_to) %>%
   unite(hemis, hemi_from, hemi_to, sep = "") %>%
   unite(networks, network_from, network_to, sep = "", remove = FALSE) %>%
@@ -830,18 +370,209 @@ DX_lm_model_DXcohenD %>%
 
 
 ```{r}
-saveRDS(DX_lm_model_DXcohenD, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_DXlmfits.rds"))
+saveRDS(DX_lm_model_DXcohenD, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_DXlmfits_Schaefer.rds"))
 ```
 
 can get the model fit back from here..
 
 ```{r eval = FALSE}
-DX_lm_model_DXcohenD <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_DXlmfits.rds"))
+DX_lm_model_DXcohenD <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_DXlmfits_Schaefer.rds"))
 ```
 
+## add booted results
 
+This ended up being too much for one node so we needed to use the HPC for the roiwise permutations
+
+```{sh eval=FALSE}
+ssh hawking
+# meant to be run from the base of the project
+# cd ~/code/SSD_PINT
+sbatch --array=0-99 ./code/bin/submit_SchaeferFC_DXeffect_10permutations.sh
+```
+
+```{r}
+FC_boots <- list.files(path = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache","06b_SchaeferFC_boots"), pattern = "*.rds", full.names = TRUE ) %>%
+  map_dfr(readRDS)
+```
+
+```{r}
+calculate_mean_ci <- function(data) {
+  n <- length(data)
+  mean_val <- mean(data)
+  lower <- quantile(data, 0.025)
+  upper <- quantile(data, 0.975)
+  
+  result <- sprintf("%.2f [%.2f; %.2f]", mean_val, lower, upper)
+  if ((lower < 0 & upper < 0 ) | (lower > 0 & upper > 0)) {
+    result <- str_c(result, "*")
+  }
+  return(result)
+}
+
+calc_DX_reproducible_edgewise <- function(this_vertex_type) {
+matrix_data <- FC_boots %>%
+  pivot_wider(id_cols = all_of(c("to", "from")),
+              names_from = "i",
+              values_from = this_vertex_type,
+              names_prefix = "i") %>%
+  select(starts_with("i")) %>%
+  cor() 
+
+result <- calculate_mean_ci(matrix_data[upper.tri(matrix_data)])
+   return(result)
+}
+
+print(str_c("surfschaefer: ",calc_DX_reproducible_edgewise("surfschaefer")))
+print(str_c("volschaefer: ",calc_DX_reproducible_edgewise("volschaefer")))
+```
+```{r}
+
+annotated_graph_edges <- FC_boots %>%
+  ungroup() %>%
+  select(to, from) %>%
+  distinct() %>%
+  inner_join(Schaefer_node_annots, by = c("to"="node_name")) %>%
+  inner_join(Schaefer_node_annots, by = c("from"="node_name"), suffix = c('_to','_from')) %>%
+  unite(from_to_type, etype_from, etype_to) %>%
+  unite(hemis, hemi_from, hemi_to, sep = "") %>%
+  unite(networks, network_from, network_to, sep = "", remove = FALSE) %>%
+  mutate(from_to_type = recode(from_to_type, "Cort_SubCort" = "SubCort_Cort")) %>%
+  mutate(hemis = recode(hemis, "RL" = "LR")) 
+
+calc_DX_reproducible_edgewise <- function(this_vertex_type) {
+matrix_data <- FC_boots %>%
+  inner_join(annotated_graph_edges, by = c("to", "from")) %>%
+  filter(from_to_type == "Cort_Cort") %>%
+  pivot_wider(id_cols = c("to", "from"),
+              names_from = "i",
+              values_from = this_vertex_type,
+              names_prefix = "i") %>%
+  select(starts_with("i")) %>%
+  cor() 
+
+result <- calculate_mean_ci(matrix_data[upper.tri(matrix_data)])
+   return(result)
+}
+
+print("Cortical Cortical correlation across boots")
+print(str_c("surfschaefer: ",calc_DX_reproducible_edgewise("surfschaefer")))
+print(str_c("volschaefer: ",calc_DX_reproducible_edgewise("volschaefer")))
+```
+```{r}
+calc_DX_reproducible_edgewise <- function(this_vertex_type) {
+matrix_data <- FC_boots %>%
+  inner_join(annotated_graph_edges, by = c("to", "from")) %>%
+  filter(from_to_type == "SubCort_Cort") %>%
+  pivot_wider(id_cols = c("to", "from"),
+              names_from = "i",
+              values_from = this_vertex_type,
+              names_prefix = "i") %>%
+  select(starts_with("i")) %>%
+  cor() 
+
+result <- calculate_mean_ci(matrix_data[upper.tri(matrix_data)])
+   return(result)
+}
+
+print("For SubCortical Cortical")
+print(str_c("surfschaefer: ",calc_DX_reproducible_edgewise("surfschaefer")))
+print(str_c("volschaefer: ",calc_DX_reproducible_edgewise("volschaefer")))
+```
+
+```{r}
+edgewise_vertex_type_delta_summary <- FC_boots %>%
+  semi_join(annotated_graph_edges %>% filter(from_to_type != "SubCort_SubCort")) %>%
+  ungroup() %>%
+  select(to, from, surfschaefer:surf_minus_vol) %>%
+  pivot_longer(surfschaefer:surf_minus_vol,
+               names_to = "comparison_type",
+              values_to = "value") %>%
+  ungroup() %>%
+  group_by(to, from, comparison_type) %>%
+  summarise(mean_val = mean(value),
+         min = min(value),
+         max = max(value),   
+         lower99 = quantile(value, 0.005),
+         upper99 = quantile(value, 0.995),
+         lower95 = quantile(value, 0.025),
+         upper95 = quantile(value, 0.975)) %>%
+  mutate(sigrange = ((min < 0 & max < 0 ) | (min > 0 & max > 0)),
+         sig99CI = ((lower99 < 0 & upper99 < 0 ) | (lower99 > 0 & upper99 > 0)),
+         sig95CI = ((lower95 < 0 & upper95 < 0 ) | (lower95 > 0 & upper95 > 0))) %>%
+  select(-lower99, -upper99, -lower95, -upper95) %>%
+  pivot_wider(id_cols = c("to", "from"),
+              names_from = comparison_type,
+              values_from = c(mean_val:sig95CI),
+              names_glue = "{comparison_type}_{.value}")
+
+saveRDS(edgewise_vertex_type_delta_summary, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_Schaefercombat_roi_DXboots_summary.rds"))
+```
+```{r} 
+tvertex_sum <- edgewise_vertex_type_delta_summary %>%
+  filter(surfschaefer_sig99CI | volschaefer_sig99CI) %>%
+  filter(surf_minus_vol_sig99CI) %>%
+  select(to, from, surfschaefer_mean_val, volschaefer_mean_val, surf_minus_vol_mean_val) %>%
+  mutate(tvertex_min_tvolume_abs = abs(surfschaefer_mean_val) - abs(volschaefer_mean_val),
+         tvertex_better = tvertex_min_tvolume_abs > 0)
+
+tvertex_sum %>%
+  ungroup() %>%
+  count(tvertex_better)
+```
+
+```{r}
+DX_lm_model_DXcohenD_booted <- DX_lm_model_DXcohenD %>%
+  pivot_wider(id_cols = all_of(c("to", "from")), 
+              values_from = statistic:cohenD_DX_tstatdir,
+              names_from = vertex_type,
+              names_glue = "{vertex_type}_{.value}") %>%
+  inner_join(edgewise_vertex_type_delta_summary, by = c("to", "from"))
+
+saveRDS(DX_lm_model_DXcohenD_booted, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_DXlmfits_plusboots_Schaefer.rds"))
+```
+
+```{r}
+DX_lm_model_DXcohenD_booted %>%
+  filter(surfschaefer_p_FDR < 0.05) %>%
+  arrange(desc(surfschaefer_p.value)) %>%
+  slice(1:5)
+```
+
+```{r}
+DX_lm_model_DXcohenD_booted_long <- DX_lm_model_DXcohenD_booted %>%
+  select(!(contains("minus"))) %>%
+  pivot_longer(c(-to,-from),
+               cols_vary = "slowest",
+               names_to = c("vertex_type", ".value"),
+               names_sep = "_") %>%
+  rename("full_cohenD" = DX, 
+         "full_abscohenD" = cohenD,
+         "booted_mean_cohenD" = mean,
+         "p_FDR" = p,
+         "booted_min_cohenD" = min,
+         "botted_max_cohenD" = max)
+  
+  
+```
+
+```{r}
+tvertex_sum <- DX_lm_model_DXcohenD_booted %>%
+  filter(surfschaefer_p_FDR < 0.05 | volschaefer_p_FDR < 0.05) %>%
+  filter(surf_minus_vol_sig95CI) %>%
+  select(to, from, surfschaefer_mean_val, volschaefer_mean_val) %>%
+  mutate(tvertex_min_tvolume_abs = abs(surfschaefer_mean_val) - abs(volschaefer_mean_val),
+         tvertex_better = tvertex_min_tvolume_abs > 0) 
+
+
+tvertex_sum %>%
+  ungroup() %>%
+  count(tvertex_better)
+```
 
 ## Make swirly plots of edgewise results
+
+
+
 
 ```{r fig.height=10, fig.width=10}
 source(here('code/R/swirly_plot_helpers.R'))
@@ -849,13 +580,13 @@ DX_lm_model_DXcohenD %>%
   ungroup() %>%
   ## filtering steps
   filter(term == "DXSSD") %>%
-  filter(vertex_type == "pvertex") %>%
+  filter(vertex_type == "surfschaefer") %>%
   
   ## make a pretty plot
   make_swirly_results_plot(pos_label = "SSD > HC", 
                       neg_label = "HC > SSD",
-                      plot_title = "Personalized",
-                      node_annotations = node_annotations)
+                      plot_title = "Schaefer100 Surface",
+                      node_annotations = Schaefer_node_annots)
 ```
 
 
@@ -863,24 +594,15 @@ DX_lm_model_DXcohenD %>%
 DX_lm_model_DXcohenD %>%
   ungroup() %>%
   filter(term == "DXSSD") %>%
-  filter(vertex_type == "tvertex") %>%
+  filter(vertex_type == "volschaefer") %>%
   make_swirly_results_plot(pos_label = "SSD > HC", 
                       neg_label = "HC > SSD",
-                      plot_title = "Template",
+                      plot_title = "Schaefer Volume",
                       node_annotations = node_annotations)
 ```
 
 
-```{r fig.height=10, fig.width=10}
-DX_lm_model_DXcohenD %>%
-  ungroup() %>%
-  filter(term == "DXSSD") %>%
-  filter(vertex_type == "tvolume") %>%
-  make_swirly_results_plot(pos_label = "SSD > HC", 
-                      neg_label = "HC > SSD",
-                      plot_title = "Volume",
-                      node_annotations = node_annotations)
-```
+
 
 ## make table FDR corrected Edges that survive correction
 
@@ -935,21 +657,19 @@ uppertri_df_to_full <- function(graph_df) {
 }
 ```
 
-```{r}
-results_pheno
-```
+
 
 
 ```{r}
 YeoNet7 <- define_YeoNet7_colours()
-node_annotations1 <- node_annotations %>%
+node_annotations1 <- Schaefer_node_annots %>%
   mutate(node_grouping  = if_else(etype == "Cort",
                                   str_c("Cort", cort_NET),
                                   as.character(subcort_ROI))) 
 
 node_groupings <- factor(1:9, 
                          levels = c(1:9),
-                         labels = c(levels(node_annotations$subcort_ROI),
+                         labels = c(levels(Schaefer_node_annots$subcort_ROI),
                                     str_c("Cort",YeoNet7$network[1:6])))
 edge_grouping_guide <- matrix(1, 
                   nrow = length(node_groupings),
@@ -1035,8 +755,8 @@ DX_lm_model_DXcohenD %>%
   nest() %>%
   mutate(uptri = map(data, uppertri_df_to_full)) %>%
   unnest(uptri) %>%
-  mutate(to_lab = factor(to, levels = (node_annotations %>% arrange(subcort_ROI, network))$node_name),
-         from_lab = factor(from, levels = (node_annotations %>% arrange(subcort_ROI, network))$node_name)) %>%
+  mutate(to_lab = factor(to, levels = (Schaefer_node_annots %>% arrange(subcort_ROI, network))$node_name),
+         from_lab = factor(from, levels = (Schaefer_node_annots %>% arrange(subcort_ROI, network))$node_name)) %>%
   ggplot(aes(x=to_lab, y=from_lab, fill=value)) + 
   geom_tile(color = "white") +
   scale_fill_gradient2(high = "#b2182b", mid = "white", low = "#2166ac") +
@@ -1062,14 +782,14 @@ DX_lm_model_DXcohenD %>%
 
 ```{r fig.height=12, fig.width= 12}
 full_DX_mat <- DX_lm_model_DXcohenD %>%
-  filter(term == "DXSSD", vertex_type == "pvertex") %>%
+  filter(term == "DXSSD", vertex_type == "surfschaefer") %>%
   ungroup() %>%
   select(to, from, statistic) %>%
   uppertri_df_to_full() 
 
 full_DX_mat %>%
-  mutate(to_lab = factor(to, levels = node_annotations$node_name), 
-         from_lab = factor(from, levels = node_annotations$node_name)) %>%
+  mutate(to_lab = factor(to, levels = Schaefer_node_annots$node_name), 
+         from_lab = factor(from, levels = Schaefer_node_annots$node_name)) %>%
   ggplot(aes(x=to_lab, y=from_lab, fill=value)) + 
   geom_tile(color = "white") +
   scale_fill_gradient2(high = "#b2182b", mid = "white", low = "#2166ac") +
@@ -1091,35 +811,29 @@ get_subcort_net_edges <- function(data, this_YeoNet, D_threshold) {
       ungroup() %>%
       select(to, from, cohenD_DX_tstatdir) %>%
       uppertri_df_to_full() %>%
-      inner_join(node_annotations, by = c("to"="node_name")) %>%
-      inner_join(node_annotations, by = c("from"="node_name")) %>%
+      inner_join(Schaefer_node_annots, by = c("to"="node_name")) %>%
+      inner_join(Schaefer_node_annots, by = c("from"="node_name")) %>%
       filter(etype.x == "SubCort") %>%
       filter(etype.y == "Cort")
       
 }
 
-DXweigths_pvertex <- data %>%
-  filter(term == "DXSSD", vertex_type == "pvertex") %>%
-  ungroup() %>%
-  get_subcort_net_edges(.,this_YeoNet) 
 
 DXweigths_tvertex <- data %>%
-  filter(term == "DXSSD", vertex_type == "tvertex") %>%
+  filter(term == "DXSSD", vertex_type == "surfschaefer") %>%
   ungroup() %>%
   get_subcort_net_edges(.,this_YeoNet)
 
 DXweigths_tvolume <- data %>%
-  filter(term == "DXSSD", vertex_type == "tvolume") %>%
+  filter(term == "DXSSD", vertex_type == "volschaefer") %>%
   ungroup() %>%
   get_subcort_net_edges(.,this_YeoNet)
 
-Fz_DXweigths <- bind_rows(pvertex = DXweigths_pvertex,
-                     tvertex = DXweigths_tvertex,
+Fz_DXweigths <- bind_rows(tvertex = DXweigths_tvertex,
                      tvolume = DXweigths_tvolume,
                      .id = "vertex_type") %>%
-      mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
-                             labels = c("Surface Personalized", 
-                                        "Surface Template", 
+      mutate(corrtype = factor(vertex_type, levels = c('tvertex', 'tvolume'),
+                             labels = c("Surface Template", 
                                         "Volume Template")),
            hyper_hypo = case_when(value < -D_threshold ~ "hypo",
                                   value > D_threshold ~ "hyper",
@@ -1193,35 +907,29 @@ get_cortcort_net_edges <- function(data) {
       ungroup() %>%
       select(to, from, cohenD_DX_tstatdir) %>%
       uppertri_df_to_full() %>%
-      inner_join(node_annotations, by = c("to"="node_name")) %>%
-      inner_join(node_annotations, by = c("from"="node_name")) %>%
+      inner_join(Schaefer_node_annots, by = c("to"="node_name")) %>%
+      inner_join(Schaefer_node_annots, by = c("from"="node_name")) %>%
       filter(etype.x == "Cort") %>%
       filter(etype.y == "Cort")
       
 }
 
-DXweigths_pvertex <- data %>%
-  filter(term == "DXSSD", vertex_type == "pvertex") %>%
-  ungroup() %>%
-  get_cortcort_net_edges() 
 
 DXweigths_tvertex <- data %>%
-  filter(term == "DXSSD", vertex_type == "tvertex") %>%
+  filter(term == "DXSSD", vertex_type == "surfschaefer") %>%
   ungroup() %>%
   get_cortcort_net_edges()
 
 DXweigths_tvolume <- data %>%
-  filter(term == "DXSSD", vertex_type == "tvolume") %>%
+  filter(term == "DXSSD", vertex_type == "volschaefer") %>%
   ungroup() %>%
   get_cortcort_net_edges()
 
-Fz_DXweigths <- bind_rows(pvertex = DXweigths_pvertex,
-                     tvertex = DXweigths_tvertex,
+Fz_DXweigths <- bind_rows(tvertex = DXweigths_tvertex,
                      tvolume = DXweigths_tvolume,
                      .id = "vertex_type") %>%
-      mutate(corrtype = factor(vertex_type, levels = c('pvertex', 'tvertex', 'tvolume'),
-                             labels = c("Surface Personalized", 
-                                        "Surface Template", 
+      mutate(corrtype = factor(vertex_type, levels = c('tvertex', 'tvolume'),
+                             labels = c("Surface Template", 
                                         "Volume Template")),
            hyper_hypo = case_when(value < -D_threshold ~ "hypo",
                                   value > D_threshold ~ "hyper",
@@ -1992,4 +1700,472 @@ wFC_corrs <- all_subject_FC_weights %>%
   cor(.)
 heatmap(abs(wFC_corrs))
 ```
+
+# Running Networkwise models 
+
+helpers functions for dealing with correlation matrixes
+
+```{r}
+#' convert from three col graph df to adjacency matrix
+uppertri_df_to_agjmat <- function(graph_df) {
+  
+  names(graph_df) <- c("to", "from", "myattr")
+  matrix_out <- graph_df %>%
+    graph_from_data_frame(., directed = F) %>%
+    as_adjacency_matrix(., type = "both", attr = "myattr", sparse = FALSE) #%>%
+    #as.matrix() 
+  return(matrix_out)
+}
+
+#' go uppertri data to full dataframe for geom_tile
+uppertri_df_to_full <- function(graph_df) {
+  result <- graph_df %>%
+    uppertri_df_to_agjmat() %>%
+    as.data.frame() %>%
+    mutate(to = row.names(.)) %>%
+    gather(from, value, -to) 
+  return(result)
+}
+
+```
+
+Defining function to reduce the whole brain correlation matrix to networkwise correlations
+
+
+
+
+```{r}
+
+networkg_order = c("CortLI", "CortDM","CortFP", "CortVA","CortDA","CortSM","CortVI", 
+                   "striatum", "thalamus","cerebellum")
+
+node_annotations1 <- Schaefer_node_annots %>%
+  mutate(node_grouping  = if_else(etype == "Cort",
+                                  str_c("Cort", as.character(network)),
+                                  as.character(subcort_ROI))) %>%
+  filter(!(etype == "SubCort" & numvx < 10))
+
+
+within_tbw_net_corrs <- function(upper_tri_edges) {
+  results <- upper_tri_edges %>%
+  uppertri_df_to_full() %>%
+  inner_join(node_annotations1 %>% select(node_name, node_grouping), 
+             by = c("to" = "node_name")) %>%
+  inner_join(node_annotations1 %>% select(node_name, node_grouping), 
+             by = c("from" = "node_name"), suffix = c("_to", "_from")) %>%
+  filter(!(to == from)) %>%
+  group_by(node_grouping_to, node_grouping_from) %>%
+  summarise(mean_corZ = mean(value), .groups = "keep") %>%
+  
+  # taking only the upper triangle 
+  mutate(node_grouping_to  = factor(node_grouping_to, levels = networkg_order),
+         node_grouping_from = factor(node_grouping_from, levels = networkg_order)) %>%
+  arrange(node_grouping_to, node_grouping_from) %>%
+  uppertri_df_to_agjmat() %>%
+  graph_from_adjacency_matrix(mode="upper", 
+                                weighted=T, diag=T) %>%
+  as_data_frame()
+  
+  return(results)
+}
+
+
+# ### un-comment the line below to test the above function
+# test_edges <- results_pheno %>%
+#   select(vertex_type, subject, dataset, to, from, weight) %>%
+#   group_by(vertex_type, subject, dataset) %>%
+#   nest() %>%
+#   slice(1) %>%
+#   unnest(data) %>%
+#   ungroup() %>%
+#   select(to, from, weight)
+# 
+# within_tbw_net_corrs(test_edges)
+```
+
+
+```{r}
+networkwise_corrz <- function(results_pheno_df) {
+  result <- results_pheno_df %>%
+  select(vertex_type, subject, dataset, to, from, weight) %>%
+  ungroup() %>%
+  group_by(vertex_type, subject, dataset) %>%
+  nest() %>%
+  mutate(results = map(data, ~within_tbw_net_corrs(.x))) %>%
+  select(vertex_type, subject, dataset, results) %>%
+  return(result)
+}
+
+## had to split this by vertex because of RAM issues on laptop
+surf_networkwise <- results_pheno %>%
+  filter(vertex_type == "surfschaefer") %>%
+  networkwise_corrz()
+vol_networkwise <- results_pheno %>%
+  filter(vertex_type == "volschaefer") %>%
+  networkwise_corrz()
+
+networkwise_corrs <- bind_rows(
+  surf_networkwise,
+  vol_networkwise,
+)
+
+```
+
+```{r}
+saveRDS(networkwise_corrs, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_Schaefercombat_networkwise_cache.rds"))
+```
+
+```{r}
+networkwise_corrs <- readRDS(file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_Schaefercombat_networkwise_cache.rds"))
+```
+
+
+## calcualate Diagnosis Effect - Networkwise
+
+a helper function for calculating cohen's D (after regressing out the covars)
+
+```{r}
+library(modelr)
+library(effsize)
+
+
+calc_DX_cohenD <- function(df, outcome, predictor, covars) { 
+m1 <- lm(formula(paste(outcome, '~', paste(covars, collapse = " + "))),
+         data = df)
+result <-df %>% 
+  add_residuals(m1) %>%
+  cohen.d(formula(paste("resid ~", predictor)), data = .) %>% 
+  .$estimate
+return(result)
+}
+```
+
+merging the networkwise correlations with the phenotypic data for modeling
+
+```{r}
+results_net_pheno <- networkwise_corrs %>%
+  inner_join(pheno, by = c("subject", "dataset")) %>%
+  unnest(cols = c(results)) %>%
+  select(vertex_type, to, from, subject, dataset, weight, DX, all_of(lm_covar_cols))
+  
+```
+
+
+calculating cohen's D of the DX for all edges
+
+```{r}
+cohenD_DX_networkwise <-  results_net_pheno %>%
+  mutate(corZ = weight) %>%
+  ungroup() %>%
+  select(vertex_type, to, from, subject, corZ, DX, all_of(lm_covar_cols)) %>%
+  group_by(vertex_type, to, from) %>%
+  nest() %>%
+  #slice(1:3) %>%
+  mutate(DX_cohenD = map(data, ~calc_DX_cohenD(.x, 
+                                               outcome = "corZ", 
+                                               predictor = "DX",
+                                               covars = lm_covar_cols))) %>%
+  unnest(DX_cohenD) %>%
+  ungroup() %>%
+  select(vertex_type, to, from, DX_cohenD)
+```
+
+running a linear model for all edges
+
+```{r}
+DX_lm_formula <- formula(paste("corZ ~ ", lm_predictor_col, "+",
+                               paste(lm_covar_cols, collapse = " + ")))
+
+print(str_glue("fitting: lm formula {DX_lm_formula}"))
+
+DX_lm_model_fit_networkwise <-  results_net_pheno %>%
+  mutate(corZ = weight) %>%
+  group_by(vertex_type, to, from) %>%
+  do(tidy(lm(DX_lm_formula,.))) %>%
+  
+  # doing the 
+  ungroup() %>%
+  group_by(term) %>%
+  mutate(p_FDR = p.adjust(p.value, method = "fdr")) %>%
+  arrange(p.value)
+
+```
+
+
+
+merging the cohen's D with the DX results from the models
+
+```{r}
+DX_lm_model_DXcohenD_networkwise <- DX_lm_model_fit_networkwise %>%
+  filter(term == "DXSSD") %>%
+  inner_join(cohenD_DX_networkwise, by = c("vertex_type", "to", "from")) %>%
+  mutate(cohenD_DX_tstatdir = -1 * DX_cohenD)
+
+DX_lm_model_DXcohenD_networkwise %>%
+   filter(p_FDR < 0.05) %>%
+   arrange(p.value) %>%
+  count(vertex_type)
+```
+
+Plotting the networkwise results to a using ggtile
+
+```{r}
+
+DX_lm_model_DXcohenD_networkwise %>%
+  mutate(to = factor(to, levels = rev(networkg_order)),
+         from = factor(from, levels = rev(networkg_order)),
+         corrtype = factor(vertex_type, levels = c("volschaefer","surfschaefer" ),
+                      labels = c("Volume Template", "Surface Template")),
+         sig = if_else(p_FDR < 0.05, "*","")) %>%
+  ggplot(aes(x = to, y = from, fill = DX_cohenD)) +
+  geom_tile() +
+  geom_text(aes(label = sig)) +
+  scale_fill_distiller(breaks = c(-1,1), type = "div", palette = 5) +
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_wrap(~ corrtype) +
+  labs(x = NULL, y = NULL)
+
+```
+
+## Compare networkwise cohen's D across cortical surface methods using bootstrap permutations on half the sample
+
+```{r}
+# Create an empty data frame to store the results
+networkwise_boot_cohenDDX_results <- data.frame()
+
+# Run the code snippet 100 times
+for (i in 1:1000) {
+  
+  set.seed(i*10)
+  
+  #print(paste("boot",i))
+  # Execute the code snippet
+  this_subsample <- pheno %>%
+    group_by(DX) %>%
+    sample_frac(size = 0.5) %>%
+    select(subject, dataset, DX) 
+  
+  this_result <-  results_net_pheno %>%
+    semi_join(this_subsample, by = c("subject", "dataset")) %>%
+    mutate(corZ = weight) %>%
+    ungroup() %>%
+    select(vertex_type, to, from, subject, corZ, DX, all_of(lm_covar_cols)) %>%
+    group_by(vertex_type, to, from) %>%
+    nest() %>%
+    #slice(1:3) %>%
+    mutate(DX_cohenD = map(data, ~calc_DX_cohenD(.x, 
+                                                 outcome = "corZ", 
+                                                 predictor = "DX",
+                                                 covars = lm_covar_cols))) %>%
+    unnest(DX_cohenD) %>%
+    ungroup() %>%
+    select(vertex_type, to, from, DX_cohenD) %>%
+    pivot_wider(id_cols = c("to", "from"),
+                names_from = "vertex_type",
+                values_from = DX_cohenD) %>%
+    mutate("pvertex_minus_tvertex" = volschaefer-surfschaefer)
+             
+  
+  # Combine the results with the existing data frame
+  networkwise_boot_cohenDDX_results <- bind_rows(networkwise_boot_cohenDDX_results, this_result)
+  
+}
+
+
+
+```
+
+```{r}
+saveRDS(networkwise_boot_cohenDDX_results, file = file.path(output_base, "all_clinicalplusqa_group", "Rdata_cache", "06_wholebrain_FC_Schaefercombat_networkwiseboot_cache.rds"))
+```
+
+```{r}
+library(ggridges)
+
+make_subcortcort_edges_raincloud <- function(data, this_subCort) {
+  
+  plt_data <- data
+
+make_one_net_ridgelines <- function(plt_data, this_YeoNet, this_subCort, no_ticks = TRUE) {
+    plt <- plt_data %>%
+    filter(from == str_c("Cort",this_YeoNet)) %>%
+    filter(to == this_subCort) %>%
+    pivot_longer(cols = c("surfschaefer", "volschaefer"),
+               names_to = "vertex_type", 
+               values_to = "gvalue") %>%
+    mutate(corrtype = factor_corrtype(vertex_type, "Schaefer")) %>%
+    ggplot(aes(y = corrtype, x = gvalue)) +
+    geom_density_ridges(
+      #jittered_points = TRUE, position = "raincloud",
+      alpha = 0.5, scale = 2,
+      quantile_lines = TRUE, quantiles = 2,
+      color = YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode)
+    ) +
+    # geom_text(aes(y = corrtype, label = hyper), 
+    #       x = 0.5, 
+    #       nudge_y = 0.2, data = plt_counts %>% filter(as.character(network.y) %in% c(this_YeoNet))) +
+    # geom_text(aes(y = corrtype, label = hypo), 
+    #       x = -0.5, 
+    #       nudge_y = 0.2, data = plt_counts %>% filter(as.character(network.y) %in% c(this_YeoNet))) +
+    geom_vline(xintercept = 0) +
+    # geom_vline(xintercept = D_threshold, linetype = "dashed") +
+    # geom_vline(xintercept = -D_threshold, linetype = "dashed") +
+    scale_colour_manual(values = c(YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_x_continuous(limits = c(-0.8, 0.8)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+
+if (no_ticks==TRUE) {
+    plt <- plt + theme(axis.title.x=element_blank(),
+                       axis.text.x=element_blank())
+  } else {
+    plt <- plt + labs(x = "Subcortical to Cortical Edges")
+  }
+  return(plt)
+  
+}
+
+#' Right section of the raincload plots used in sub-cortical cortical change reporting
+focus_subcort_raincloud <- function(data, this_YeoNet, this_subCort, no_ticks = TRUE) {
+  
+  plt <- data %>%
+    filter(to == this_subCort, from == str_c("Cort",this_YeoNet)) %>% 
+    ungroup() %>%
+    ggplot(aes(x = pvertex_minus_tvertex, y = 1)) +
+    geom_density_ridges(
+      # jittered_points = TRUE, position = "raincloud",
+      alpha = 0.5, scale = 2,
+      quantile_lines = TRUE, quantiles = 2,
+      fill = YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode),
+      colour = YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode)
+    ) +
+    geom_vline(xintercept = 0) +
+    scale_x_continuous(limits = c(-0.3, 0.6)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none', 
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank()) 
+  if (no_ticks==TRUE) {
+    plt <- plt + theme(axis.title.x=element_blank(),
+                       axis.text.x=element_blank())
+  } else {
+    plt <- plt + labs(x = "Surface - Volume.")
+  }
+  return(plt)
+  
+}
+
+
+#' Combined left and right section of the raincload plots used in sub-cortical cortical change reporting
+compare_with_rainclouds <- function(plt_data, this_YeoNet, this_subCort, no_ticks = TRUE) {
+  plt <- plot_grid(make_one_net_ridgelines(plt_data, this_YeoNet, this_subCort, no_ticks),
+                   focus_subcort_raincloud(plt_data, this_YeoNet, this_subCort, no_ticks), 
+                   rel_widths = c(2,1))
+  return(plt)
+}
+
+  DM <- compare_with_rainclouds(plt_data, "DM", this_subCort)
+  FP <- compare_with_rainclouds(plt_data, "FP", this_subCort)
+  VA <- compare_with_rainclouds(plt_data, "VA", this_subCort)
+  DA <- compare_with_rainclouds(plt_data, "DA", this_subCort)
+  SM <- compare_with_rainclouds(plt_data, "SM", this_subCort)
+  VI <- compare_with_rainclouds(plt_data, "VI", this_subCort, no_ticks = FALSE)
+
+  title <- ggdraw() + draw_label(str_c(this_subCort, " to Cortical"), fontface='bold')
+  full_plt <- plot_grid(title, DM, FP, VA, DA, SM, VI,
+                   ncol = 1, rel_heights = c(0.5, 1, 1, 1, 1, 1, 1.5))
+  return(full_plt)
+}
+
+
+make_subcortcort_edges_raincloud(networkwise_boot_cohenDDX_results, this_subCort = "thalamus")
+```
+
+```{r}
+make_subcortcort_edges_raincloud(networkwise_boot_cohenDDX_results, this_subCort = "cerebellum")
+```
+
+
+```{r}
+to_ROI <- "thalamus"
+from_ROI <- "CortVI"
+networkwise_boot_cohenDDX_results %>%
+  filter(to == to_ROI, from == from_ROI) %>%
+  pivot_longer(cols = c("surfschaefer", "volschaefer"),
+               names_to = "vertex_type", 
+               values_to = "gvalue") %>%
+  mutate(corrtype = factor_corrtype(vertex_type, "Schaefer")) %>%
+  ungroup() %>%
+  ggplot(aes(y = corrtype, x = gvalue)) +
+  geom_density_ridges(aes(fill = nettype, colour = nettype),
+                        #jittered_points = TRUE, position = "raincloud",
+                        alpha = 0.5, scale = 2,
+                        quantile_lines = TRUE, quantiles = 2
+    ) +
+    geom_text(aes(y = corrtype, label = cohenD_str), 
+              x = 0.55, 
+              nudge_y = 0.1, data = eff_size_df) +
+    geom_vline(xintercept = 0) +
+    scale_colour_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_fill_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_x_continuous(limits = c(-0.5, 0.6)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+  
+```
+
+```{r}
+
+YeoNet7 <- tribble(
+  ~network, ~hexcode,
+  "VI", "#781286",
+  "SM", "#4682B4",
+  "DA", "#00760E",
+  "VA", "#C43AFA",
+  "FP", "#E69422",
+  "DM", "#CD3E3A",
+  "LI", "#dcf8a4")
+
+specify_decimal <- function(x, k) trimws(format(round(x, k), nsmall=k))
+
+factor_corrtype <- function(x, cort_atlas) {
+  if (cort_atlas == "PINT") {
+    corrtype = factor(x, levels = c('pvertex', 'tvertex', 'tvolume'),
+                      labels = c("Surface Personalized", "Surface Template", "Volume Template"))
+  } else if (cort_atlas == "Schaefer") {
+    corrtype = factor(x, levels = c("volschaefer","surfschaefer" ),
+                      labels = c("Volume Template", "Surface Template"))
+  }
+  return(corrtype)
+}
+```
+
+```{r}
+data %>%
+    mutate(corrtype = factor_corrtype(vertex_type, cort_atlas)) %>%
+    gather(nettype, gvalue, diff_net, same_net) %>%
+    filter(subcort_ROI == this_subcort_ROI, YeoNet == this_YeoNet) %>% 
+    ungroup() %>%
+    ggplot(aes(y = corrtype, x = gvalue)) +
+    geom_density_ridges(aes(fill = nettype, colour = nettype),
+                        #jittered_points = TRUE, position = "raincloud",
+                        alpha = 0.5, scale = 2,
+                        quantile_lines = TRUE, quantiles = 2
+    ) +
+    geom_text(aes(y = corrtype, label = cohenD_str), 
+              x = 0.55, 
+              nudge_y = 0.1, data = eff_size_df) +
+    geom_vline(xintercept = 0) +
+    scale_colour_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_fill_manual(values = c("#808080", YeoNet7 %>% filter(network==this_YeoNet) %>% pull(hexcode))) +
+    scale_x_continuous(limits = c(-0.5, 0.6)) +
+    labs(y = NULL,
+         x = NULL) +
+    theme(legend.position='none')
+```
+
 
